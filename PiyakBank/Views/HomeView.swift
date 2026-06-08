@@ -3,32 +3,49 @@ import Combine
 
 struct HomeView: View {
     @EnvironmentObject var session: SessionController
+    @Environment(\.modelContext) private var context
     @State private var showWageSheet = false
     @State private var now = Date()
 
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        ZStack {
-            PB.C.bg.ignoresSafeArea()
-            VStack(spacing: 24) {
-                Spacer()
-                CharacterComposite(showRoom: true)
-                    .frame(width: 240, height: 240)
+        NavigationStack {
+            ZStack {
+                PB.C.bg.ignoresSafeArea()
+                VStack(spacing: 24) {
+                    Spacer()
+                    CharacterComposite(showRoom: true)
+                        .frame(width: 240, height: 240)
 
-                Text(displayAmount.won)
-                    .font(PB.F.amount(44))
-                    .foregroundStyle(PB.C.textBrown)
-                    .contentTransition(.numericText())
+                    VStack(spacing: 4) {
+                        Text("오늘 번 돈").font(PB.F.body(13))
+                            .foregroundStyle(PB.C.textBrown.opacity(0.5))
+                        Text(displayAmount.won)
+                            .font(PB.F.amount(44))
+                            .foregroundStyle(PB.C.textBrown)
+                            .contentTransition(.numericText())
+                    }
 
-                Text(statusText)
-                    .font(PB.F.body(15))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.6))
+                    Text(statusText)
+                        .font(PB.F.body(15))
+                        .foregroundStyle(PB.C.textBrown.opacity(0.6))
 
-                Spacer()
-                controls
+                    Spacer()
+                    controls
+                }
+                .padding(24)
             }
-            .padding(24)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        HistoryView()
+                    } label: {
+                        Image(systemName: "list.bullet.rectangle")
+                            .foregroundStyle(PB.C.textBrown)
+                    }
+                }
+            }
         }
         .onReceive(tick) { date in
             now = date
@@ -42,7 +59,11 @@ struct HomeView: View {
         }
     }
 
-    private var displayAmount: Int { session.snapshot.accrued }
+    // 오늘 누적(원장) + 현재 세션 진행분
+    private var displayAmount: Int {
+        let today = EconomyStore(context: context).dailyAccrued(on: now)
+        return today + session.snapshot.accrued
+    }
 
     private var statusText: String {
         let s = session.snapshot
