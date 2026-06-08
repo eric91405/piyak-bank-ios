@@ -13,8 +13,8 @@ struct HomeView: View {
             PB.C.bg.ignoresSafeArea()
             VStack(spacing: 24) {
                 Spacer()
-                PiyakCharacterView()          // 방 배치 + 캐릭터 합성 (에셋 연결 예정)
-                    .frame(width: 220, height: 220)
+                CharacterComposite(showRoom: true)
+                    .frame(width: 240, height: 240)
 
                 Text(displayAmount.won)
                     .font(PB.F.amount(44))
@@ -105,13 +105,3 @@ struct BigButton: View {
     }
 }
 
-/// 방 슬롯 + 캐릭터 합성 (asset catalog 연결 후 Image(equippedId)로 교체)
-struct PiyakCharacterView: View {
-    var body: some View {
-        ZStack {
-            Circle().fill(PB.C.brandYellow)
-                .overlay(Circle().stroke(PB.C.outline, lineWidth: 4))
-            Text("🐤").font(.system(size: 90))
-        }
-    }
-}

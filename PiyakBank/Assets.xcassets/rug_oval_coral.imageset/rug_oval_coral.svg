@@ -1,0 +1,6 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 캐릭터 발 아래 (하단 중앙) -->
+  <ellipse cx="512" cy="802" rx="272" ry="88" fill="#FF9E8A" stroke="#E07E6C" stroke-width="6"/>
+  <ellipse cx="512" cy="802" rx="208" ry="64" fill="none" stroke="#FFFBF2" stroke-width="11" opacity="0.7"/>
+  <ellipse cx="512" cy="802" rx="138" ry="40" fill="none" stroke="#FFFBF2" stroke-width="11" opacity="0.55"/>
+</svg>

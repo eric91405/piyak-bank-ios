@@ -23,7 +23,8 @@ struct DecorateView: View {
 
     // 미리보기 (방 z-order 합성)
     private var preview: some View {
-        ZStack { PiyakCharacterView().frame(width: 160, height: 160) }
+        CharacterComposite(showRoom: true)
+            .frame(width: 200, height: 200)
             .frame(maxWidth: .infinity).frame(height: 240)
             .background(PB.C.bg)
     }
@@ -85,7 +86,9 @@ struct ItemCell: View {
                 RoundedRectangle(cornerRadius: PB.R.md)
                     .fill(.white)
                     .frame(height: 80)
-                    .overlay(Text("🎀").font(.largeTitle))   // Image(item.id) 로 교체
+                    .overlay(
+                        Image(assetName(item.id)).resizable().scaledToFit().padding(8)
+                    )
                     .overlay(alignment: .topTrailing) {
                         if isEquipped { Text("착용중").font(.caption2).padding(4)
                             .background(PB.C.coral, in: Capsule()).foregroundStyle(.white).padding(4) }

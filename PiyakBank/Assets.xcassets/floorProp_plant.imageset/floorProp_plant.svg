@@ -1,0 +1,16 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 캐릭터 우측 바닥에 놓이는 화분 (합성 시 캐릭터 옆/뒤) -->
+  <g transform="translate(812,0)">
+    <!-- 잎 -->
+    <g stroke="#5FA888" stroke-width="6" stroke-linejoin="round">
+      <path d="M0 690 C -54 640 -60 566 -34 532 C -10 576 6 636 0 690 Z" fill="#7FCBA9"/>
+      <path d="M0 692 C 54 642 60 568 34 534 C 10 578 -6 638 0 692 Z" fill="#92D9B9"/>
+      <path d="M0 700 C -14 632 -8 556 14 522 C 30 566 22 648 0 700 Z" fill="#8FD4B2"/>
+    </g>
+    <!-- 화분 -->
+    <path d="M-58 706 L58 706 L44 800 L-44 800 Z"
+          fill="#FF9E8A" stroke="#E07E6C" stroke-width="6" stroke-linejoin="round"/>
+    <rect x="-66" y="688" width="132" height="26" rx="6"
+          fill="#FFB199" stroke="#E07E6C" stroke-width="6"/>
+  </g>
+</svg>

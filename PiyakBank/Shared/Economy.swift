@@ -271,3 +271,10 @@ struct CatalogSeed {
         // ... 나머지는 catalog_seed.json 로더로 확장
     ]
 }
+
+// MARK: - asset 이름 변환
+// 카탈로그 id "bg.cozy_cream" → asset 이름 "bg_cozy_cream"
+// (Xcode asset 이름의 점은 namespace로 오인될 수 있어 언더스코어로 통일)
+func assetName(_ catalogId: String) -> String {
+    catalogId.replacingOccurrences(of: ".", with: "_")
+}
