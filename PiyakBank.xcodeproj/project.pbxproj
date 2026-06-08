@@ -10,9 +10,23 @@
 		6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PiyakBank.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6CB9752F2FD6FE2600AC033B /* Exceptions for "PiyakBank" folder in "PiyakBank" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Watch/PiyakWatchApp.swift,
+				Widget/PiyakComplication.swift,
+			);
+			target = 6CB974FE2FD6FA0F00AC033B /* PiyakBank */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		6CB975012FD6FA0F00AC033B /* PiyakBank */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6CB9752F2FD6FE2600AC033B /* Exceptions for "PiyakBank" folder in "PiyakBank" target */,
+			);
 			path = PiyakBank;
 			sourceTree = "<group>";
 		};
@@ -251,6 +265,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -282,6 +297,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
