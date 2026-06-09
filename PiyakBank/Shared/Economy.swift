@@ -232,22 +232,21 @@ final class EconomyStore {
         (try? context.fetch(FetchDescriptor<CatalogItem>())) ?? []
     }
 
-    // MARK: 시드 (최초 1회)
-
-    func seedIfNeeded() {
-        guard catalogAll().isEmpty else { return }
-        for s in CatalogSeed.items {
-            let item = CatalogItem(id: s.id, slot: s.slot, displayName: s.name,
-                                   price: s.price, isIAP: s.isIAP, isDefaultOwned: s.defaultOwned)
-            context.insert(item)
-            if s.defaultOwned {
-                let o = OwnedItem(catalogId: s.id)
-                o.equippedSlot = s.slot   // 기본 보유는 바로 착용/배치
-                context.insert(o)
+    // MARK: 시드 (없는 항목만 추가 — 카탈로그 확장 시 재설치 불필요)
+        func seedIfNeeded() {
+            for s in CatalogSeed.items {
+                guard catalog(s.id) == nil else { continue }   // 이미 있으면 건너뜀
+                let item = CatalogItem(id: s.id, slot: s.slot, displayName: s.name,
+                                       price: s.price, isIAP: s.isIAP, isDefaultOwned: s.defaultOwned)
+                context.insert(item)
+                if s.defaultOwned && owned(s.id) == nil {
+                    let o = OwnedItem(catalogId: s.id)
+                    o.equippedSlot = s.slot
+                    context.insert(o)
+                }
             }
+            try? context.save()
         }
-        try? context.save()
-    }
 }
 
 // MARK: - 카탈로그 시드 (catalog_seed.json 대응 핵심 항목)
@@ -268,7 +267,8 @@ struct CatalogSeed {
         .init(id: "bg.night_sky",     slot: .bg,           name: "밤하늘",     price: 25000, isIAP: false, defaultOwned: false),
         .init(id: "wallDeco.clock",   slot: .wallDeco,     name: "벽시계",     price: 9000,  isIAP: false, defaultOwned: false),
         .init(id: "bigFurniture.bookshelf", slot: .bigFurniture, name: "책장", price: 45000, isIAP: false, defaultOwned: false),
-        // ... 나머지는 catalog_seed.json 로더로 확장
+        .init(id: "bg.sky_blue",     slot: .bg, name: "맑은 하늘", price: 18000, isIAP: false, defaultOwned: false),
+        .init(id: "bg.sakura_pink",  slot: .bg, name: "벚꽃",     price: 22000, isIAP: false, defaultOwned: false),
     ]
 }
 

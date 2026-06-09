@@ -1,0 +1,45 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="saku" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE3EC"/>
+      <stop offset="1" stop-color="#FFF0F4"/>
+    </linearGradient>
+    <linearGradient id="kfloor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F2D4BE"/>
+      <stop offset="1" stop-color="#E6C0A4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 벽 -->
+  <rect x="0" y="0" width="1024" height="724" fill="url(#saku)"/>
+
+  <!-- 떨어지는 꽃잎 -->
+  <g fill="#FFB8CE">
+    <path d="M150 140 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M360 100 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M560 170 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M760 120 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M260 320 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M640 350 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M880 300 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M120 470 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+    <path d="M460 460 q 14 -16 28 0 q -14 8 -28 0 Z"/>
+  </g>
+  <!-- 윗쪽 벚꽃 가지 -->
+  <path d="M0 60 Q 140 120 300 80" stroke="#C98A6A" stroke-width="10" fill="none"/>
+  <g fill="#FF9EBC">
+    <circle cx="60" cy="78" r="20"/><circle cx="150" cy="104" r="22"/>
+    <circle cx="240" cy="92" r="20"/><circle cx="300" cy="78" r="18"/>
+  </g>
+  <g fill="#FFC2D6">
+    <circle cx="100" cy="64" r="14"/><circle cx="200" cy="84" r="14"/>
+  </g>
+
+  <!-- 바닥 (다다미풍) -->
+  <rect x="0" y="700" width="1024" height="324" fill="url(#kfloor)"/>
+  <rect x="0" y="690" width="1024" height="16" fill="#D8B091"/>
+  <g stroke="#DCB89E" stroke-width="3" opacity="0.6">
+    <line x1="0" y1="800" x2="1024" y2="800"/>
+    <line x1="0" y1="900" x2="1024" y2="900"/>
+  </g>
+</svg>
