@@ -6,8 +6,37 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		6CB9754F2FD84C6A00AC033B /* PiyakWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		6CB9754D2FD84C6A00AC033B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6CB974F72FD6FA0F00AC033B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6CB975442FD84C6900AC033B;
+			remoteInfo = "PiyakWatch Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		6CB975532FD84C6A00AC033B /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				6CB9754F2FD84C6A00AC033B /* PiyakWatch Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PiyakBank.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PiyakWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -19,6 +48,17 @@
 			);
 			target = 6CB974FE2FD6FA0F00AC033B /* PiyakBank */;
 		};
+		6CB975552FD84CF700AC033B /* Exceptions for "PiyakBank" folder in "PiyakWatch Watch App" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Services/WatchSync.swift,
+				Shared/AppConfig.swift,
+				Shared/DesignTokens.swift,
+				Shared/Economy.swift,
+				Watch/PiyakWatchApp.swift,
+			);
+			target = 6CB975442FD84C6900AC033B /* PiyakWatch Watch App */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -26,14 +66,27 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
 				6CB9752F2FD6FE2600AC033B /* Exceptions for "PiyakBank" folder in "PiyakBank" target */,
+				6CB975552FD84CF700AC033B /* Exceptions for "PiyakBank" folder in "PiyakWatch Watch App" target */,
 			);
 			path = PiyakBank;
+			sourceTree = "<group>";
+		};
+		6CB975462FD84C6A00AC033B /* PiyakWatch Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "PiyakWatch Watch App";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		6CB974FC2FD6FA0F00AC033B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CB975422FD84C6900AC033B /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -47,6 +100,7 @@
 			isa = PBXGroup;
 			children = (
 				6CB975012FD6FA0F00AC033B /* PiyakBank */,
+				6CB975462FD84C6A00AC033B /* PiyakWatch Watch App */,
 				6CB975002FD6FA0F00AC033B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -55,6 +109,7 @@
 			isa = PBXGroup;
 			children = (
 				6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */,
+				6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -69,10 +124,12 @@
 				6CB974FB2FD6FA0F00AC033B /* Sources */,
 				6CB974FC2FD6FA0F00AC033B /* Frameworks */,
 				6CB974FD2FD6FA0F00AC033B /* Resources */,
+				6CB975532FD84C6A00AC033B /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				6CB9754E2FD84C6A00AC033B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6CB975012FD6FA0F00AC033B /* PiyakBank */,
@@ -82,6 +139,28 @@
 			);
 			productName = PiyakBank;
 			productReference = 6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */;
+			productType = "com.apple.product-type.application";
+		};
+		6CB975442FD84C6900AC033B /* PiyakWatch Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6CB975502FD84C6A00AC033B /* Build configuration list for PBXNativeTarget "PiyakWatch Watch App" */;
+			buildPhases = (
+				6CB975412FD84C6900AC033B /* Sources */,
+				6CB975422FD84C6900AC033B /* Frameworks */,
+				6CB975432FD84C6900AC033B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6CB975462FD84C6A00AC033B /* PiyakWatch Watch App */,
+			);
+			name = "PiyakWatch Watch App";
+			packageProductDependencies = (
+			);
+			productName = "PiyakWatch Watch App";
+			productReference = 6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -95,6 +174,9 @@
 				LastUpgradeCheck = 2650;
 				TargetAttributes = {
 					6CB974FE2FD6FA0F00AC033B = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					6CB975442FD84C6900AC033B = {
 						CreatedOnToolsVersion = 26.5;
 					};
 				};
@@ -114,12 +196,20 @@
 			projectRoot = "";
 			targets = (
 				6CB974FE2FD6FA0F00AC033B /* PiyakBank */,
+				6CB975442FD84C6900AC033B /* PiyakWatch Watch App */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		6CB974FD2FD6FA0F00AC033B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CB975432FD84C6900AC033B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -136,7 +226,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CB975412FD84C6900AC033B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		6CB9754E2FD84C6A00AC033B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6CB975442FD84C6900AC033B /* PiyakWatch Watch App */;
+			targetProxy = 6CB9754D2FD84C6A00AC033B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		6CB9750A2FD6FA1000AC033B /* Debug */ = {
@@ -324,6 +429,72 @@
 			};
 			name = Release;
 		};
+		6CB975512FD84C6A00AC033B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PiyakWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.minseo.PiyakBank;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minseo.PiyakBank.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Debug;
+		};
+		6CB975522FD84C6A00AC033B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PiyakWatch;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.minseo.PiyakBank;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minseo.PiyakBank.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -341,6 +512,15 @@
 			buildConfigurations = (
 				6CB9750D2FD6FA1000AC033B /* Debug */,
 				6CB9750E2FD6FA1000AC033B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6CB975502FD84C6A00AC033B /* Build configuration list for PBXNativeTarget "PiyakWatch Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6CB975512FD84C6A00AC033B /* Debug */,
+				6CB975522FD84C6A00AC033B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,5 +1,6 @@
 import SwiftUI
 import WatchConnectivity
+import Combine
 
 @main
 struct PiyakWatchApp: App {

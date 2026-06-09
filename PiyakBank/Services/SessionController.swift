@@ -7,15 +7,6 @@ protocol SessionSyncing: AnyObject {
     func didUpdateSession(_ snapshot: SessionSnapshot)
 }
 
-struct SessionSnapshot: Codable, Hashable {
-    var isRunning: Bool
-    var isPaused: Bool
-    var sessionId: String?
-    var startedAt: Date?
-    var accrued: Int
-    var wage: Int
-}
-
 @MainActor
 final class SessionController: ObservableObject {
 

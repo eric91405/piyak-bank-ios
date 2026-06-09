@@ -20,12 +20,6 @@ struct WageSegment: Codable, Hashable {
     }
 }
 
-func floorToInt(_ d: Decimal) -> Int {
-    var v = d
-    var r = Decimal()
-    NSDecimalRound(&r, &v, 0, .down)
-    return (r as NSDecimalNumber).intValue
-}
 
 // MARK: - 근무 세션
 
@@ -163,13 +157,5 @@ final class NotificationScheduler {
             let ids = reqs.map(\.identifier).filter { $0.hasPrefix("piyak.\(sessionId).") }
             self.center.removePendingNotificationRequests(withIdentifiers: ids)
         }
-    }
-}
-
-extension Int {
-    /// 1,234원 포맷
-    var won: String {
-        let f = NumberFormatter(); f.numberStyle = .decimal
-        return (f.string(from: NSNumber(value: self)) ?? "\(self)") + "원"
     }
 }
