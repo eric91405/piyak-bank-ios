@@ -1,0 +1,32 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 캐릭터 뒤 좌측 (바닥에 서있는 책장) -->
+  <g transform="translate(196,0)">
+    <!-- 몸체 -->
+    <rect x="-110" y="380" width="220" height="320" rx="10"
+          fill="#C9A87E" stroke="#A9855E" stroke-width="8"/>
+    <!-- 선반 칸 -->
+    <g stroke="#A9855E" stroke-width="7">
+      <line x1="-110" y1="488" x2="110" y2="488"/>
+      <line x1="-110" y1="596" x2="110" y2="596"/>
+    </g>
+    <!-- 책들 (1단) -->
+    <g>
+      <rect x="-96" y="406" width="22" height="76" fill="#FF9E8A"/>
+      <rect x="-70" y="414" width="20" height="68" fill="#7FB8D8"/>
+      <rect x="-46" y="402" width="24" height="80" fill="#A8D8B0"/>
+      <rect x="-18" y="416" width="20" height="66" fill="#FFD64D"/>
+      <rect x="8" y="408" width="22" height="74" fill="#C98AC9"/>
+    </g>
+    <!-- 책들 (2단) -->
+    <g>
+      <rect x="-96" y="516" width="20" height="72" fill="#A8D8B0"/>
+      <rect x="-72" y="510" width="24" height="78" fill="#FFB067"/>
+      <rect x="-44" y="520" width="20" height="68" fill="#7FB8D8"/>
+      <rect x="40" y="514" width="22" height="74" fill="#FF9E8A"/>
+      <rect x="66" y="520" width="20" height="68" fill="#FFD64D"/>
+    </g>
+    <!-- 3단 화분 소품 -->
+    <path d="M-30 660 L30 660 L22 698 L-22 698 Z" fill="#FF9E8A"/>
+    <circle cx="0" cy="648" r="20" fill="#8FD4B2"/>
+  </g>
+</svg>

@@ -1,0 +1,26 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(200,0)">
+    <!-- 위 선반 -->
+    <rect x="-120" y="360" width="240" height="18" rx="5"
+          fill="#C9A87E" stroke="#A9855E" stroke-width="6"/>
+    <!-- 위 선반 소품 -->
+    <circle cx="-78" cy="338" r="22" fill="#8FD4B2"/>
+    <rect x="-44" y="316" width="20" height="44" fill="#FF9E8A"/>
+    <rect x="-20" y="324" width="18" height="36" fill="#7FB8D8"/>
+    <path d="M40 360 Q 30 320 60 320 Q 90 320 80 360 Z" fill="#FFD64D"/>
+    <!-- 아래 선반 -->
+    <rect x="-120" y="500" width="240" height="18" rx="5"
+          fill="#C9A87E" stroke="#A9855E" stroke-width="6"/>
+    <!-- 아래 선반 소품 -->
+    <rect x="-86" y="456" width="22" height="44" fill="#C98AC9"/>
+    <rect x="-60" y="462" width="20" height="38" fill="#FFB067"/>
+    <circle cx="54" cy="480" r="20" fill="#FF9EBC"/>
+    <!-- 받침대(브래킷) -->
+    <g fill="#A9855E">
+      <path d="M-112 378 L-96 378 L-112 398 Z"/>
+      <path d="M112 378 L96 378 L112 398 Z"/>
+      <path d="M-112 518 L-96 518 L-112 538 Z"/>
+      <path d="M112 518 L96 518 L112 538 Z"/>
+    </g>
+  </g>
+</svg>

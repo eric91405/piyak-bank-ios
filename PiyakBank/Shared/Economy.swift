@@ -278,6 +278,13 @@ struct CatalogSeed {
         .init(id: "floorProp.lamp",   slot: .floorProp, name: "스탠드 조명", price: 14000, isIAP: false, defaultOwned: false),
         .init(id: "floorProp.books",  slot: .floorProp, name: "책 더미",    price: 10000, isIAP: false, defaultOwned: false),
         .init(id: "floorProp.puppy",  slot: .floorProp, name: "강아지 인형", price: 20000, isIAP: false, defaultOwned: false),
+        
+        // 벽장식
+        .init(id: "wallDeco.frame",  slot: .wallDeco, name: "액자",   price: 11000, isIAP: false, defaultOwned: false),
+        .init(id: "wallDeco.mirror", slot: .wallDeco, name: "거울",   price: 13000, isIAP: false, defaultOwned: false),
+        // 가구
+        .init(id: "bigFurniture.nightstand", slot: .bigFurniture, name: "협탁", price: 40000, isIAP: false, defaultOwned: false),
+        .init(id: "bigFurniture.shelf",      slot: .bigFurniture, name: "벽 선반", price: 38000, isIAP: false, defaultOwned: false),
     ]
 }
 
