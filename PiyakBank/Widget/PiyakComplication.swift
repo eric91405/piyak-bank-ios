@@ -10,7 +10,7 @@ struct PiyakEntry: TimelineEntry {
 }
 
 struct PiyakProvider: TimelineProvider {
-    private let defaults = UserDefaults(suiteName: "group.com.minseo.piyakbank")
+    private let defaults = AppConfig.shared
 
     func placeholder(in context: Context) -> PiyakEntry {
         PiyakEntry(date: .now, accrued: 0, isRunning: false)
@@ -27,7 +27,7 @@ struct PiyakProvider: TimelineProvider {
     }
 
     private func readEntry() -> PiyakEntry {
-        guard let data = defaults?.data(forKey: "session_snapshot"),
+        guard let data = defaults?.data(forKey: AppConfig.kSnapshot),
               let snap = try? JSONDecoder().decode(SessionSnapshot.self, from: data) else {
             return PiyakEntry(date: .now, accrued: 0, isRunning: false)
         }

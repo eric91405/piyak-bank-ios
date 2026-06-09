@@ -32,8 +32,8 @@ final class SessionController: ObservableObject {
     private let interval: NotificationScheduler.Interval = .m60   // 기본 60분
 
     /// AppGroup 공유 저장소 (강제종료 복구 + 위젯)
-    private let defaults = UserDefaults(suiteName: "group.com.minseo.piyakbank")
-    private let activeKey = "active_session_id"
+    private let defaults = AppConfig.shared
+    private let activeKey = AppConfig.kActiveSession
 
     init(context: ModelContext, economy: EconomyStore, scheduler: NotificationScheduler) {
         self.context = context
@@ -169,7 +169,7 @@ final class SessionController: ObservableObject {
             wage: current?.currentWage ?? 0)
         snapshot = snap
         if let data = try? JSONEncoder().encode(snap) {
-            defaults?.set(data, forKey: "session_snapshot")
+            defaults?.set(data, forKey: AppConfig.kSnapshot)
         }
         syncDelegate?.didUpdateSession(snap)
     }
