@@ -269,6 +269,15 @@ struct CatalogSeed {
         .init(id: "bigFurniture.bookshelf", slot: .bigFurniture, name: "책장", price: 45000, isIAP: false, defaultOwned: false),
         .init(id: "bg.sky_blue",     slot: .bg, name: "맑은 하늘", price: 18000, isIAP: false, defaultOwned: false),
         .init(id: "bg.sakura_pink",  slot: .bg, name: "벚꽃",     price: 22000, isIAP: false, defaultOwned: false),
+        
+        // 러그
+        .init(id: "rug.round_stripe", slot: .rug, name: "줄무늬 러그", price: 12000, isIAP: false, defaultOwned: false),
+        .init(id: "rug.cloud",        slot: .rug, name: "구름 러그",   price: 16000, isIAP: false, defaultOwned: false),
+        .init(id: "rug.star",         slot: .rug, name: "별 러그",     price: 16000, isIAP: false, defaultOwned: false),
+        // 바닥 소품
+        .init(id: "floorProp.lamp",   slot: .floorProp, name: "스탠드 조명", price: 14000, isIAP: false, defaultOwned: false),
+        .init(id: "floorProp.books",  slot: .floorProp, name: "책 더미",    price: 10000, isIAP: false, defaultOwned: false),
+        .init(id: "floorProp.puppy",  slot: .floorProp, name: "강아지 인형", price: 20000, isIAP: false, defaultOwned: false),
     ]
 }
 

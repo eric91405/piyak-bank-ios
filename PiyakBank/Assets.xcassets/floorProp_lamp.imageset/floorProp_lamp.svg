@@ -1,0 +1,15 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 캐릭터 우측 바닥 (화분과 같은 영역) -->
+  <g transform="translate(820,0)">
+    <!-- 갓 빛 -->
+    <path d="M-58 470 L58 470 L92 560 L-92 560 Z" fill="#FFE9A8" opacity="0.5"/>
+    <!-- 갓 -->
+    <path d="M-54 440 L54 440 L72 520 L-72 520 Z"
+          fill="#FF9E8A" stroke="#E07E6C" stroke-width="6" stroke-linejoin="round"/>
+    <rect x="-58" y="430" width="116" height="20" rx="6" fill="#FFB199" stroke="#E07E6C" stroke-width="5"/>
+    <!-- 기둥 -->
+    <rect x="-7" y="520" width="14" height="240" fill="#C9A27A" stroke="#A9855E" stroke-width="4"/>
+    <!-- 받침 -->
+    <ellipse cx="0" cy="772" rx="64" ry="20" fill="#C9A27A" stroke="#A9855E" stroke-width="5"/>
+  </g>
+</svg>

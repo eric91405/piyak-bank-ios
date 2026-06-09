@@ -1,0 +1,21 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(816,0)">
+    <!-- 몸통 -->
+    <ellipse cx="0" cy="724" rx="72" ry="56" fill="#E8C9A0" stroke="#C9A87E" stroke-width="6"/>
+    <!-- 머리 -->
+    <circle cx="0" cy="648" r="56" fill="#F0D7B2" stroke="#C9A87E" stroke-width="6"/>
+    <!-- 귀 -->
+    <ellipse cx="-44" cy="636" rx="20" ry="38" fill="#C9A87E"/>
+    <ellipse cx="44" cy="636" rx="20" ry="38" fill="#C9A87E"/>
+    <!-- 주둥이 -->
+    <ellipse cx="0" cy="666" rx="26" ry="20" fill="#FBEAD2"/>
+    <!-- 눈 -->
+    <circle cx="-20" cy="640" r="7" fill="#3A2E12"/>
+    <circle cx="20" cy="640" r="7" fill="#3A2E12"/>
+    <!-- 코 -->
+    <ellipse cx="0" cy="658" rx="9" ry="7" fill="#5C4A1E"/>
+    <!-- 앞발 -->
+    <ellipse cx="-34" cy="772" rx="22" ry="16" fill="#F0D7B2" stroke="#C9A87E" stroke-width="5"/>
+    <ellipse cx="34" cy="772" rx="22" ry="16" fill="#F0D7B2" stroke="#C9A87E" stroke-width="5"/>
+  </g>
+</svg>
