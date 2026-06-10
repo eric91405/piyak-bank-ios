@@ -11,6 +11,7 @@ struct DecorateView: View {
     
     @State private var selectedSlot: DecorSlot = .bg
     @State private var purchaseError: String? = nil
+    @State private var confirmItem: CatalogItem? = nil
     @State private var equipBounce = false
     private var store: EconomyStore { EconomyStore(context: context) }
     
@@ -29,20 +30,43 @@ struct DecorateView: View {
             itemGrid
         }
         .background(PB.C.bg.ignoresSafeArea())
-        .alert("구매 실패", isPresented: .init(
-            get: { purchaseError != nil },
-            set: { if !$0 { purchaseError = nil } }
-        )) {
-            Button("확인", role: .cancel) {}
-        } message: {
-            Text(purchaseError ?? "")
-        }
-        .sensoryFeedback(.impact, trigger: owned.compactMap(\.equippedSlotRaw))
+                .alert("구매할까요?", isPresented: .init(
+                    get: { confirmItem != nil },
+                    set: { if !$0 { confirmItem = nil } }
+                )) {
+                    Button("구매") {
+                        if let item = confirmItem {
+                            do {
+                                try store.purchase(item.id)
+                            } catch EconomyStore.PurchaseError.insufficient {
+                                purchaseError = "포인트가 부족해요 🥲\n근무해서 더 모아볼까요?"
+                            } catch {
+                                purchaseError = "구매에 실패했어요"
+                            }
+                        }
+                        confirmItem = nil
+                    }
+                    Button("취소", role: .cancel) { confirmItem = nil }
+                } message: {
+                    Text(confirmItem.map { "\($0.displayName)을(를) \($0.price.won)에 구매합니다" } ?? "")
+                }
+                .alert("구매 실패", isPresented: .init(
+                    get: { purchaseError != nil },
+                    set: { if !$0 { purchaseError = nil } }
+                )) {
+                    Button("확인", role: .cancel) {}
+                } message: {
+                    Text(purchaseError ?? "")
+                }
+                .sensoryFeedback(.impact, trigger: owned.compactMap(\.equippedSlotRaw))
     }
     
     private var balanceBar: some View {
         HStack(spacing: 6) {
             Text("💰").font(.system(size: 14))
+            Text("보유 포인트")
+                .font(PB.F.body(12))
+                .foregroundStyle(PB.C.textBrown.opacity(0.6))
             Text(balance.won)
                 .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(PB.C.textBrown)
@@ -110,13 +134,7 @@ struct DecorateView: View {
                     Task { try? await storeManager.purchase(product) }
                 }
             } else {
-                do {
-                    try store.purchase(item.id)
-                } catch EconomyStore.PurchaseError.insufficient {
-                    purchaseError = "포인트가 부족해요 🥲\n근무해서 더 모아볼까요?"
-                } catch {
-                    purchaseError = "구매에 실패했어요"
-                }
+                    confirmItem = item
             }
         }
 

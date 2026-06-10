@@ -137,6 +137,8 @@ struct WageEntrySheet: View {
             BigButton(title: "시작", color: PB.C.coral) {
                 onConfirm(Int(text) ?? 0)
             }
+            .disabled((Int(text) ?? 0) <= 0)
+            .opacity((Int(text) ?? 0) <= 0 ? 0.4 : 1.0)
         }
         .padding(28)
         .presentationDetents([.height(330)])
