@@ -57,6 +57,7 @@ struct HomeView: View {
             now = date
             session.refreshSnapshot()
         }
+        .sensoryFeedback(.success, trigger: session.snapshot.isRunning)  
         .sheet(isPresented: $showWageSheet) {
             WageEntrySheet { wage in
                 session.start(wage: wage)
@@ -129,6 +130,14 @@ struct BigButton: View {
                 .frame(maxWidth: .infinity).padding(.vertical, 16)
                 .background(color, in: RoundedRectangle(cornerRadius: PB.R.lg))
         }
+        .buttonStyle(SquishyButtonStyle())
     }
 }
 
+struct SquishyButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
+            .animation(.spring(duration: 0.2), value: configuration.isPressed)
+    }
+}

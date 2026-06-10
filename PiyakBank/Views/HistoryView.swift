@@ -16,17 +16,32 @@ struct HistoryView: View {
                 }
             }
             Section("거래 내역") {
-                ForEach(txs, id: \.id) { tx in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(label(tx)).font(PB.F.body(15))
-                            Text(tx.date, format: .dateTime.month().day().hour().minute())
-                                .font(PB.F.body(12)).foregroundStyle(.secondary)
+                if txs.isEmpty {
+                    VStack(spacing: 12) {
+                        Text("🐤").font(.system(size: 48))
+                        Text("아직 기록이 없어요")
+                            .font(PB.F.body(15))
+                            .foregroundStyle(PB.C.textBrown.opacity(0.6))
+                        Text("근무를 시작하면 여기에 쌓여요!")
+                            .font(PB.F.body(13))
+                            .foregroundStyle(PB.C.textBrown.opacity(0.4))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 32)
+                    .listRowBackground(Color.clear)
+                } else {
+                    ForEach(txs, id: \.id) { tx in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(label(tx)).font(PB.F.body(15))
+                                Text(tx.date, format: .dateTime.month().day().hour().minute())
+                                    .font(PB.F.body(12)).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(signed(tx.amount))
+                                .font(PB.F.amount(16))
+                                .foregroundStyle(tx.amount >= 0 ? PB.C.textBrown : PB.C.coral)
                         }
-                        Spacer()
-                        Text(signed(tx.amount))
-                            .font(PB.F.amount(16))
-                            .foregroundStyle(tx.amount >= 0 ? PB.C.textBrown : PB.C.coral)
                     }
                 }
             }
