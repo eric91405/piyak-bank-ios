@@ -63,6 +63,7 @@ struct RootView: View {
                         .tag(AppRouter.Tab.decorate)
 
                     SettingsView()
+                        .environmentObject(session)
                         .tabItem { Label("설정", systemImage: "gearshape.fill") }
                         .tag(AppRouter.Tab.settings)
                 }
@@ -139,15 +140,18 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 }
-
-// MARK: 설정
-
 struct SettingsView: View {
+    @EnvironmentObject var session: SessionController
+
     var body: some View {
         NavigationStack {
             List {
                 Section("알림") {
-                    Text("주기 알림 간격: 60분")   // 15/30/60 Picker 연결 예정
+                    Picker("주기 알림 간격", selection: $session.interval) {
+                        ForEach(NotificationScheduler.Interval.allCases, id: \.self) { iv in
+                            Text("\(iv.rawValue)분").tag(iv)
+                        }
+                    }
                 }
                 Section("정보") {
                     LabeledContent("버전", value: "1.0.0")

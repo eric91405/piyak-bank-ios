@@ -1,12 +1,11 @@
 import SwiftUI
 import SwiftData
-import SwiftUI
-import SwiftData
 import StoreKit
 
 struct DecorateView: View {
     @Environment(\.modelContext) private var context
     @Query private var catalog: [CatalogItem]
+    @Query private var transactions: [PointTransaction]
     @Query private var owned: [OwnedItem]
     @EnvironmentObject private var storeManager: StoreManager
     
@@ -16,8 +15,13 @@ struct DecorateView: View {
     private let roomSlots: [DecorSlot] = [.bg, .wallDeco, .bigFurniture, .floorProp, .rug]
     private let wearSlots: [DecorSlot] = [.bodyFront, .head, .eyes, .headband, .neck]
     
+    private var balance: Int {
+        transactions.reduce(0) { $0 + $1.amount }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
+            balanceBar
             preview
             slotPicker
             itemGrid
@@ -25,11 +29,25 @@ struct DecorateView: View {
         .background(PB.C.bg.ignoresSafeArea())
     }
     
-    // 미리보기 (방 z-order 합성)
+    private var balanceBar: some View {
+        HStack {
+            Text("보유 포인트")
+                .font(PB.F.body(13))
+                .foregroundStyle(PB.C.textBrown.opacity(0.7))
+            Spacer()
+            Text(balance.won)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .foregroundStyle(PB.C.textBrown)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(PB.C.brandYellow.opacity(0.25))
+    }
+    
     private var preview: some View {
-        CharacterComposite(showRoom: true)
-            .frame(width: 200, height: 200)
-            .frame(maxWidth: .infinity).frame(height: 240)
+        CharacterComposite(showRoom: true, fillRoom: false)
+            .frame(maxWidth: .infinity)
+            .frame(height: 320)
             .background(PB.C.bg)
     }
     

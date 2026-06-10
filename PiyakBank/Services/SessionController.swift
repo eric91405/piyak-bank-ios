@@ -20,7 +20,7 @@ final class SessionController: ObservableObject {
     private let scheduler: NotificationScheduler
     weak var syncDelegate: SessionSyncing?
 
-    private let interval: NotificationScheduler.Interval = .m60   // 기본 60분
+    @Published var interval: NotificationScheduler.Interval = .m60   // 기본 60분
 
     /// AppGroup 공유 저장소 (강제종료 복구 + 위젯)
     private let defaults = AppConfig.shared

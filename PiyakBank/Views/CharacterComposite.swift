@@ -7,6 +7,7 @@ import SwiftData
 ///   없으면 piyak_base. head/eyes/headband/neck만 오버레이.
 struct CharacterComposite: View {
     var showRoom: Bool = true
+    var fillRoom: Bool = false
     @Query private var owned: [OwnedItem]
 
     /// 정규화 앵커 좌표 (0~1, 캐릭터 프레임 기준). 실제 에셋 보고 미세조정.
@@ -21,11 +22,15 @@ struct CharacterComposite: View {
 
     var body: some View {
         GeometryReader { geo in
-            ZStack {
+            ZStack(alignment: .bottom) {  
                 if showRoom {
                     ForEach(Self.roomSlots, id: \.self) { slot in
                         if let id = equipped[slot] {
-                            Image(assetName(id)).resizable().scaledToFit()
+                            Image(assetName(id))
+                                .resizable()
+                                .aspectRatio(contentMode: fillRoom ? .fill : .fit)
+                                .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
+                                .clipped()
                         }
                     }
                 }

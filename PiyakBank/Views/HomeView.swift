@@ -11,12 +11,18 @@ struct HomeView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
+            ZStack(alignment: .top) {
                 PB.C.bg.ignoresSafeArea()
+
+                // 캐릭터+배경: 상단에 가로 꽉 채움
+                CharacterComposite(showRoom: true, fillRoom: true)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 440)
+                    .clipped()
+                
+
                 VStack(spacing: 24) {
-                    Spacer()
-                    CharacterComposite(showRoom: true)
-                        .frame(width: 240, height: 240)
+                    Spacer().frame(height: 420)   // 캐릭터 영역만큼 띄우기
 
                     VStack(spacing: 4) {
                         Text("오늘 번 돈").font(PB.F.body(13))
