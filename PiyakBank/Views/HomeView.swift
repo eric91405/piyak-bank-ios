@@ -19,23 +19,35 @@ struct HomeView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 440)
                 .clipped()
+                .overlay(alignment: .bottom) {
+                    LinearGradient(colors: [.clear, PB.C.bg],
+                                   startPoint: .top, endPoint: .bottom)
+                        .frame(height: 60)
+                }
                 
                 
                 VStack(spacing: 24) {
-                    Spacer().frame(height: 420)   // 캐릭터 영역만큼 띄우기
+                    Spacer().frame(height: 390)   // 카드가 캐릭터에 살짝 겹치게
                     
-                    VStack(spacing: 4) {
+                    // 금액 플로팅 카드
+                    VStack(spacing: 10) {
                         Text("오늘 번 돈").font(PB.F.body(13))
                             .foregroundStyle(PB.C.textBrown.opacity(0.5))
                         Text(displayAmount.won)
                             .font(PB.F.amount(44))
-                            .foregroundStyle(PB.C.textBrown)
+                            .foregroundStyle(isAccruing ? PB.C.coral : PB.C.textBrown)
                             .contentTransition(.numericText())
+                        // 상태 캡슐 배지
+                        Text(statusText)
+                            .font(PB.F.body(13)).bold()
+                            .padding(.horizontal, 12).padding(.vertical, 5)
+                            .background(statusBadgeColor.opacity(0.15), in: Capsule())
+                            .foregroundStyle(statusBadgeColor)
                     }
-                    
-                    Text(statusText)
-                        .font(PB.F.body(15))
-                        .foregroundStyle(PB.C.textBrown.opacity(0.6))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
+                    .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
+                    .shadow(color: PB.C.textBrown.opacity(0.08), radius: 16, y: 6)
                     
                     Spacer()
                     controls
@@ -57,7 +69,7 @@ struct HomeView: View {
             now = date
             session.refreshSnapshot()
         }
-        .sensoryFeedback(.success, trigger: session.snapshot.isRunning)  
+        .sensoryFeedback(.success, trigger: session.snapshot.isRunning)
         .sheet(isPresented: $showWageSheet) {
             WageEntrySheet { wage in
                 session.start(wage: wage)
@@ -77,6 +89,16 @@ struct HomeView: View {
         if !s.isRunning { return "오늘도 삐약삐약 💰" }
         if s.isPaused { return "잠시 멈춤" }
         return "시급 \(s.wage.won) · 적립 중"
+    }
+    
+    private var isAccruing: Bool {
+        session.snapshot.isRunning && !session.snapshot.isPaused
+    }
+    private var statusBadgeColor: Color {
+        let s = session.snapshot
+        if !s.isRunning { return PB.C.textBrown.opacity(0.6) }
+        if s.isPaused { return PB.C.brandYellow }
+        return PB.C.coral
     }
     
     @ViewBuilder private var controls: some View {
@@ -100,10 +122,12 @@ struct HomeView: View {
 struct WageEntrySheet: View {
     @State private var text = "10000"
     let onConfirm: (Int) -> Void
-    
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 18) {
+            Text("🐤").font(.system(size: 40))
             Text("시급을 입력하세요").font(PB.F.body(17)).bold()
+                .foregroundStyle(PB.C.textBrown)
             TextField("시급", text: $text)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
@@ -115,7 +139,8 @@ struct WageEntrySheet: View {
             }
         }
         .padding(28)
-        .presentationDetents([.height(280)])
+        .presentationDetents([.height(330)])
+        .presentationCornerRadius(28)
     }
 }
 

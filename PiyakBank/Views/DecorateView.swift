@@ -41,18 +41,18 @@ struct DecorateView: View {
     }
     
     private var balanceBar: some View {
-        HStack {
-            Text("보유 포인트")
-                .font(PB.F.body(13))
-                .foregroundStyle(PB.C.textBrown.opacity(0.7))
-            Spacer()
+        HStack(spacing: 6) {
+            Text("💰").font(.system(size: 14))
             Text(balance.won)
-                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .font(.system(size: 16, weight: .bold, design: .rounded))
                 .foregroundStyle(PB.C.textBrown)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(PB.C.brandYellow.opacity(0.25))
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(.white, in: Capsule())
+        .shadow(color: PB.C.textBrown.opacity(0.08), radius: 8, y: 3)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .padding(.horizontal, 16)
+        .padding(.top, 8)
     }
     
     private var preview: some View {
@@ -79,6 +79,8 @@ struct DecorateView: View {
                         .padding(.horizontal, 14).padding(.vertical, 8)
                         .background(selectedSlot == slot ? PB.C.brandYellow : .white,
                                     in: Capsule())
+                        .shadow(color: PB.C.textBrown.opacity(selectedSlot == slot ? 0.12 : 0.04),
+                                radius: 6, y: 2)
                         .foregroundStyle(PB.C.textBrown)
                 }
             }.padding(.horizontal, 16)
@@ -137,6 +139,11 @@ struct DecorateView: View {
                     RoundedRectangle(cornerRadius: PB.R.md)
                         .fill(.white)
                         .frame(height: 80)
+                        .shadow(color: PB.C.textBrown.opacity(0.06), radius: 8, y: 3)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: PB.R.md)
+                                .strokeBorder(isEquipped ? PB.C.coral : .clear, lineWidth: 2)
+                        )
                         .overlay(
                             Image(assetName(item.id)).resizable().scaledToFit().padding(8)
                         )

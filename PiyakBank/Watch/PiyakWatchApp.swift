@@ -15,7 +15,7 @@ struct PiyakWatchApp: App {
 
 struct WatchRootView: View {
     @EnvironmentObject var sync: WatchSync
-
+    
     var body: some View {
         TabView {
             WatchAccrualPage().tag(0)   // ① 실시간 적산
@@ -27,29 +27,35 @@ struct WatchRootView: View {
 }
 
 // ① 실시간 적산
+// ① 실시간 적산
 struct WatchAccrualPage: View {
     @EnvironmentObject var sync: WatchSync
     @State private var now = Date()
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(spacing: 6) {
-            Image("piyak_base")
-                .resizable().scaledToFit()
-                .frame(height: 50)
-            Text(amount.won)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(hex: 0xFFD64D))
-                .minimumScaleFactor(0.6).lineLimit(1)
-            Text(statusLabel)
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.horizontal, 10).padding(.vertical, 3)
-                .background(statusColor.opacity(0.25), in: Capsule())
-                .foregroundStyle(statusColor)
-            if state.isRunning && state.wage > 0 {
-                Text("시급 \(state.wage.won)")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
+        ZStack {
+            LinearGradient(colors: [Color(hex: 0x2A2118), .black],
+                           startPoint: .top, endPoint: .bottom)
+                .ignoresSafeArea()
+            VStack(spacing: 6) {
+                Image("piyak_base")
+                    .resizable().scaledToFit()
+                    .frame(height: 50)
+                Text(amount.won)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color(hex: 0xFFD64D))
+                    .minimumScaleFactor(0.6).lineLimit(1)
+                Text(statusLabel)
+                    .font(.system(size: 12, weight: .semibold))
+                    .padding(.horizontal, 10).padding(.vertical, 3)
+                    .background(statusColor.opacity(0.25), in: Capsule())
+                    .foregroundStyle(statusColor)
+                if state.isRunning && state.wage > 0 {
+                    Text("시급 \(state.wage.won)")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .onReceive(tick) { now = $0 }
