@@ -6,24 +6,24 @@ struct HomeView: View {
     @Environment(\.modelContext) private var context
     @State private var showWageSheet = false
     @State private var now = Date()
-
+    
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
+    
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
                 PB.C.bg.ignoresSafeArea()
-
-                // 캐릭터+배경: 상단에 가로 꽉 채움
-                CharacterComposite(showRoom: true, fillRoom: true)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 440)
-                    .clipped()
                 
-
+                CharacterComposite(showRoom: true, fillRoom: true,
+                                   isWorking: session.snapshot.isRunning && !session.snapshot.isPaused)
+                .frame(maxWidth: .infinity)
+                .frame(height: 440)
+                .clipped()
+                
+                
                 VStack(spacing: 24) {
                     Spacer().frame(height: 420)   // 캐릭터 영역만큼 띄우기
-
+                    
                     VStack(spacing: 4) {
                         Text("오늘 번 돈").font(PB.F.body(13))
                             .foregroundStyle(PB.C.textBrown.opacity(0.5))
@@ -32,11 +32,11 @@ struct HomeView: View {
                             .foregroundStyle(PB.C.textBrown)
                             .contentTransition(.numericText())
                     }
-
+                    
                     Text(statusText)
                         .font(PB.F.body(15))
                         .foregroundStyle(PB.C.textBrown.opacity(0.6))
-
+                    
                     Spacer()
                     controls
                 }
@@ -64,20 +64,20 @@ struct HomeView: View {
             }
         }
     }
-
+    
     // 오늘 누적(원장) + 현재 세션 진행분
     private var displayAmount: Int {
         let today = EconomyStore(context: context).dailyAccrued(on: now)
         return today + session.snapshot.accrued
     }
-
+    
     private var statusText: String {
         let s = session.snapshot
         if !s.isRunning { return "오늘도 삐약삐약 💰" }
         if s.isPaused { return "잠시 멈춤" }
         return "시급 \(s.wage.won) · 적립 중"
     }
-
+    
     @ViewBuilder private var controls: some View {
         let s = session.snapshot
         if !s.isRunning {
@@ -99,7 +99,7 @@ struct HomeView: View {
 struct WageEntrySheet: View {
     @State private var text = "10000"
     let onConfirm: (Int) -> Void
-
+    
     var body: some View {
         VStack(spacing: 20) {
             Text("시급을 입력하세요").font(PB.F.body(17)).bold()

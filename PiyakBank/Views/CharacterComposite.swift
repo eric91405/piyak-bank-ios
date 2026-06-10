@@ -8,7 +8,10 @@ import SwiftData
 struct CharacterComposite: View {
     var showRoom: Bool = true
     var fillRoom: Bool = false
+    var isWorking: Bool = false
     @Query private var owned: [OwnedItem]
+
+    @State private var bob = false
 
     /// 정규화 앵커 좌표 (0~1, 캐릭터 프레임 기준). 실제 에셋 보고 미세조정.
     private static let anchor: [DecorSlot: CGPoint] = [
@@ -22,7 +25,7 @@ struct CharacterComposite: View {
 
     var body: some View {
         GeometryReader { geo in
-            ZStack(alignment: .bottom) {  
+            ZStack(alignment: .bottom) {
                 if showRoom {
                     ForEach(Self.roomSlots, id: \.self) { slot in
                         if let id = equipped[slot] {
@@ -34,7 +37,13 @@ struct CharacterComposite: View {
                         }
                     }
                 }
-                character(in: geo.size)
+                TimelineView(.animation) { timeline in
+                    let t = timeline.date.timeIntervalSinceReferenceDate
+                    let period = isWorking ? 0.5 : 2.4      // 근무중 빠르게
+                    let height = isWorking ? 10.0 : 5.0     // 근무중 크게
+                    character(in: geo.size)
+                        .offset(y: -abs(sin(t * .pi / period)) * height)
+                }
             }
         }
     }
@@ -42,10 +51,8 @@ struct CharacterComposite: View {
     @ViewBuilder
     private func character(in size: CGSize) -> some View {
         ZStack {
-            // 베이스 = 통합 실루엣 의상 (없으면 맨몸)
             Image(equipped[.bodyFront].map(assetName) ?? "piyak_base")
                 .resizable().scaledToFit()
-            // 액세서리 오버레이 (앵커 위치)
             ForEach(Self.overlaySlots, id: \.self) { slot in
                 if let id = equipped[slot], let a = Self.anchor[slot] {
                     Image(assetName(id)).resizable().scaledToFit()
@@ -55,6 +62,7 @@ struct CharacterComposite: View {
             }
         }
     }
+    
 
     private var equipped: [DecorSlot: String] {
         var m: [DecorSlot: String] = [:]
