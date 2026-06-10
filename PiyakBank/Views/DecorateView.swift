@@ -1,17 +1,21 @@
 import SwiftUI
 import SwiftData
+import SwiftUI
+import SwiftData
+import StoreKit
 
 struct DecorateView: View {
     @Environment(\.modelContext) private var context
     @Query private var catalog: [CatalogItem]
     @Query private var owned: [OwnedItem]
-
+    @EnvironmentObject private var storeManager: StoreManager
+    
     @State private var selectedSlot: DecorSlot = .bg
     private var store: EconomyStore { EconomyStore(context: context) }
-
+    
     private let roomSlots: [DecorSlot] = [.bg, .wallDeco, .bigFurniture, .floorProp, .rug]
     private let wearSlots: [DecorSlot] = [.bodyFront, .head, .eyes, .headband, .neck]
-
+    
     var body: some View {
         VStack(spacing: 0) {
             preview
@@ -20,7 +24,7 @@ struct DecorateView: View {
         }
         .background(PB.C.bg.ignoresSafeArea())
     }
-
+    
     // 미리보기 (방 z-order 합성)
     private var preview: some View {
         CharacterComposite(showRoom: true)
@@ -28,7 +32,7 @@ struct DecorateView: View {
             .frame(maxWidth: .infinity).frame(height: 240)
             .background(PB.C.bg)
     }
-
+    
     private var slotPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
@@ -43,7 +47,7 @@ struct DecorateView: View {
             }.padding(.horizontal, 16)
         }.padding(.vertical, 12)
     }
-
+    
     private var itemGrid: some View {
         ScrollView {
             LazyVGrid(columns: [.init(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
@@ -56,17 +60,21 @@ struct DecorateView: View {
             }.padding(16)
         }
     }
-
+    
     private func handleTap(_ item: CatalogItem) {
         if owned.contains(where: { $0.catalogId == item.id }) {
             store.equip(item.id)            // 보유 → 착용
         } else if item.isIAP {
-            // StoreManager.purchase 트리거 (앱 라우팅에서 처리)
+            if let product = storeManager.products.first(where: {
+                StoreManager.productMap[$0.id] == item.id
+            }) {
+                Task { try? await storeManager.purchase(product) }
+            }
         } else {
             try? store.purchase(item.id)    // 포인트 구매
         }
     }
-
+    
     private func slotLabel(_ s: DecorSlot) -> String {
         switch s {
         case .bg: "배경"; case .wallDeco: "벽장식"; case .bigFurniture: "가구"
@@ -79,7 +87,7 @@ struct DecorateView: View {
 struct ItemCell: View {
     let item: CatalogItem; let isOwned: Bool; let isEquipped: Bool
     let onTap: () -> Void
-
+    
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 6) {

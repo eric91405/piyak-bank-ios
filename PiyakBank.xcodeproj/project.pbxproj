@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		6CB9754F2FD84C6A00AC033B /* PiyakWatch Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = 6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		6CB9757B2FD8549800AC033B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CB975602FD8537A00AC033B /* WidgetKit.framework */; };
+		6CB9757C2FD8549800AC033B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6CB975622FD8537A00AC033B /* SwiftUI.framework */; };
+		6CB975872FD8549900AC033B /* PiyakWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 6CB9757A2FD8549800AC033B /* PiyakWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -17,6 +20,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 6CB975442FD84C6900AC033B;
 			remoteInfo = "PiyakWatch Watch App";
+		};
+		6CB975852FD8549900AC033B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6CB974F72FD6FA0F00AC033B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6CB975792FD8549800AC033B;
+			remoteInfo = PiyakWidgetExtension;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -32,11 +42,26 @@
 			name = "Embed Watch Content";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CB975752FD8537B00AC033B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				6CB975872FD8549900AC033B /* PiyakWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PiyakBank.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PiyakWatch Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CB975602FD8537A00AC033B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		6CB975622FD8537A00AC033B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		6CB9757A2FD8549800AC033B /* PiyakWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PiyakWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CB9758F2FD8554100AC033B /* PiyakWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PiyakWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -59,6 +84,21 @@
 			);
 			target = 6CB975442FD84C6900AC033B /* PiyakWatch Watch App */;
 		};
+		6CB9758B2FD8549900AC033B /* Exceptions for "PiyakWidget" folder in "PiyakWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 6CB975792FD8549800AC033B /* PiyakWidgetExtension */;
+		};
+		6CB9758D2FD854FD00AC033B /* Exceptions for "PiyakBank" folder in "PiyakWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Shared/AppConfig.swift,
+				Widget/PiyakComplication.swift,
+			);
+			target = 6CB975792FD8549800AC033B /* PiyakWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -67,6 +107,7 @@
 			exceptions = (
 				6CB9752F2FD6FE2600AC033B /* Exceptions for "PiyakBank" folder in "PiyakBank" target */,
 				6CB975552FD84CF700AC033B /* Exceptions for "PiyakBank" folder in "PiyakWatch Watch App" target */,
+				6CB9758D2FD854FD00AC033B /* Exceptions for "PiyakBank" folder in "PiyakWidgetExtension" target */,
 			);
 			path = PiyakBank;
 			sourceTree = "<group>";
@@ -74,6 +115,14 @@
 		6CB975462FD84C6A00AC033B /* PiyakWatch Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "PiyakWatch Watch App";
+			sourceTree = "<group>";
+		};
+		6CB9757D2FD8549800AC033B /* PiyakWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				6CB9758B2FD8549900AC033B /* Exceptions for "PiyakWidget" folder in "PiyakWidgetExtension" target */,
+			);
+			path = PiyakWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -93,14 +142,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CB975772FD8549800AC033B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6CB9757C2FD8549800AC033B /* SwiftUI.framework in Frameworks */,
+				6CB9757B2FD8549800AC033B /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		6CB974F62FD6FA0F00AC033B = {
 			isa = PBXGroup;
 			children = (
+				6CB9758F2FD8554100AC033B /* PiyakWidgetExtension.entitlements */,
 				6CB975012FD6FA0F00AC033B /* PiyakBank */,
 				6CB975462FD84C6A00AC033B /* PiyakWatch Watch App */,
+				6CB9757D2FD8549800AC033B /* PiyakWidget */,
+				6CB9755F2FD8537A00AC033B /* Frameworks */,
 				6CB975002FD6FA0F00AC033B /* Products */,
 			);
 			sourceTree = "<group>";
@@ -110,8 +171,18 @@
 			children = (
 				6CB974FF2FD6FA0F00AC033B /* PiyakBank.app */,
 				6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */,
+				6CB9757A2FD8549800AC033B /* PiyakWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		6CB9755F2FD8537A00AC033B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				6CB975602FD8537A00AC033B /* WidgetKit.framework */,
+				6CB975622FD8537A00AC033B /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -125,11 +196,13 @@
 				6CB974FC2FD6FA0F00AC033B /* Frameworks */,
 				6CB974FD2FD6FA0F00AC033B /* Resources */,
 				6CB975532FD84C6A00AC033B /* Embed Watch Content */,
+				6CB975752FD8537B00AC033B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 				6CB9754E2FD84C6A00AC033B /* PBXTargetDependency */,
+				6CB975862FD8549900AC033B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				6CB975012FD6FA0F00AC033B /* PiyakBank */,
@@ -163,6 +236,28 @@
 			productReference = 6CB975452FD84C6A00AC033B /* PiyakWatch Watch App.app */;
 			productType = "com.apple.product-type.application";
 		};
+		6CB975792FD8549800AC033B /* PiyakWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6CB975882FD8549900AC033B /* Build configuration list for PBXNativeTarget "PiyakWidgetExtension" */;
+			buildPhases = (
+				6CB975762FD8549800AC033B /* Sources */,
+				6CB975772FD8549800AC033B /* Frameworks */,
+				6CB975782FD8549800AC033B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				6CB9757D2FD8549800AC033B /* PiyakWidget */,
+			);
+			name = PiyakWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = PiyakWidgetExtension;
+			productReference = 6CB9757A2FD8549800AC033B /* PiyakWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -177,6 +272,9 @@
 						CreatedOnToolsVersion = 26.5;
 					};
 					6CB975442FD84C6900AC033B = {
+						CreatedOnToolsVersion = 26.5;
+					};
+					6CB975792FD8549800AC033B = {
 						CreatedOnToolsVersion = 26.5;
 					};
 				};
@@ -197,6 +295,7 @@
 			targets = (
 				6CB974FE2FD6FA0F00AC033B /* PiyakBank */,
 				6CB975442FD84C6900AC033B /* PiyakWatch Watch App */,
+				6CB975792FD8549800AC033B /* PiyakWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -210,6 +309,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		6CB975432FD84C6900AC033B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6CB975782FD8549800AC033B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -233,6 +339,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		6CB975762FD8549800AC033B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -240,6 +353,11 @@
 			isa = PBXTargetDependency;
 			target = 6CB975442FD84C6900AC033B /* PiyakWatch Watch App */;
 			targetProxy = 6CB9754D2FD84C6A00AC033B /* PBXContainerItemProxy */;
+		};
+		6CB975862FD8549900AC033B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6CB975792FD8549800AC033B /* PiyakWidgetExtension */;
+			targetProxy = 6CB975852FD8549900AC033B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -434,6 +552,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "PiyakWatch Watch App/PiyakWatch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G2D6ZG4SX3;
@@ -467,6 +586,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "PiyakWatch Watch App/PiyakWatch Watch App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = G2D6ZG4SX3;
@@ -492,6 +612,68 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 4;
 				WATCHOS_DEPLOYMENT_TARGET = 26.5;
+			};
+			name = Release;
+		};
+		6CB975892FD8549900AC033B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PiyakWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PiyakWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PiyakWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minseo.PiyakBank.PiyakWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6CB9758A2FD8549900AC033B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PiyakWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = G2D6ZG4SX3;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = PiyakWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = PiyakWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.minseo.PiyakBank.PiyakWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
 		};
@@ -521,6 +703,15 @@
 			buildConfigurations = (
 				6CB975512FD84C6A00AC033B /* Debug */,
 				6CB975522FD84C6A00AC033B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		6CB975882FD8549900AC033B /* Build configuration list for PBXNativeTarget "PiyakWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6CB975892FD8549900AC033B /* Debug */,
+				6CB9758A2FD8549900AC033B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

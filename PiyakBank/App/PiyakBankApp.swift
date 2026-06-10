@@ -58,6 +58,7 @@ struct RootView: View {
                         .tag(AppRouter.Tab.home)
 
                     DecorateView()
+                        .environmentObject(sessionHolder.store)
                         .tabItem { Label("꾸미기", systemImage: "paintbrush.fill") }
                         .tag(AppRouter.Tab.decorate)
 
@@ -82,7 +83,7 @@ final class ServiceHolder: ObservableObject {
     private var economy: EconomyStore!
     private var scheduler: NotificationScheduler!
     private var watch: WatchSync!
-    private var store: StoreManager!
+    @Published var store: StoreManager!
     private var didBoot = false
 
     @MainActor
