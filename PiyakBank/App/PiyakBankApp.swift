@@ -84,6 +84,7 @@ final class ServiceHolder: ObservableObject {
     private var scheduler: NotificationScheduler!
     private var watch: WatchSync!
     @Published var store: StoreManager!
+    private var bridge: WatchBridge!
     private var didBoot = false
 
     @MainActor
@@ -100,7 +101,8 @@ final class ServiceHolder: ObservableObject {
             self?.session.handleRemoteCommand(cmd, wage: wage)
         }
         watch.activate()
-        session.syncDelegate = WatchBridge(watch: watch)
+        bridge = WatchBridge(watch: watch)
+        session.syncDelegate = bridge
 
         store = StoreManager()
         store.onPurchased = { [weak self] catalogId in self?.economy.grantIAP(catalogId) }

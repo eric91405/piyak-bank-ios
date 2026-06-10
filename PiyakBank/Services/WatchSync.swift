@@ -38,13 +38,20 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
         session?.activate()
     }
 
-    /// 폰 → 워치: 현재 상태 전송 (전송 실패해도 갱신되는 application context 사용)
     func send(snapshot: SessionSnapshot) {
-        guard let session, session.activationState == .activated else { return }
-        let payload = SessionStatePayload(snapshot: snapshot)
-        if let data = try? JSONEncoder().encode(payload) {
-            try? session.updateApplicationContext(["state": data])
+        print("📤 폰 send 호출:", snapshot.isRunning, "reachable:", session?.isReachable ?? false)
+        guard let session, session.activationState == .activated else {
+            print("📤 ❌ 세션 비활성")
+            return
         }
+        let payload = SessionStatePayload(snapshot: snapshot)
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        // 즉시 전달 시도 (reachable일 때)
+        if session.isReachable {
+            session.sendMessage(["state": data], replyHandler: nil)
+        }
+        // 항상 최신 상태도 보장 (정지/시작 같은 전이 누락 방지)
+        try? session.updateApplicationContext(["state": data])
     }
 
     /// 워치 → 폰: 원격 명령 전송
@@ -75,6 +82,7 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private nonisolated func handle(_ dict: [String: Any]) {
+        print("📥 수신:", dict.keys)
         let data = (dict["state"] ?? dict["command"]) as? Data
         guard let data, let payload = try? JSONDecoder().decode(SessionStatePayload.self, from: data) else { return }
         Task { @MainActor in

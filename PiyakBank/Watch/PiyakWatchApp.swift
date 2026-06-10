@@ -26,7 +26,7 @@ struct WatchRootView: View {
     }
 }
 
-// ① 실시간 적산
+// 1 실시간 적산
 struct WatchAccrualPage: View {
     @EnvironmentObject var sync: WatchSync
     @State private var now = Date()
@@ -36,7 +36,7 @@ struct WatchAccrualPage: View {
         VStack(spacing: 8) {
             Text("🐤").font(.system(size: 32))
             Text(amount.won).font(.system(size: 26, weight: .bold, design: .rounded))
-            Text(state.isRunning ? "적립 중" : "대기")
+            Text(state.isPaused ? "일시정지" : (state.isRunning ? "적립 중" : "대기"))
                 .font(.footnote).foregroundStyle(.secondary)
         }
         .onReceive(tick) { now = $0 }
@@ -53,12 +53,16 @@ struct WatchAccrualPage: View {
     }
 }
 
-// ② 제어 (워치 → 폰 명령)
+// 2 제어 (워치 → 폰 명령)
 struct WatchControlPage: View {
     @EnvironmentObject var sync: WatchSync
     var body: some View {
         VStack(spacing: 10) {
-            if sync.lastReceived?.isRunning == true {
+            let s = sync.lastReceived
+            if s?.isRunning == true && s?.isPaused == true {
+                Button("재개") { sync.sendCommand("resume") }
+                Button("정지", role: .destructive) { sync.sendCommand("stop") }
+            } else if s?.isRunning == true {
                 Button("일시정지") { sync.sendCommand("pause") }
                 Button("정지", role: .destructive) { sync.sendCommand("stop") }
             } else {
