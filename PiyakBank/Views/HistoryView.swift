@@ -6,6 +6,7 @@ struct HistoryView: View {
     @Query(sort: \WorkSession.startedAt, order: .reverse) private var sessions: [WorkSession]
     @Environment(\.modelContext) private var context
     private var store: EconomyStore { EconomyStore(context: context) }
+    @State private var selectedDate: Date = .now
 
     enum HistoryTab: String, CaseIterable {
         case sessions = "근무 기록"
@@ -21,11 +22,16 @@ struct HistoryView: View {
 
                 switch tab {
                 case .sessions:
-                    let done = sessions.filter { !$0.isActive }
-                    if done.isEmpty {
-                        emptyCard("아직 근무 기록이 없어요", sub: "근무를 시작하면 여기에 쌓여요!")
+                    monthSummaryCard
+                    EarningsCalendar(selectedDate: $selectedDate)
+                    sectionHeader("\(dayLabel) 근무")
+                    let dayDone = sessions.filter {
+                        !$0.isActive && Calendar.current.isDate($0.startedAt, inSameDayAs: selectedDate)
+                    }
+                    if dayDone.isEmpty {
+                        emptyCard("이 날은 근무 기록이 없어요", sub: "다른 날짜를 선택해보세요!")
                     } else {
-                        ForEach(done, id: \.id) { s in
+                        ForEach(dayDone, id: \.id) { s in
                             SessionCard(session: s)
                         }
                     }
@@ -64,6 +70,43 @@ struct HistoryView: View {
         }
     }
 
+    private var dayLabel: String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "ko_KR")
+        f.dateFormat = "M월 d일"
+        return f.string(from: selectedDate)
+    }
+
+    private var monthEarned: Int {
+        let cal = Calendar.current
+        guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: Date())),
+              let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) else { return 0 }
+        return txs.filter { $0.kind == .accrual && $0.date >= monthStart && $0.date < monthEnd }
+            .reduce(0) { $0 + $1.amount }
+    }
+
+    private var monthSummaryCard: some View {
+        HStack {
+            Text("이번 달 번 돈").font(PB.F.body(14))
+                .foregroundStyle(PB.C.textBrown.opacity(0.6))
+            Spacer()
+            Text(monthEarned.won)
+                .font(PB.F.amount(22))
+                .foregroundStyle(PB.C.coral)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 14)
+        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
+        .shadow(color: PB.C.textBrown.opacity(0.06), radius: 10, y: 4)
+    }
+    
+    private func sectionHeader(_ title: String) -> some View {
+        Text(title)
+            .font(PB.F.body(16)).bold()
+            .foregroundStyle(PB.C.textBrown)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
+    }
+    
     private var balanceCard: some View {
         VStack(spacing: 6) {
             Text("현재 잔액").font(PB.F.body(13))
