@@ -16,7 +16,7 @@ struct DecorateView: View {
     private var store: EconomyStore { EconomyStore(context: context) }
     
     private let roomSlots: [DecorSlot] = [.bg, .wallDeco, .bigFurniture, .floorProp, .rug]
-    private let wearSlots: [DecorSlot] = [.bodyFront, .head, .eyes, .headband, .neck]
+    private let wearSlots: [DecorSlot] = [.bodyFront, .headTop, .eyes, .neck]
     
     private var balance: Int {
         transactions.reduce(0) { $0 + $1.amount }
@@ -142,7 +142,7 @@ struct DecorateView: View {
             switch s {
             case .bg: "배경"; case .wallDeco: "벽장식"; case .bigFurniture: "가구"
             case .floorProp: "소품"; case .rug: "러그"; case .bodyFront: "옷"
-            case .head: "모자"; case .eyes: "눈"; case .headband: "머리띠"; case .neck: "목"
+            case .headTop: "모자"; case .eyes: "눈"; case .headband: "머리띠"; case .neck: "목"
             }
         }
     }

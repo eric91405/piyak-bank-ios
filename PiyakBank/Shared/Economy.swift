@@ -11,19 +11,20 @@ enum DecorSlot: String, Codable, CaseIterable {
     case floorProp     // 바닥 소품 (화분 등)
     case rug           // 러그 (캐릭터 발 아래)
     // 캐릭터 착용 앵커
-    case head          // ① 머리 위
+    case headTop          // ① 머리 위
     case eyes          // ② 눈
     case headband      // ③ 머리 둘레
     case neck          // ④ 목
     case bodyFront     // ⑤ 몸 앞 (통합 실루엣 Method B)
-
+    
+    
     var isRoom: Bool {
         switch self {
         case .bg, .wallDeco, .bigFurniture, .floorProp, .rug: return true
         default: return false
         }
     }
-
+    
     /// 방 슬롯 z-order (작을수록 뒤)
     var roomZ: Int {
         switch self {
@@ -51,9 +52,9 @@ final class CatalogItem {
     var isIAP: Bool
     /// 신규 유저 기본 보유
     var isDefaultOwned: Bool
-
+    
     var slot: DecorSlot { DecorSlot(rawValue: slotRaw) ?? .floorProp }
-
+    
     init(id: String, slot: DecorSlot, displayName: String,
          price: Int = 0, isIAP: Bool = false, isDefaultOwned: Bool = false) {
         self.id = id
@@ -73,12 +74,12 @@ final class OwnedItem {
     var acquiredAt: Date
     /// 현재 착용/배치 중인 슬롯. nil이면 보관함에만 있음
     var equippedSlotRaw: String?
-
+    
     var equippedSlot: DecorSlot? {
         get { equippedSlotRaw.flatMap { DecorSlot(rawValue: $0) } }
         set { equippedSlotRaw = newValue?.rawValue }
     }
-
+    
     init(catalogId: String, acquiredAt: Date = .now, equippedSlot: DecorSlot? = nil) {
         self.catalogId = catalogId
         self.acquiredAt = acquiredAt
@@ -105,9 +106,9 @@ final class PointTransaction {
     /// 관련 세션/아이템 id (감사 추적용)
     var relatedId: String?
     var note: String?
-
+    
     var kind: TxKind { TxKind(rawValue: kindRaw) ?? .adjust }
-
+    
     init(amount: Int, kind: TxKind, date: Date = .now,
          relatedId: String? = nil, note: String? = nil) {
         self.id = UUID()
@@ -124,17 +125,17 @@ final class PointTransaction {
 @MainActor
 final class EconomyStore {
     let context: ModelContext
-
+    
     init(context: ModelContext) {
         self.context = context
     }
-
+    
     // 잔액 = 원장 전체 합산 (lazy)
     var balance: Int {
         let all = (try? context.fetch(FetchDescriptor<PointTransaction>())) ?? []
         return all.reduce(0) { $0 + $1.amount }
     }
-
+    
     /// 특정 날짜의 적립 합 (자정 리셋 없이 날짜 필터로 계산)
     func dailyAccrued(on day: Date) -> Int {
         let cal = Calendar.current
@@ -146,39 +147,39 @@ final class EconomyStore {
         let txs = (try? context.fetch(desc)) ?? []
         return txs.reduce(0) { $0 + $1.amount }
     }
-
+    
     // MARK: 적립
-
+    
     func recordAccrual(_ amount: Int, sessionId: String, at date: Date = .now) {
         guard amount > 0 else { return }
         context.insert(PointTransaction(amount: amount, kind: .accrual,
                                         date: date, relatedId: sessionId))
         try? context.save()
     }
-
+    
     // MARK: 구매 / 환불
-
+    
     enum PurchaseError: Error { case alreadyOwned, insufficient, iapOnly, notFound }
-
+    
     func purchase(_ catalogId: String) throws {
         guard let item = catalog(catalogId) else { throw PurchaseError.notFound }
         if item.isIAP { throw PurchaseError.iapOnly }      // StoreKit 경유해야 함
         if owned(catalogId) != nil { throw PurchaseError.alreadyOwned }
         guard balance >= item.price else { throw PurchaseError.insufficient }
-
+        
         context.insert(PointTransaction(amount: -item.price, kind: .purchase,
                                         relatedId: catalogId))
         context.insert(OwnedItem(catalogId: catalogId))
         try? context.save()
     }
-
+    
     /// IAP 결제 성공 후 StoreManager가 호출 (포인트 차감 없이 보유 추가)
     func grantIAP(_ catalogId: String) {
         guard owned(catalogId) == nil else { return }
         context.insert(OwnedItem(catalogId: catalogId))
         try? context.save()
     }
-
+    
     func refund(_ catalogId: String) {
         guard let owned = owned(catalogId), let item = catalog(catalogId) else { return }
         if item.isIAP { return }  // IAP는 자체 환불 정책
@@ -187,9 +188,9 @@ final class EconomyStore {
         context.delete(owned)
         try? context.save()
     }
-
+    
     // MARK: 착용 / 배치
-
+    
     func equip(_ catalogId: String) {
         guard let target = owned(catalogId), let item = catalog(catalogId) else { return }
         let slot = item.slot
@@ -200,53 +201,53 @@ final class EconomyStore {
         target.equippedSlot = slot
         try? context.save()
     }
-
+    
     func unequip(slot: DecorSlot) {
         for o in ownedAll() where o.equippedSlot == slot {
             o.equippedSlot = nil
         }
         try? context.save()
     }
-
+    
     func equippedId(for slot: DecorSlot) -> String? {
         ownedAll().first { $0.equippedSlot == slot }?.catalogId
     }
-
+    
     // MARK: 조회
-
+    
     func catalog(_ id: String) -> CatalogItem? {
         let desc = FetchDescriptor<CatalogItem>(predicate: #Predicate { $0.id == id })
         return (try? context.fetch(desc))?.first
     }
-
+    
     func owned(_ id: String) -> OwnedItem? {
         let desc = FetchDescriptor<OwnedItem>(predicate: #Predicate { $0.catalogId == id })
         return (try? context.fetch(desc))?.first
     }
-
+    
     func ownedAll() -> [OwnedItem] {
         (try? context.fetch(FetchDescriptor<OwnedItem>())) ?? []
     }
-
+    
     func catalogAll() -> [CatalogItem] {
         (try? context.fetch(FetchDescriptor<CatalogItem>())) ?? []
     }
-
+    
     // MARK: 시드 (없는 항목만 추가 — 카탈로그 확장 시 재설치 불필요)
-        func seedIfNeeded() {
-            for s in CatalogSeed.items {
-                guard catalog(s.id) == nil else { continue }   // 이미 있으면 건너뜀
-                let item = CatalogItem(id: s.id, slot: s.slot, displayName: s.name,
-                                       price: s.price, isIAP: s.isIAP, isDefaultOwned: s.defaultOwned)
-                context.insert(item)
-                if s.defaultOwned && owned(s.id) == nil {
-                    let o = OwnedItem(catalogId: s.id)
-                    o.equippedSlot = s.slot
-                    context.insert(o)
-                }
+    func seedIfNeeded() {
+        for s in CatalogSeed.items {
+            guard catalog(s.id) == nil else { continue }   // 이미 있으면 건너뜀
+            let item = CatalogItem(id: s.id, slot: s.slot, displayName: s.name,
+                                   price: s.price, isIAP: s.isIAP, isDefaultOwned: s.defaultOwned)
+            context.insert(item)
+            if s.defaultOwned && owned(s.id) == nil {
+                let o = OwnedItem(catalogId: s.id)
+                o.equippedSlot = s.slot
+                context.insert(o)
             }
-            try? context.save()
         }
+        try? context.save()
+    }
 }
 
 // MARK: - 카탈로그 시드 (catalog_seed.json 대응 핵심 항목)
@@ -254,7 +255,7 @@ final class EconomyStore {
 struct CatalogSeed {
     let id: String; let slot: DecorSlot; let name: String
     let price: Int; let isIAP: Bool; let defaultOwned: Bool
-
+    
     static let items: [CatalogSeed] = [
         // 기본 보유 (무료)
         .init(id: "bg.cozy_cream",        slot: .bg,        name: "포근한 크림", price: 0, isIAP: false, defaultOwned: true),
@@ -285,6 +286,11 @@ struct CatalogSeed {
         // 가구
         .init(id: "bigFurniture.nightstand", slot: .bigFurniture, name: "협탁", price: 40000, isIAP: false, defaultOwned: false),
         .init(id: "bigFurniture.shelf",      slot: .bigFurniture, name: "벽 선반", price: 38000, isIAP: false, defaultOwned: false),
+        
+        // 액세서리
+        .init(id: "headTop.straw_hat",  slot: .headTop, name: "밀짚모자",   price: 12000, isIAP: false, defaultOwned: false),
+        .init(id: "eyes.round_glasses", slot: .eyes,    name: "둥근안경",   price: 15000, isIAP: false, defaultOwned: false),
+        .init(id: "neck.scarf_coral",   slot: .neck,    name: "포근 목도리", price: 10000, isIAP: false, defaultOwned: false),
     ]
 }
 

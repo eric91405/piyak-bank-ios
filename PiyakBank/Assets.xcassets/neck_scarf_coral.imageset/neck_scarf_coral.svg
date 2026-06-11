@@ -1,0 +1,35 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="scarf" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFAD9B"/>
+      <stop offset="1" stop-color="#FF9E8A"/>
+    </linearGradient>
+  </defs>
+  <!-- 목 둘레 감기 (볼터치 바로 아래) -->
+  <path d="M352 562
+           C 394 596 448 614 512 614
+           C 576 614 630 596 672 562
+           C 682 582 682 604 672 624
+           C 628 660 574 678 512 678
+           C 450 678 396 660 352 624
+           C 342 604 342 582 352 562 Z"
+        fill="url(#scarf)" stroke="#E8856F" stroke-width="8" stroke-linejoin="round"/>
+  <!-- 늘어진 자락 -->
+  <path d="M558 666
+           C 566 710 564 752 550 790
+           C 538 800 514 800 504 788
+           C 500 748 506 704 518 668 Z"
+        fill="url(#scarf)" stroke="#E8856F" stroke-width="8" stroke-linejoin="round"/>
+  <!-- 자락 술 -->
+  <g stroke="#E8856F" stroke-width="7" stroke-linecap="round" fill="none">
+    <path d="M514 792 L 510 816"/>
+    <path d="M530 796 L 528 820"/>
+    <path d="M546 792 L 548 816"/>
+  </g>
+  <!-- 뜨개 결 -->
+  <g stroke="#E8856F" stroke-width="5" stroke-linecap="round" opacity="0.6" fill="none">
+    <path d="M424 596 C 428 612 428 628 424 642"/>
+    <path d="M512 616 C 514 632 514 648 512 660"/>
+    <path d="M600 596 C 596 612 596 628 600 642"/>
+  </g>
+</svg>

@@ -1,0 +1,20 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 다리 (얼굴 옆으로) -->
+  <g stroke="#8A6B3F" stroke-width="9" stroke-linecap="round" fill="none">
+    <path d="M398 486 C 372 480 350 472 334 460"/>
+    <path d="M626 486 C 652 480 674 472 690 460"/>
+  </g>
+  <!-- 브릿지 -->
+  <path d="M492 482 C 504 472 520 472 532 482" fill="none"
+        stroke="#8A6B3F" stroke-width="9" stroke-linecap="round"/>
+  <!-- 렌즈 -->
+  <circle cx="446" cy="492" r="48" fill="#BFE3F2" opacity="0.35"/>
+  <circle cx="578" cy="492" r="48" fill="#BFE3F2" opacity="0.35"/>
+  <circle cx="446" cy="492" r="48" fill="none" stroke="#8A6B3F" stroke-width="10"/>
+  <circle cx="578" cy="492" r="48" fill="none" stroke="#8A6B3F" stroke-width="10"/>
+  <!-- 렌즈 반짝 -->
+  <path d="M418 470 C 424 460 434 454 444 452" fill="none"
+        stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+  <path d="M550 470 C 556 460 566 454 576 452" fill="none"
+        stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+</svg>

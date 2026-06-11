@@ -1,11 +1,13 @@
 import SwiftUI
 import Combine
+import SwiftData
 
 struct HomeView: View {
     @EnvironmentObject var session: SessionController
     @Environment(\.modelContext) private var context
     @State private var showWageSheet = false
     @State private var now = Date()
+    @State private var showChat = false
     
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -16,6 +18,13 @@ struct HomeView: View {
                 
                 CharacterComposite(showRoom: true, fillRoom: true,
                                    isWorking: session.snapshot.isRunning && !session.snapshot.isPaused)
+                .onTapGesture { showChat = true }
+                .sheet(isPresented: $showChat) {
+                    PiyakChatView(engine: PiyakChatEngine(
+                        container: context.container,
+                        snapshot: .capture(context: context)
+                    ))
+                }
                 .frame(maxWidth: .infinity)
                 .frame(height: 440)
                 .clipped()
