@@ -12,7 +12,7 @@ struct PiyakBankApp: App {
                              PointTransaction.self, WorkSession.self])
         return try! ModelContainer(for: schema)
     }()
-
+    
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -29,7 +29,7 @@ struct PiyakBankApp: App {
 final class AppRouter: ObservableObject {
     enum Tab: Hashable { case home, decorate, settings }
     @Published var tab: Tab = .home
-
+    
     /// piyakbank://home 등
     func handle(url: URL) {
         switch url.host {
@@ -46,9 +46,9 @@ final class AppRouter: ObservableObject {
 struct RootView: View {
     @EnvironmentObject var router: AppRouter
     @Environment(\.modelContext) private var context
-
+    
     @StateObject private var sessionHolder = ServiceHolder()
-
+    
     var body: some View {
         Group {
             if let session = sessionHolder.session {
@@ -57,12 +57,12 @@ struct RootView: View {
                         .environmentObject(session)
                         .tabItem { Label("홈", systemImage: "house.fill") }
                         .tag(AppRouter.Tab.home)
-
+                    
                     DecorateView()
                         .environmentObject(sessionHolder.store)
                         .tabItem { Label("꾸미기", systemImage: "paintbrush.fill") }
                         .tag(AppRouter.Tab.decorate)
-
+                    
                     SettingsView()
                         .environmentObject(session)
                         .tabItem { Label("설정", systemImage: "gearshape.fill") }
@@ -88,7 +88,7 @@ final class ServiceHolder: ObservableObject {
     @Published var store: StoreManager!
     private var bridge: WatchBridge!
     private var didBoot = false
-
+    
     @MainActor
     func bootstrap(context: ModelContext) {
         guard !didBoot else { return }
@@ -97,7 +97,7 @@ final class ServiceHolder: ObservableObject {
         economy.seedIfNeeded()
         scheduler = NotificationScheduler()
         session = SessionController(context: context, economy: economy, scheduler: scheduler)
-
+        
         watch = WatchSync()
         watch.onRemoteCommand = { [weak self] cmd, wage in
             self?.session.handleRemoteCommand(cmd, wage: wage)
@@ -105,10 +105,10 @@ final class ServiceHolder: ObservableObject {
         watch.activate()
         bridge = WatchBridge(watch: watch)
         session.syncDelegate = bridge
-
+        
         store = StoreManager()
         store.onPurchased = { [weak self] catalogId in self?.economy.grantIAP(catalogId) }
-
+        
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         Task { _ = await scheduler.requestAuth(); await store.loadProducts() }
         session.recoverIfNeeded()
@@ -128,7 +128,7 @@ final class WatchBridge: SessionSyncing {
 
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
-
+    
     func userNotificationCenter(_ c: UNUserNotificationCenter,
                                 willPresent n: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
@@ -145,7 +145,7 @@ struct SettingsView: View {
     @EnvironmentObject var session: SessionController
     @Query private var transactions: [PointTransaction]
     @State private var showRestoreDone = false
-
+    
     // MARK: 원장 기반 통계
     private var accruals: [PointTransaction] {
         transactions.filter { $0.kind == .accrual }
@@ -164,7 +164,7 @@ struct SettingsView: View {
         Dictionary(grouping: accruals) { Calendar.current.startOfDay(for: $0.date) }
             .values.map { $0.reduce(0) { $0 + $1.amount } }.max() ?? 0
     }
-
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -225,7 +225,7 @@ struct SettingsView: View {
             }
             .background(PB.C.bg.ignoresSafeArea())
             .navigationTitle("설정")
-            .navigationBarTitleDisplayMode(.inline)  
+            .navigationBarTitleDisplayMode(.inline)
             .alert("구매 복원", isPresented: $showRestoreDone) {
                 Button("확인", role: .cancel) {}
             } message: {
@@ -233,7 +233,7 @@ struct SettingsView: View {
             }
         }
     }
-
+    
     // MARK: 프로필 카드
     private var profileCard: some View {
         VStack(spacing: 10) {
@@ -259,18 +259,19 @@ struct SettingsView: View {
         .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
         .shadow(color: PB.C.textBrown.opacity(0.07), radius: 12, y: 4)
     }
-
-    // MARK: 통계 3칸
+    
     private var statRow: some View {
         HStack(spacing: 10) {
-            statCell("📅", title: "적립일", value: "\(workedDays)일")
-            statCell("🏆", title: "최고 하루", value: bestDay.won)
-            statCell("🔔", title: "알림 간격", value: "\(session.interval.rawValue)분")
+            statCell("calendar", title: "적립일", value: "\(workedDays)일")
+            statCell("crown.fill", title: "최고 하루", value: bestDay.won)
+            statCell("bell.badge.fill", title: "알림 간격", value: "\(session.interval.rawValue)분")
         }
     }
-    private func statCell(_ emoji: String, title: String, value: String) -> some View {
-        VStack(spacing: 5) {
-            Text(emoji).font(.system(size: 20))
+    private func statCell(_ icon: String, title: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(PB.C.coral)
             Text(title).font(PB.F.body(11))
                 .foregroundStyle(PB.C.textBrown.opacity(0.5))
             Text(value)
@@ -283,7 +284,7 @@ struct SettingsView: View {
         .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
         .shadow(color: PB.C.textBrown.opacity(0.05), radius: 8, y: 3)
     }
-
+    
     // MARK: 카드 컨테이너
     private func settingsCard<Content: View>(title: String,
                                              @ViewBuilder content: () -> Content) -> some View {
@@ -297,7 +298,7 @@ struct SettingsView: View {
         .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
         .shadow(color: PB.C.textBrown.opacity(0.05), radius: 8, y: 3)
     }
-
+    
     private func infoRow(_ label: String, value: String) -> some View {
         HStack {
             Text(label).font(PB.F.body(15)).foregroundStyle(PB.C.textBrown)
