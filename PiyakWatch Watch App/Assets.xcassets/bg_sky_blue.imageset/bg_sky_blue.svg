@@ -1,0 +1,44 @@
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#BFE8FF"/>
+      <stop offset="1" stop-color="#E3F4FF"/>
+    </linearGradient>
+    <linearGradient id="sfloor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#CDEBC9"/>
+      <stop offset="1" stop-color="#B4DDAE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 하늘 -->
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#sky)"/>
+  <g fill="#FFFFFF" opacity="0.95">
+    <ellipse cx="460" cy="-80" rx="78" ry="40"/>
+    <ellipse cx="520" cy="-62" rx="58" ry="34"/>
+    <ellipse cx="900" cy="-100" rx="60" ry="34"/>
+    <ellipse cx="180" cy="-230" rx="70" ry="38"/>
+    <ellipse cx="240" cy="-212" rx="52" ry="30"/>
+    <ellipse cx="680" cy="-260" rx="64" ry="34"/>
+  </g>
+
+  <!-- 해 -->
+  <circle cx="180" cy="170" r="68" fill="#FFE38A"/>
+
+  <!-- 구름 -->
+  <g fill="#FFFFFF" opacity="0.95">
+    <ellipse cx="640" cy="180" rx="90" ry="46"/>
+    <ellipse cx="700" cy="200" rx="70" ry="40"/>
+    <ellipse cx="580" cy="205" rx="60" ry="36"/>
+    <ellipse cx="320" cy="360" rx="76" ry="40"/>
+    <ellipse cx="380" cy="378" rx="58" ry="34"/>
+    <ellipse cx="840" cy="400" rx="68" ry="38"/>
+  </g>
+
+  <!-- 잔디 바닥 -->
+  <rect x="0" y="700" width="1024" height="324" fill="url(#sfloor)"/>
+  <rect x="0" y="690" width="1024" height="16" fill="#9ECF94"/>
+  <g stroke="#A6D69C" stroke-width="3" opacity="0.6">
+    <line x1="0" y1="800" x2="1024" y2="800"/>
+    <line x1="0" y1="900" x2="1024" y2="900"/>
+  </g>
+</svg>

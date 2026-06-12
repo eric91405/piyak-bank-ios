@@ -1,0 +1,53 @@
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2E2A52"/>
+      <stop offset="1" stop-color="#4A4378"/>
+    </linearGradient>
+    <linearGradient id="nfloor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3A3560"/>
+      <stop offset="1" stop-color="#2C2848"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 벽 -->
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#night)"/>
+  <g fill="#FFF6D6">
+    <circle cx="200" cy="-90" r="5"/><circle cx="420" cy="-60" r="4"/>
+    <circle cx="660" cy="-110" r="5"/><circle cx="60" cy="-40" r="4"/>
+    <circle cx="540" cy="-15" r="4"/><circle cx="960" cy="-50" r="4"/>
+    <circle cx="140" cy="-230" r="4"/><circle cx="360" cy="-270" r="5"/>
+    <circle cx="600" cy="-210" r="4"/><circle cx="820" cy="-260" r="5"/>
+    <circle cx="940" cy="-180" r="4"/>
+  </g>
+  <g stroke="#FFF6D6" stroke-width="3" stroke-linecap="round">
+    <path d="M320 -100 L320 -76 M308 -88 L332 -88"/>
+    <path d="M720 -240 L720 -216 M708 -228 L732 -228"/>
+  </g>
+
+  <!-- 달 -->
+  <circle cx="820" cy="180" r="78" fill="#FFE9A8"/>
+  <circle cx="848" cy="158" r="78" fill="#2E2A52" opacity="0.45"/>
+
+  <!-- 별 -->
+  <g fill="#FFF6D6">
+    <circle cx="140" cy="150" r="6"/><circle cx="300" cy="110" r="4"/>
+    <circle cx="430" cy="200" r="5"/><circle cx="560" cy="120" r="4"/>
+    <circle cx="220" cy="300" r="5"/><circle cx="640" cy="320" r="4"/>
+    <circle cx="120" cy="460" r="4"/><circle cx="700" cy="470" r="5"/>
+    <circle cx="380" cy="430" r="4"/><circle cx="900" cy="380" r="5"/>
+  </g>
+  <!-- 반짝 -->
+  <g stroke="#FFF6D6" stroke-width="3" stroke-linecap="round">
+    <path d="M500 280 L500 310 M485 295 L515 295"/>
+    <path d="M180 380 L180 402 M169 391 L191 391"/>
+  </g>
+
+  <!-- 바닥 -->
+  <rect x="0" y="700" width="1024" height="324" fill="url(#nfloor)"/>
+  <rect x="0" y="690" width="1024" height="16" fill="#5A5488"/>
+  <g stroke="#4E4878" stroke-width="3" opacity="0.6">
+    <line x1="0" y1="800" x2="1024" y2="800"/>
+    <line x1="0" y1="900" x2="1024" y2="900"/>
+  </g>
+</svg>

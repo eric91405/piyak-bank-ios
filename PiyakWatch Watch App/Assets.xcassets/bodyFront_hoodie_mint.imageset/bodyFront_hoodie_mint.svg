@@ -1,0 +1,77 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="body" cx="0.5" cy="0.38" r="0.72">
+      <stop offset="0" stop-color="#FFE694"/>
+      <stop offset="1" stop-color="#FFD64D"/>
+    </radialGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B8EED7"/>
+      <stop offset="1" stop-color="#A8E6CF"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 머리 깃털 -->
+  <path d="M470 300 C 460 252 486 226 512 250 C 538 226 564 252 554 300 Z"
+        fill="url(#body)" stroke="#EAB93A" stroke-width="7" stroke-linejoin="round"/>
+
+  <!-- 몸통 (얼굴쪽 노랑) -->
+  <path d="M512 286
+           C 404 286 322 364 300 474
+           C 285 552 288 632 332 696
+           C 374 756 448 788 512 788
+           C 576 788 650 756 692 696
+           C 736 632 739 552 724 474
+           C 702 364 620 286 512 286 Z"
+        fill="url(#body)" stroke="#EAB93A" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- 후드티 소매(날개 자리) -->
+  <path d="M300 540 C 262 556 256 606 290 642 C 312 626 322 580 326 552 Z"
+        fill="url(#mint)" stroke="#7FCBA9" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M724 540 C 762 556 768 606 734 642 C 712 626 702 580 698 552 Z"
+        fill="url(#mint)" stroke="#7FCBA9" stroke-width="7" stroke-linejoin="round"/>
+
+  <!-- 후드티 몸판 (몸 하단 덮기, 통합 실루엣) -->
+  <path d="M318 560
+           C 300 626 304 666 332 700
+           C 374 758 448 788 512 788
+           C 576 788 650 758 692 700
+           C 720 666 724 626 706 560
+           C 640 600 384 600 318 560 Z"
+        fill="url(#mint)" stroke="#7FCBA9" stroke-width="8" stroke-linejoin="round"/>
+
+  <!-- 후드 카라 -->
+  <path d="M398 556 Q 512 612 626 556 L 604 590 Q 512 632 420 590 Z"
+        fill="#96DCC0" stroke="#7FCBA9" stroke-width="6" stroke-linejoin="round"/>
+
+  <!-- 드로스트링 -->
+  <g stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" fill="none">
+    <path d="M486 600 L478 660"/>
+    <path d="M538 600 L546 660"/>
+  </g>
+  <circle cx="478" cy="664" r="8" fill="#FFFFFF"/>
+  <circle cx="546" cy="664" r="8" fill="#FFFFFF"/>
+  <!-- 주머니 -->
+  <path d="M448 690 Q 512 712 576 690 L 566 726 Q 512 742 458 726 Z"
+        fill="#96DCC0" stroke="#7FCBA9" stroke-width="5" stroke-linejoin="round"/>
+
+  <!-- 발 -->
+  <g stroke="#FFB067" stroke-width="13" stroke-linecap="round" fill="none">
+    <path d="M468 786 L468 806"/>
+    <path d="M468 806 L448 822"/><path d="M468 806 L468 826"/><path d="M468 806 L488 822"/>
+    <path d="M556 786 L556 806"/>
+    <path d="M556 806 L536 822"/><path d="M556 806 L556 826"/><path d="M556 806 L576 822"/>
+  </g>
+
+  <!-- 볼터치 -->
+  <ellipse cx="392" cy="520" rx="30" ry="19" fill="#FFB3BA" opacity="0.85"/>
+  <ellipse cx="632" cy="520" rx="30" ry="19" fill="#FFB3BA" opacity="0.85"/>
+
+  <!-- 눈 -->
+  <ellipse cx="446" cy="456" rx="22" ry="30" fill="#3A2E12"/>
+  <ellipse cx="578" cy="456" rx="22" ry="30" fill="#3A2E12"/>
+  <circle cx="453" cy="445" r="8" fill="#FFFFFF"/>
+  <circle cx="585" cy="445" r="8" fill="#FFFFFF"/>
+
+  <!-- 부리 -->
+  <path d="M482 506 L542 506 L512 540 Z" fill="#FFB067" stroke="#EE9B53" stroke-width="5" stroke-linejoin="round"/>
+</svg>

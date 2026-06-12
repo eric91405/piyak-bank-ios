@@ -105,14 +105,33 @@ struct WatchControlPage: View {
     }
 }
 
-// ③ 캐릭터
+// ③ 캐릭터 (폰 착용 상태 동기화)
 struct WatchCharacterPage: View {
+    @EnvironmentObject var sync: WatchSync
+
+    private var equipped: [String: String] {
+        sync.lastReceived?.equipped ?? [:]
+    }
+
     var body: some View {
         ZStack {
-            Color(hex: 0xFFF7EC).ignoresSafeArea()
-            Image("piyak_base")
-                .resizable().scaledToFit()
-                .padding(20)
+            if let bg = equipped["bg"] {
+                Image(assetName(bg))
+                    .resizable().scaledToFill()
+                    .ignoresSafeArea()
+            } else {
+                Color(hex: 0xFFF7EC).ignoresSafeArea()
+            }
+            ZStack {
+                Image(equipped["bodyFront"].map(assetName) ?? "piyak_base")
+                    .resizable().scaledToFit()
+                ForEach(["neck", "eyes", "headTop"], id: \.self) { slot in
+                    if let id = equipped[slot] {
+                        Image(assetName(id)).resizable().scaledToFit()
+                    }
+                }
+            }
+            .padding(14)
         }
     }
 }

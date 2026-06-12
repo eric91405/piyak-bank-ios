@@ -9,14 +9,16 @@ struct SessionStatePayload: Codable {
     var startedAt: Date?
     var accrued: Int
     var wage: Int
-    // 워치 → 폰 원격 명령
-    var command: String?      // "start" | "stop" | "pause" | "resume"
+    var equipped: [String: String]?
+    var command: String?
     var commandWage: Int?
-
-    init(snapshot s: SessionSnapshot) {
+    
+    init(snapshot s: SessionSnapshot, equipped: [String: String]? = nil) {
         isRunning = s.isRunning; isPaused = s.isPaused
         startedAt = s.startedAt; accrued = s.accrued; wage = s.wage
+        self.equipped = equipped
     }
+    
     init(command: String, wage: Int? = nil) {
         isRunning = false; isPaused = false; startedAt = nil
         accrued = 0; self.wage = 0
@@ -37,22 +39,29 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
         session?.delegate = self
         session?.activate()
     }
+    
+    private var lastSnapshot: SessionSnapshot?
+        private var lastEquipped: [String: String]?
 
-    func send(snapshot: SessionSnapshot) {
-        print("📤 폰 send 호출:", snapshot.isRunning, "reachable:", session?.isReachable ?? false)
-        guard let session, session.activationState == .activated else {
-            print("📤 ❌ 세션 비활성")
-            return
+        func send(snapshot: SessionSnapshot) {
+            lastSnapshot = snapshot
+            guard let session, session.activationState == .activated else { return }
+            let payload = SessionStatePayload(snapshot: snapshot, equipped: lastEquipped)
+            guard let data = try? JSONEncoder().encode(payload) else { return }
+            if session.isReachable {
+                session.sendMessage(["state": data], replyHandler: nil)
+            }
+            try? session.updateApplicationContext(["state": data])
         }
-        let payload = SessionStatePayload(snapshot: snapshot)
-        guard let data = try? JSONEncoder().encode(payload) else { return }
-        // 즉시 전달 시도 (reachable일 때)
-        if session.isReachable {
-            session.sendMessage(["state": data], replyHandler: nil)
+
+        /// 착용 변경 시 호출 — 마지막 세션 상태에 얹어서 재전송
+        func send(equipped: [String: String]) {
+            lastEquipped = equipped
+            let snap = lastSnapshot ?? SessionSnapshot(isRunning: false, isPaused: false,
+                                                       sessionId: nil, startedAt: nil,
+                                                       accrued: 0, wage: 0)
+            send(snapshot: snap)
         }
-        // 항상 최신 상태도 보장 (정지/시작 같은 전이 누락 방지)
-        try? session.updateApplicationContext(["state": data])
-    }
 
     /// 워치 → 폰: 원격 명령 전송
     func sendCommand(_ command: String, wage: Int? = nil) {

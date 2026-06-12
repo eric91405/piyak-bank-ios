@@ -200,6 +200,7 @@ final class EconomyStore {
         }
         target.equippedSlot = slot
         try? context.save()
+        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
     }
     
     func unequip(slot: DecorSlot) {
@@ -207,10 +208,19 @@ final class EconomyStore {
             o.equippedSlot = nil
         }
         try? context.save()
+        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
     }
     
     func equippedId(for slot: DecorSlot) -> String? {
         ownedAll().first { $0.equippedSlot == slot }?.catalogId
+    }
+    
+    func equippedMap() -> [String: String] {
+        var m: [String: String] = [:]
+        for o in ownedAll() {
+            if let s = o.equippedSlotRaw { m[s] = o.catalogId }
+        }
+        return m
     }
     
     // MARK: 조회
@@ -299,4 +309,8 @@ struct CatalogSeed {
 // (Xcode asset 이름의 점은 namespace로 오인될 수 있어 언더스코어로 통일)
 func assetName(_ catalogId: String) -> String {
     catalogId.replacingOccurrences(of: ".", with: "_")
+}
+
+extension Notification.Name {
+    static let piyakEquippedChanged = Notification.Name("piyakEquippedChanged")
 }

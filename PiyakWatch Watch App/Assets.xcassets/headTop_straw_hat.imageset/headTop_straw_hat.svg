@@ -1,0 +1,37 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="straw" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4D98C"/>
+      <stop offset="1" stop-color="#E8C46A"/>
+    </linearGradient>
+  </defs>
+  <!-- 챙 (뒤) -->
+  <path d="M312 348
+           C 312 318 372 296 512 296
+           C 652 296 712 318 712 348
+           C 712 378 652 396 512 396
+           C 372 396 312 378 312 348 Z"
+        fill="url(#straw)" stroke="#C9A14E" stroke-width="8" stroke-linejoin="round"/>
+  <!-- 크라운 -->
+  <path d="M408 332
+           C 408 262 444 212 512 212
+           C 580 212 616 262 616 332
+           C 616 352 572 364 512 364
+           C 452 364 408 352 408 332 Z"
+        fill="url(#straw)" stroke="#C9A14E" stroke-width="8" stroke-linejoin="round"/>
+  <!-- 리본 밴드 -->
+  <path d="M410 322
+           C 430 338 470 346 512 346
+           C 554 346 594 338 614 322
+           L 614 348
+           C 594 360 554 366 512 366
+           C 470 366 430 360 410 348 Z"
+        fill="#FF9E8A" stroke="#E8856F" stroke-width="5" stroke-linejoin="round"/>
+  <!-- 짚 결 표현 -->
+  <g stroke="#C9A14E" stroke-width="4" stroke-linecap="round" opacity="0.55" fill="none">
+    <path d="M448 238 C 444 258 442 280 442 300"/>
+    <path d="M512 222 C 512 244 512 268 512 292"/>
+    <path d="M576 238 C 580 258 582 280 582 300"/>
+    <path d="M352 350 C 400 366 452 374 512 374"/>
+  </g>
+</svg>

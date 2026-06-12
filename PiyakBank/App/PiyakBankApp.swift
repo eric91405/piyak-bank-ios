@@ -111,6 +111,15 @@ final class ServiceHolder: ObservableObject {
         
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         Task { _ = await scheduler.requestAuth(); await store.loadProducts() }
+        NotificationCenter.default.addObserver(
+            forName: .piyakEquippedChanged, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            MainActor.assumeIsolated {
+                self.watch.send(equipped: self.economy.equippedMap())
+            }
+        }
+        watch.send(equipped: economy.equippedMap())   // 부팅 시 1회 초기 전송
         session.recoverIfNeeded()
     }
 }
