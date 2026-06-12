@@ -10,15 +10,14 @@ struct HomeView: View {
     @State private var showChat = false
     @State private var bubbleText = ""
     @State private var bubbleTick = 0
-    
     private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
+
     private var workedHours: Double {
         let s = session.snapshot
         guard s.isRunning, s.wage > 0 else { return 0 }
         return Double(s.accrued) / Double(s.wage)
     }
-    
+
     static func cheers(for s: SessionSnapshot, hours: Double) -> [String] {
         if !s.isRunning {
             return ["오늘도 화이팅이야 삐약!", "쉬는 것도 중요해~", "나 보러 와줘서 고마워!"]
@@ -34,12 +33,13 @@ struct HomeView: View {
         }
         return ["돈 버는 중! 멋져 삐약!", "차곡차곡 쌓이고 있어!", "이 돈으로 뭐 살까~?"]
     }
-    
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .top) {
                 PB.C.bg.ignoresSafeArea()
-                
+
+
                 CharacterComposite(showRoom: true, fillRoom: true,
                                    isWorking: session.snapshot.isRunning && !session.snapshot.isPaused,
                                    workedHours: workedHours)
@@ -51,14 +51,14 @@ struct HomeView: View {
                     ))
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 440)
+                .frame(height: 500)
                 .clipped()
+                .ignoresSafeArea(edges: .top)
                 .overlay(alignment: .bottom) {
                     LinearGradient(colors: [.clear, PB.C.bg],
                                    startPoint: .top, endPoint: .bottom)
                     .frame(height: 60)
                 }
-                
                 .overlay(alignment: .top) {
                     if !bubbleText.isEmpty {
                         Text(bubbleText)
@@ -72,15 +72,14 @@ struct HomeView: View {
                                     .fill(.white)
                                     .shadow(color: PB.C.textBrown.opacity(0.1), radius: 8, y: 3)
                             }
-                            .padding(.top, 48)
+                            .padding(.top, 130)
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     }
                 }
-                
-                
+
                 VStack(spacing: 24) {
-                    Spacer().frame(height: 390)   // 카드가 캐릭터에 살짝 겹치게
-                    
+                    Spacer().frame(height: 434)
+
                     // 금액 플로팅 카드
                     VStack(spacing: 10) {
                         Text("오늘 번 돈").font(PB.F.body(13))
@@ -100,29 +99,32 @@ struct HomeView: View {
                     .padding(.vertical, 22)
                     .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
                     .shadow(color: PB.C.textBrown.opacity(0.08), radius: 16, y: 6)
-                    
+
                     Spacer()
                     controls
                         .padding(.bottom, 40)
-
                 }
                 .padding(24)
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        HistoryView()
-                    } label: {
-                        Image(systemName: "list.bullet.rectangle")
-                            .foregroundStyle(PB.C.textBrown)
-                    }
+            .overlay(alignment: .topTrailing) {
+                NavigationLink {
+                    HistoryView()
+                } label: {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(PB.C.textBrown)
+                        .padding(11)
+                        .background(.white.opacity(0.95), in: Circle())
+                        .shadow(color: PB.C.textBrown.opacity(0.1), radius: 6, y: 2)
                 }
+                .padding(.trailing, 20)
+                .padding(.top, 50)
             }
         }
         .onReceive(tick) { date in
             now = date
             session.refreshSnapshot()
-            
+
             bubbleTick += 1
             if bubbleTick % 15 == 1 {
                 withAnimation(.spring(duration: 0.4)) {
@@ -133,7 +135,6 @@ struct HomeView: View {
                 withAnimation(.easeOut(duration: 0.3)) { bubbleText = "" }
             }
         }
-        
         .sensoryFeedback(.success, trigger: session.snapshot.isRunning)
         .sheet(isPresented: $showWageSheet) {
             WageEntrySheet { wage in
@@ -142,20 +143,20 @@ struct HomeView: View {
             }
         }
     }
-    
+
     // 오늘 누적(원장) + 현재 세션 진행분
     private var displayAmount: Int {
         let today = EconomyStore(context: context).dailyAccrued(on: now)
         return today + session.snapshot.accrued
     }
-    
+
     private var statusText: String {
         let s = session.snapshot
         if !s.isRunning { return "오늘도 삐약삐약 💰" }
         if s.isPaused { return "잠시 멈춤" }
         return "시급 \(s.wage.won) · 적립 중"
     }
-    
+
     private var isAccruing: Bool {
         session.snapshot.isRunning && !session.snapshot.isPaused
     }
@@ -165,7 +166,7 @@ struct HomeView: View {
         if s.isPaused { return PB.C.brandYellow }
         return PB.C.coral
     }
-    
+
     @ViewBuilder private var controls: some View {
         let s = session.snapshot
         if !s.isRunning {
@@ -187,7 +188,7 @@ struct HomeView: View {
 struct WageEntrySheet: View {
     @State private var text = "10000"
     let onConfirm: (Int) -> Void
-    
+
     var body: some View {
         VStack(spacing: 18) {
             Text("🐤").font(.system(size: 40))

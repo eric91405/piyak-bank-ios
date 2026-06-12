@@ -114,10 +114,8 @@ final class PiyakAIResponder: PiyakResponder {
         너는 '삐약이'. 사용자가 알바해서 번 돈(포인트)으로 키우고 꾸며주는 아기 병아리 펫이야.
 
         [오늘] \(df.string(from: .now)) \(wf.string(from: .now))
-        [지금 상황]
-        - 보유 포인트: \(snapshot.balance)P
-        - 오늘 적립: \(snapshot.todayEarned)P
-        - 네가 착용 중인 아이템: \(wearing)
+        [네가 착용 중인 아이템] \(wearing)
+
 
         [규칙]
         1. 반말로, 1~3문장으로 짧고 귀엽게 답해. 가끔 문장 끝에 "삐약!"을 붙여.
@@ -125,11 +123,13 @@ final class PiyakAIResponder: PiyakResponder {
         3. "지난주", "이번 달" 같은 표현은 위의 오늘 날짜를 기준으로 yyyy-MM-dd 기간으로 바꿔 도구에 전달해.
         4. 1P = 1원이야. 금액은 "12,000원"처럼 콤마를 넣어 읽기 좋게 말해.
         5. 사용자를 응원하고 고마워하는 펫의 마음을 항상 유지해.
+        6. 물건 가격은 네가 알 수 없어. 사용자가 사고 싶은 게 있다고 하면 가격을 절대 추측하지 말고, 가격이 얼마인지 먼저 물어봐. 사용자가 가격을 말해주면 그때 도구로 잔액을 조회해서 얼마나 더 모아야 하는지 계산해.
         """
 
         session = LanguageModelSession(
             tools: [
                 BalanceTool(container: container),
+                TodayEarningsTool(container: container),
                 EarningsTool(container: container),
             ],
             instructions: instructions
@@ -147,22 +147,39 @@ final class PiyakAIResponder: PiyakResponder {
 
 // MARK: - Tools (LLM이 SwiftData 원장을 직접 조회 — 숫자 환각 방지)
 
-/// 현재 잔액 + 오늘 적립 조회
+/// 현재 잔액(전체 누적)만 조회
 @available(iOS 26.0, *)
 struct BalanceTool: Tool {
     let name = "getBalance"
-    let description = "사용자의 현재 보유 포인트(잔액)와 오늘 적립한 포인트를 조회한다."
+    let description = "사용자가 지금까지 모은 전체 보유 포인트(잔액)를 조회한다. 오늘 번 돈을 물을 때는 사용하지 마라."
     let container: ModelContainer
 
     @Generable
     struct Arguments {}
 
     func call(arguments: Arguments) async throws -> String {
-        let text = await MainActor.run {
+        await MainActor.run {
             let store = EconomyStore(context: container.mainContext)
-            return "보유 포인트 \(store.balance)P / 오늘 적립 \(store.dailyAccrued(on: .now))P"
+            return "보유 포인트(전체 누적): \(store.balance)P"
         }
-        return text
+    }
+}
+
+/// 오늘 적립만 조회
+@available(iOS 26.0, *)
+struct TodayEarningsTool: Tool {
+    let name = "getTodayEarnings"
+    let description = "사용자가 오늘 하루 동안 적립한 포인트만 조회한다."
+    let container: ModelContainer
+
+    @Generable
+    struct Arguments {}
+
+    func call(arguments: Arguments) async throws -> String {
+        await MainActor.run {
+            let store = EconomyStore(context: container.mainContext)
+            return "오늘 적립: \(store.dailyAccrued(on: .now))P"
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#BFE8FF"/>
@@ -11,7 +11,15 @@
   </defs>
 
   <!-- 하늘 -->
-  <rect x="0" y="0" width="1024" height="724" fill="url(#sky)"/>
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#sky)"/>
+  <g fill="#FFFFFF" opacity="0.95">
+    <ellipse cx="460" cy="-80" rx="78" ry="40"/>
+    <ellipse cx="520" cy="-62" rx="58" ry="34"/>
+    <ellipse cx="900" cy="-100" rx="60" ry="34"/>
+    <ellipse cx="180" cy="-230" rx="70" ry="38"/>
+    <ellipse cx="240" cy="-212" rx="52" ry="30"/>
+    <ellipse cx="680" cy="-260" rx="64" ry="34"/>
+  </g>
 
   <!-- 해 -->
   <circle cx="180" cy="170" r="68" fill="#FFE38A"/>

@@ -1,4 +1,4 @@
-<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#2E2A52"/>
@@ -11,7 +11,19 @@
   </defs>
 
   <!-- 벽 -->
-  <rect x="0" y="0" width="1024" height="724" fill="url(#night)"/>
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#night)"/>
+  <g fill="#FFF6D6">
+    <circle cx="200" cy="-90" r="5"/><circle cx="420" cy="-60" r="4"/>
+    <circle cx="660" cy="-110" r="5"/><circle cx="60" cy="-40" r="4"/>
+    <circle cx="540" cy="-15" r="4"/><circle cx="960" cy="-50" r="4"/>
+    <circle cx="140" cy="-230" r="4"/><circle cx="360" cy="-270" r="5"/>
+    <circle cx="600" cy="-210" r="4"/><circle cx="820" cy="-260" r="5"/>
+    <circle cx="940" cy="-180" r="4"/>
+  </g>
+  <g stroke="#FFF6D6" stroke-width="3" stroke-linecap="round">
+    <path d="M320 -100 L320 -76 M308 -88 L332 -88"/>
+    <path d="M720 -240 L720 -216 M708 -228 L732 -228"/>
+  </g>
 
   <!-- 달 -->
   <circle cx="820" cy="180" r="78" fill="#FFE9A8"/>
