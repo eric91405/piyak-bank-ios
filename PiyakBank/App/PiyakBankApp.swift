@@ -41,16 +41,15 @@ final class AppRouter: ObservableObject {
     }
 }
 
-// MARK: 루트 (3탭) + 서비스 와이어링
-
 struct RootView: View {
     @EnvironmentObject var router: AppRouter
     @Environment(\.modelContext) private var context
     
     @StateObject private var sessionHolder = ServiceHolder()
+    @State private var showSplash = true
     
     var body: some View {
-        Group {
+        ZStack {
             if let session = sessionHolder.session {
                 TabView(selection: $router.tab) {
                     HomeView()
@@ -68,14 +67,19 @@ struct RootView: View {
                         .tabItem { Label("설정", systemImage: "gearshape.fill") }
                         .tag(AppRouter.Tab.settings)
                 }
-            } else {
-                ZStack {
-                    PB.C.bg.ignoresSafeArea()
-                    ProgressView()
-                }
+            }
+            
+            if showSplash {
+                SplashView()
+                    .transition(.opacity)
+                    .zIndex(1)
             }
         }
-        .task { sessionHolder.bootstrap(context: context) }
+        .task {
+            sessionHolder.bootstrap(context: context)
+            try? await Task.sleep(for: .seconds(1.4))
+            withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
+        }
     }
 }
 
@@ -314,6 +318,73 @@ struct SettingsView: View {
             Spacer()
             Text(value).font(PB.F.body(15))
                 .foregroundStyle(PB.C.textBrown.opacity(0.5))
+        }
+    }
+}
+
+// MARK: 스플래시
+
+struct SplashView: View {
+    @State private var appear = false
+    
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: [Color(red: 1.0, green: 0.98, blue: 0.93), PB.C.bg],
+                           startPoint: .top, endPoint: .bottom)
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                Spacer()
+                
+                // 앱 아이콘 타일
+                Image("splash_logo")
+                    .resizable().scaledToFit()
+                    .frame(width: 112, height: 112)
+                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+                    .shadow(color: PB.C.textBrown.opacity(0.18), radius: 18, y: 8)
+                    .scaleEffect(appear ? 1.0 : 0.7)
+                    .opacity(appear ? 1 : 0)
+                
+                // 워드마크
+                Text("삐약뱅크")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundStyle(PB.C.textBrown)
+                    .padding(.top, 22)
+                    .opacity(appear ? 1 : 0)
+                    .offset(y: appear ? 0 : 10)
+                
+                Text("내 시간이 돈이 되는 순간")
+                    .font(PB.F.body(14))
+                    .foregroundStyle(PB.C.textBrown.opacity(0.45))
+                    .padding(.top, 8)
+                    .opacity(appear ? 1 : 0)
+                    .offset(y: appear ? 0 : 10)
+                
+                Spacer()
+                
+                // 로딩 점
+                TimelineView(.animation) { tl in
+                    let t = tl.date.timeIntervalSinceReferenceDate
+                    HStack(spacing: 8) {
+                        ForEach(0..<3, id: \.self) { i in
+                            Circle()
+                                .fill(PB.C.coral)
+                                .frame(width: 8, height: 8)
+                                .opacity(0.3 + 0.7 * abs(sin((t - Double(i) * 0.22) * 2.8)))
+                        }
+                    }
+                }
+                .padding(.bottom, 24)
+                
+                Text("PiyakBank")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(PB.C.textBrown.opacity(0.3))
+                    .padding(.bottom, 28)
+                    .opacity(appear ? 1 : 0)
+            }
+        }
+        .onAppear {
+            withAnimation(.spring(duration: 0.55, bounce: 0.35)) { appear = true }
         }
     }
 }
