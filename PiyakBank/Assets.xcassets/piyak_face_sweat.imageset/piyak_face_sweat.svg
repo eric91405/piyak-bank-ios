@@ -1,0 +1,10 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 땀방울 (머리 오른쪽) -->
+  <path d="M652 386
+           C 652 368 664 348 668 342
+           C 672 348 684 368 684 386
+           C 684 398 677 406 668 406
+           C 659 406 652 398 652 386 Z"
+        fill="#9ED4F0" stroke="#6FB6DC" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="662" cy="384" r="4" fill="#FFFFFF" opacity="0.8"/>
+</svg>

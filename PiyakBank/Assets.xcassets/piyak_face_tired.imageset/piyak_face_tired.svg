@@ -1,0 +1,26 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 땀방울 2개 -->
+  <path d="M652 386
+           C 652 368 664 348 668 342
+           C 672 348 684 368 684 386
+           C 684 398 677 406 668 406
+           C 659 406 652 398 652 386 Z"
+        fill="#9ED4F0" stroke="#6FB6DC" stroke-width="6" stroke-linejoin="round"/>
+  <circle cx="662" cy="384" r="4" fill="#FFFFFF" opacity="0.8"/>
+  <path d="M620 330
+           C 620 316 629 301 632 296
+           C 635 301 644 316 644 330
+           C 644 339 639 345 632 345
+           C 625 345 620 339 620 330 Z"
+        fill="#9ED4F0" stroke="#6FB6DC" stroke-width="5" stroke-linejoin="round"/>
+  <!-- 다크서클 (눈 밑 처진 곡선) -->
+  <g stroke="#B9A6C9" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.7">
+    <path d="M424 528 C 436 538 458 538 470 530"/>
+    <path d="M556 530 C 568 538 590 538 602 528"/>
+  </g>
+  <!-- 한숨 김 (머리 위로 모락) -->
+  <g stroke="#C9C2B8" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.55">
+    <path d="M380 330 C 372 318 380 306 372 294"/>
+    <path d="M402 318 C 394 306 402 294 394 282"/>
+  </g>
+</svg>
