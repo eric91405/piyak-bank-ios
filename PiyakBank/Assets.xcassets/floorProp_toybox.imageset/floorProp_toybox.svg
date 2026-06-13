@@ -1,0 +1,9 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+
+<rect x="724" y="800" width="256" height="160" rx="18" fill="#9B8CDB" stroke="#7C6BC4" stroke-width="9"/>
+<rect x="712" y="772" width="280" height="46" rx="14" fill="#B5A8E8" stroke="#7C6BC4" stroke-width="9"/>
+<rect x="752" y="712" width="64" height="64" rx="10" fill="#FF9E8A" stroke="#E8856F" stroke-width="7"/>
+<circle cx="880" cy="748" r="32" fill="#FFD64D" stroke="#D9A82C" stroke-width="7"/>
+<path d="M922 776 L 962 776 L 942 736 Z" fill="#A8E6CF" stroke="#7BC8A4" stroke-width="7" stroke-linejoin="round"/>
+<text x="852" y="900" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="46" fill="#FFFFFF">TOY</text>
+</svg>

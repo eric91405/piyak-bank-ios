@@ -1,0 +1,9 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+
+<g stroke="#D9A82C" stroke-width="7">
+<ellipse cx="800" cy="930" rx="92" ry="30" fill="#FFD64D"/><ellipse cx="800" cy="906" rx="92" ry="30" fill="#FFE07A"/>
+<ellipse cx="880" cy="946" rx="70" ry="24" fill="#FFD64D"/>
+<ellipse cx="852" cy="848" rx="56" ry="44" fill="#FFD64D"/></g>
+<text x="852" y="864" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="44" fill="#C08A18">₩</text>
+<g fill="#FFFFFF" opacity="0.7"><path d="M740 856 l5 11 12 1 -9 8 2 12 -10 -6 -10 6 2 -12 -9 -8 12 -1 Z"/></g>
+</svg>

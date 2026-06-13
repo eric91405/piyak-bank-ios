@@ -1,0 +1,7 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+<path d="M862 740 C 940 768 962 856 912 916 C 868 966 776 966 736 912 C 692 852 716 766 790 742 C 814 734 840 732 862 740 Z"
+ fill="#F4EEE0" stroke="#C2B49C" stroke-width="11"/>
+<path d="M796 742 C 798 726 850 726 854 742" fill="none" stroke="#C2B49C" stroke-width="11" stroke-linecap="round"/>
+<path d="M762 798 C 750 830 750 868 764 896" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" opacity="0.7"/>
+<ellipse cx="858" cy="860" rx="20" ry="34" fill="#E8DFC9" opacity="0.6"/>
+</svg>

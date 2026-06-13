@@ -1,0 +1,6 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+
+<path d="M512 980 C 380 920 320 856 348 806 C 372 766 442 770 512 826 C 582 770 652 766 676 806 C 704 856 644 920 512 980 Z"
+ fill="#FFB3C6" stroke="#E87DA0" stroke-width="9" stroke-linejoin="round"/>
+<path d="M512 944 C 420 898 380 852 398 818" fill="none" stroke="#FF8FAF" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+</svg>

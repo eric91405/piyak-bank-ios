@@ -1,0 +1,7 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+
+<path d="M368 580 C 416 622 462 640 512 640 C 562 640 608 622 656 580" fill="none" stroke="#E0A82E" stroke-width="13" stroke-linecap="round"/>
+<path d="M368 580 C 416 622 462 640 512 640 C 562 640 608 622 656 580" fill="none" stroke="#FFD64D" stroke-width="6" stroke-linecap="round"/>
+<circle cx="512" cy="668" r="26" fill="#FFD64D" stroke="#E0A82E" stroke-width="7"/>
+<text x="512" y="679" text-anchor="middle" font-family="sans-serif" font-weight="bold" font-size="30" fill="#C08A18">₩</text>
+</svg>
