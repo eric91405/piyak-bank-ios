@@ -1,0 +1,14 @@
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A6DCEF"/><stop offset="1" stop-color="#7EC8E3"/></linearGradient>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F2E2BC"/><stop offset="1" stop-color="#E8D2A0"/></linearGradient>
+  </defs>
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#w)"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="9" stroke-linecap="round" opacity="0.7">
+  <path d="M140 -160 q 40 -26 80 0 q 40 26 80 0"/><path d="M620 -60 q 40 -26 80 0 q 40 26 80 0"/>
+  <path d="M260 160 q 40 -26 80 0 q 40 26 80 0"/><path d="M640 360 q 40 -26 80 0 q 40 26 80 0"/></g>
+  <g fill="#FFFFFF" opacity="0.55"><circle cx="160" cy="60" r="13"/><circle cx="196" cy="20" r="9"/><circle cx="880" cy="-200" r="13"/><circle cx="850" cy="-240" r="9"/><circle cx="540" cy="500" r="11"/></g>
+  <rect x="0" y="724" width="1024" height="300" fill="url(#f)"/>
+  <path d="M0 724 L1024 724" stroke="#00000022" stroke-width="6"/>
+  <path d="M0 800 L1024 800 M0 880 L1024 880" stroke="#00000011" stroke-width="4"/>
+</svg>

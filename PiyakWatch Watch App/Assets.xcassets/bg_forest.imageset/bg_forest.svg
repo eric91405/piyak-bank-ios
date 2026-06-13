@@ -1,0 +1,15 @@
+<svg viewBox="0 -300 1024 1324" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#CDE8B8"/><stop offset="1" stop-color="#B5DDA4"/></linearGradient>
+    <linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B08D5A"/><stop offset="1" stop-color="#9A7847"/></linearGradient>
+  </defs>
+  <rect x="0" y="-300" width="1024" height="1024" fill="url(#w)"/>
+  <g opacity="0.85">
+  <path d="M150 480 L 230 300 L 310 480 Z" fill="#8FCB7E"/><rect x="218" y="470" width="24" height="60" fill="#8A6B3F"/>
+  <path d="M730 440 L 820 230 L 910 440 Z" fill="#7FB369"/><rect x="806" y="430" width="28" height="70" fill="#8A6B3F"/>
+  <path d="M460 -120 L 530 -260 L 600 -120 Z" fill="#8FCB7E"/>
+  <circle cx="180" cy="-180" r="9" fill="#FFF7B8"/><circle cx="880" cy="-80" r="8" fill="#FFF7B8"/><circle cx="620" cy="120" r="7" fill="#FFF7B8"/></g>
+  <rect x="0" y="724" width="1024" height="300" fill="url(#f)"/>
+  <path d="M0 724 L1024 724" stroke="#00000022" stroke-width="6"/>
+  <path d="M0 800 L1024 800 M0 880 L1024 880" stroke="#00000011" stroke-width="4"/>
+</svg>
