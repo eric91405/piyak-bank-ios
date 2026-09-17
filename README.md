@@ -10,9 +10,9 @@
 
 ## 실제 앱 화면
 
-<img src="docs/screenshots/iphone-home.jpg" width="240" alt="입체 병아리와 예상 수익을 보여주는 홈"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점">
+<img src="docs/screenshots/iphone-home.jpg" width="240" alt="방 안에서 생활하는 입체 병아리와 예상 수익"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점"> <img src="docs/screenshots/iphone-item-preview.jpg" width="240" alt="회전과 확대 버튼으로 살펴보는 입체 의상">
 
-iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. [iPad 화면](docs/screenshots/ipad-home.jpg) · [다크 모드와 큰 글씨](docs/screenshots/iphone-accessibility-dark.jpg)
+iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. 이전 출시 후보의 레이아웃 검증 자료: [iPad 화면](docs/screenshots/ipad-home.jpg) · [다크 모드와 큰 글씨](docs/screenshots/iphone-accessibility-dark.jpg). 두 참고 화면은 이번 모델 개선 이전 모습입니다.
 
 ## 주요 기능
 
@@ -20,12 +20,13 @@ iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. [iPad 화면]
 |---|---|
 | 근무 기록 | 시작·휴식·재개·종료, 마지막 저장 상태 복구 |
 | 수익 계산 | 유급 시간만 계산, 자정 분할, 날짜별 합계와 전체 금액 일치 |
-| 작은 방 꾸미기 | SceneKit으로 직접 만든 입체 병아리·가구, 81개 포인트 아이템 |
+| 작은 방 꾸미기 | 곡면 의상·안경·가구 등 81개 입체 아이템, 회전·확대 착용 미리보기 |
+| 삐약이의 하루 | 바닥을 걷고, 장착한 화분·책·피아노·소파·강아지와 상호작용 |
 | 성장 | 누적 예상 수익 5만원마다 레벨 상승, 아이템 구매로 레벨 감소 없음 |
 | 기록 관리 | 달력, 완료 기록 수정·삭제, 누락 근무 추가, CSV 내보내기 |
 | Apple Watch | iPhone 시급 동기화, 연결 상태 표시, 확인 응답을 받는 근무 제어 |
 | iPhone/iPad 위젯 | 5분 단위 예상 수익, 상태 변경 시 갱신 요청 |
-| 삐약이와 대화 | 기록을 직접 조회하는 수익 답변, 지원 환경에서 기기 내 AI 일상 대화 |
+| 삐약이와 대화 | 최근 대화 문맥·실시간 응답·중지·재시도, 기록 직접 조회, AI 준비 상태 안내 |
 | 접근성과 개인정보 | Dynamic Type, VoiceOver 레이블, Reduce Motion, 다크 모드, 선택 알림 |
 
 ## 설계에서 집중한 점
@@ -47,6 +48,16 @@ iPhone, Watch, 위젯이 `EarningsCalculator`를 공유합니다. 시급을 먼�
 ### 같은 모델로 만드는 디자인
 
 캐릭터, 옷, 방과 가구를 코드로 구성한 SceneKit 기하 모델로 렌더링합니다. 앱 아이콘과 상점의 81개 미리보기도 같은 모델에서 생성하므로 미리보기와 실제 착용이 일치합니다. 제3자 3D 모델이나 다운로드 자산은 없습니다.
+
+의상과 봉제선은 몸 곡면을 따라 구성하고, 얇은 물체의 모서리 반경을 두께에 맞춰 제한합니다. 미리보기는 실제 모델 범위에 맞춰 카메라를 조정하며 생성 원본의 지문을 검사해 오래된 이미지가 남지 않게 합니다.
+
+방 안 행동은 가구 앞쪽 통로를 따라 이동하도록 설계했고 캐릭터 관절을 사용합니다. 홈이 화면에 보일 때만 최대 24fps로 움직이며, 대화·다른 탭·백그라운드·저전력·발열 경고·Reduce Motion에서는 멈춥니다. 홈에서 직접 움직임을 멈출 수도 있습니다.
+
+### 대화의 성공과 실패를 구분
+
+Apple Foundation Models의 실제 대화 세션을 유지해 한국어 대화를 이어갑니다. 기록 조회·도움말의 정적 답변은 모델 문맥에서 제외합니다. 문맥 한도·실패로 세션을 다시 만들 때는 최근 사용자 발언과 직접 알려 준 정보를 복원합니다. 생성 중인 응답을 바로 표시하며, 취소된 요청의 늦은 결과는 버립니다. 직전 답변 복사나 장문 반복은 한 번만 문맥을 정리해 재생성하고, 계속 실패하면 이를 알립니다. 모델을 쓸 수 없을 때는 이유를 표시하고 AI 없이 가능한 기록 조회를 제공합니다. 무작위 고정 문구를 AI 답변처럼 표시하지 않습니다. Markdown은 말풍선 안에서 읽기 좋은 서식으로 표시합니다.
+
+이름·취향을 기억하는지는 사용자가 직접 밝힌 정보로 확인하고, AI의 생성 내용과 구분해 표시합니다. 대화는 앱 실행 중 메모리에만 유지합니다. 실제 기기 내 모델을 사용하는 [한국어 대화 검증 도구](scripts/ProbeLocalChat.swift)와 [행동 프레임](docs/quality/room-activities.jpg), [착용 조합](docs/quality/room-combinations.jpg)을 함께 제공합니다.
 
 ## 기술 구성
 
@@ -75,10 +86,10 @@ docs/          지원·개인정보·심사 자료·검증 기록
 `PiyakBank.xcodeproj`를 열고 `PiyakBank` scheme을 실행합니다. 의존 패키지, API 키, 서버 설정은 없습니다.
 
 ```sh
-swift test
+swift test --jobs 1
 python3 scripts/check_release_assets.py
 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank \
-  -configuration Release -jobs 2 -destination 'generic/platform=iOS' \
+  -configuration Release -jobs 1 -destination 'generic/platform=iOS' \
   -derivedDataPath /tmp/PiyakBank CODE_SIGNING_ALLOWED=NO build
 ```
 

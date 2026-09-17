@@ -12,6 +12,9 @@ struct HomeView: View {
     @State private var showChat = false
     @State private var confirmStop = false
     @State private var reward: Int?
+    @State private var chatEngine: PiyakChatEngine?
+    @State private var activity = "반가워! 오늘도 함께해"
+    @AppStorage("room_animations_enabled") private var roomAnimationsEnabled = true
 
     private var balance: Int { transactions.reduce(0) { $0 + $1.amount } }
     private var settledEarnings: Int { transactions.filter { $0.kind == .accrual }.reduce(0) { $0 + $1.amount } }
@@ -54,7 +57,7 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showChat) {
-                PiyakChatView(engine: PiyakChatEngine(container: context.container))
+                if let chatEngine { PiyakChatView(engine: chatEngine) }
             }
             .confirmationDialog("근무를 마치고 포인트를 받을까요?", isPresented: $confirmStop, titleVisibility: .visible) {
                 Button("근무 마치기") {
@@ -100,7 +103,7 @@ Button { router.tab = .decorate } label: {
     private var room: some View {
         VStack(spacing: 0) {
             HStack {
-                Label(paused ? "휴식도 성장의 일부" : running ? "함께 열심히 일하는 중" : "오늘도 만나서 반가워!",
+                Label(activity,
                       systemImage: paused ? "moon.zzz.fill" : "sparkles")
                     .font(.system(.footnote, design: .rounded, weight: .semibold))
                     .foregroundStyle(PB.C.ink)
@@ -110,16 +113,33 @@ Button { router.tab = .decorate } label: {
                     .padding(.horizontal, 9).padding(.vertical, 6)
                     .background(.white.opacity(0.8), in: Capsule()).foregroundStyle(PB.C.ink)
             }.padding(.horizontal, 20).padding(.top, 18)
-            CharacterComposite(isWorking: running && !paused)
+            CharacterComposite(isWorking: running && !paused,
+                               animateLife: roomAnimationsEnabled && !showChat && !showWage && reward == nil && !confirmStop,
+                               onActivity: { activity = $0 })
                 .frame(height: verticalSizeClass == .compact ? 220 : (horizontalSizeClass == .regular ? 420 : 295))
                 .overlay(alignment: .bottomTrailing) {
-                    Button { showChat = true } label: {
+                    Button {
+                        if chatEngine == nil { chatEngine = PiyakChatEngine(container: context.container) }
+                        showChat = true
+                    } label: {
                         Label("말 걸기", systemImage: "bubble.left.and.bubble.right.fill")
                             .font(.subheadline.bold()).foregroundStyle(PB.C.ink)
                             .padding(.horizontal, 14).padding(.vertical, 11)
                             .background(.white, in: Capsule())
                             .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
                     }.padding(16)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    Button {
+                        roomAnimationsEnabled.toggle()
+                        activity = roomAnimationsEnabled ? "삐약이가 다시 움직여요" : "움직임을 잠시 쉬고 있어요"
+                    } label: {
+                        Image(systemName: roomAnimationsEnabled ? "pause.fill" : "play.fill")
+                            .font(.subheadline.bold()).foregroundStyle(PB.C.ink)
+                            .frame(width: 44, height: 44).background(.white.opacity(0.9), in: Circle())
+                    }
+                    .accessibilityLabel(roomAnimationsEnabled ? "삐약이 움직임 멈추기" : "삐약이 움직임 재생")
+                    .padding(16)
                 }
         }
         .background(LinearGradient(colors: [Color(hex: 0xE5DCF5), Color(hex: 0xF7E7CB)], startPoint: .topLeading, endPoint: .bottomTrailing))

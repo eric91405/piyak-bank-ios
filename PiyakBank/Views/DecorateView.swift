@@ -102,6 +102,11 @@ private struct ItemDetailSheet: View {
     let isOwned: Bool
     @State private var error: String?
     @State private var confirmPurchase = false
+    @State private var showWholeRoom = false
+    @State private var inspectionYaw: Double = 0
+    @State private var inspectionZoom: Double = 1
+    @State private var inspectionResetID = 0
+    private var wearable: Bool { [.bodyFront, .headTop, .eyes, .neck].contains(item.slot) }
     private var isEquipped: Bool { equipped[item.slotRaw] == item.id }
     private var preview: [String: String] {
         var map = equipped; map[item.slotRaw] = item.id; return map
@@ -110,8 +115,20 @@ private struct ItemDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    CharacterComposite(preview: preview).frame(height: 280)
+                    CharacterComposite(showRoom: !wearable || showWholeRoom, preview: preview,
+                                       allowsInspection: true, inspectionYaw: inspectionYaw,
+                                       inspectionZoom: inspectionZoom, inspectionResetID: inspectionResetID)
+                        .frame(height: 320)
                         .background(PB.C.lilac, in: RoundedRectangle(cornerRadius: 28))
+                    inspectionControls
+                    if wearable {
+                        Picker("미리보기 범위", selection: $showWholeRoom) {
+                            Text("가까이 보기").tag(false)
+                            Text("방에서 보기").tag(true)
+                        }.pickerStyle(.segmented)
+                    }
+                    Label("버튼으로 돌려 보세요. 드래그와 두 손가락 확대도 가능해요", systemImage: "hand.draw")
+                        .font(.caption).foregroundStyle(PB.C.secondary)
                     VStack(spacing: 8) {
                         Text(item.displayName).font(.title2.bold())
                         Text("\(item.slot.title) · 미리 보는 중").font(.subheadline).foregroundStyle(PB.C.secondary)
@@ -137,6 +154,7 @@ private struct ItemDetailSheet: View {
             }.background(PB.C.bg).foregroundStyle(PB.C.textBrown)
                 .navigationTitle("마음에 드나요?").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
+                .onChange(of: showWholeRoom) { _, _ in resetInspection() }
                 .confirmationDialog("\(item.price.points)로 데려올까요?", isPresented: $confirmPurchase, titleVisibility: .visible) {
                     Button("구매하고 꾸미기") { action { try session.economy.purchase(item.id, equip: true) } }
                 }
@@ -144,6 +162,34 @@ private struct ItemDetailSheet: View {
                     Button("확인") { error = nil }
                 } message: { Text(error ?? "") }
         }
+    }
+    private var inspectionControls: some View {
+        HStack(spacing: 8) {
+            inspectionButton("왼쪽으로 회전", symbol: "arrow.counterclockwise") { inspectionYaw -= .pi / 8 }
+            inspectionButton("오른쪽으로 회전", symbol: "arrow.clockwise") { inspectionYaw += .pi / 8 }
+            inspectionButton("축소", symbol: "minus.magnifyingglass") { inspectionZoom = max(0.7, inspectionZoom - 0.15) }
+                .disabled(inspectionZoom <= 0.7001)
+            inspectionButton("확대", symbol: "plus.magnifyingglass") { inspectionZoom = min(1.6, inspectionZoom + 0.15) }
+                .disabled(inspectionZoom >= 1.5999)
+            inspectionButton("원래대로", symbol: "arrow.uturn.backward") { resetInspection() }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("3D 미리보기 조절")
+        .accessibilityValue("확대 \(Int((inspectionZoom * 100).rounded()))퍼센트")
+    }
+    private func inspectionButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.body.weight(.semibold))
+                .frame(minWidth: 44, minHeight: 44)
+                .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+    private func resetInspection() {
+        inspectionYaw = 0
+        inspectionZoom = 1
+        inspectionResetID += 1
     }
     private func action(_ operation: () throws -> Void) {
         do { try operation(); dismiss() } catch { self.error = error.localizedDescription }

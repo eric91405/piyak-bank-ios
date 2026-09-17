@@ -1,170 +1,217 @@
 import SwiftUI
 import SwiftData
 
-/// 홈에서 삐약이를 탭하면 올라오는 채팅 시트.
-/// 사용: .sheet { PiyakChatView(engine: PiyakChatEngine(container:snapshot:)) }
 struct PiyakChatView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var engine: PiyakChatEngine
     @State private var input = ""
+    @State private var showDetails = false
+    @State private var confirmClear = false
     @FocusState private var inputFocused: Bool
 
-    init(engine: PiyakChatEngine) {
-        _engine = StateObject(wrappedValue: engine)
-    }
-
-    private let suggestions = ["오늘 얼마 벌었어?", "이번 주 정산해줘", "심심해!"]
+    init(engine: PiyakChatEngine) { _engine = StateObject(wrappedValue: engine) }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             messageList
+            quickActions
             inputBar
         }
         .background(PB.C.bg.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .sensoryFeedback(.impact, trigger: engine.messages.count)
+        .onAppear { engine.refreshAvailability() }
         .onDisappear { engine.cancel() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { engine.refreshAvailability() }
+            else if phase == .background { engine.cancel() }
+        }
+        .confirmationDialog("이 대화를 지우고 새로 시작할까요?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("새 대화 시작", role: .destructive) { engine.clear() }
+        }
     }
-
-    // MARK: 헤더
 
     private var header: some View {
         HStack(spacing: 10) {
             Image("AppMascot")
-                .resizable().scaledToFit()
-                .frame(width: 38, height: 38)
-                .padding(5)
+                .resizable().scaledToFit().frame(width: 42, height: 42)
                 .background(PB.C.brandYellow.opacity(0.25), in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text("삐약이")
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .foregroundStyle(PB.C.textBrown)
-                HStack(spacing: 4) {
-                    Circle().fill(.green).frame(width: 6, height: 6)
-                    Text(engine.isOnDeviceAI ? "온디바이스 AI" : "기본 모드")
-                        .font(PB.F.body(11))
-                        .foregroundStyle(PB.C.textBrown.opacity(0.55))
-                }
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("삐약이와 이야기").font(PB.F.body(17).weight(.bold))
+                Label(engine.isOnDeviceAI ? "온디바이스 AI" : "기록 도우미", systemImage: engine.isOnDeviceAI ? "sparkles" : "list.bullet.clipboard")
+                    .font(PB.F.body(11)).foregroundStyle(PB.C.secondary)
             }
-            Spacer()
-            Button {
-                dismiss()
+            Spacer(minLength: 0)
+            Menu {
+                Button("AI 상태 다시 확인", systemImage: "arrow.clockwise") { engine.refreshAvailability() }
+                    .disabled(engine.isThinking)
+                Button("새 대화", systemImage: "square.and.pencil") { confirmClear = true }
+                    .disabled(engine.messages.isEmpty)
             } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.5))
-                    .padding(10)
-                    .background(PB.C.surface, in: Circle())
+                Image(systemName: "ellipsis").frame(width: 44, height: 44)
+            }.accessibilityLabel("대화 메뉴")
+            Button { dismiss() } label: {
+                Image(systemName: "xmark").font(.system(size: 14, weight: .bold))
+                    .frame(width: 44, height: 44).background(PB.C.surface, in: Circle())
             }.accessibilityLabel("대화 닫기")
         }
-        .accessibilityElement(children: .contain)
-        .padding(.horizontal, 16)
-        .padding(.top, 18)
-        .padding(.bottom, 10)
+        .foregroundStyle(PB.C.textBrown)
+        .padding(.horizontal, 16).padding(.top, 18).padding(.bottom, 10)
     }
-
-    // MARK: 메시지 리스트
 
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 10) {
-                    if engine.messages.isEmpty {
-                        emptyState
+                // History is capped at 60 messages. Measuring those actual heights avoids
+                // lazy estimated-height corrections while the streamed bubble is growing.
+                VStack(spacing: 14) {
+                    availabilityCard
+                    if engine.messages.isEmpty { emptyState }
+                    ForEach(engine.messages) { message in
+                        ChatBubble(message: message,
+                                   streaming: engine.isThinking && message.id == engine.messages.last?.id)
+                            .equatable()
                     }
-                    ForEach(engine.messages) { msg in
-                        ChatBubble(message: msg)
+                    if engine.isThinking && !engine.isStreaming {
+                        HStack(spacing: 10) {
+                            ProgressView().tint(PB.C.coral)
+                            Text("이야기를 생각하고 있어요…").font(PB.F.body(13)).foregroundStyle(PB.C.secondary)
+                            Spacer()
+                        }.padding(.vertical, 8)
                     }
-                    if engine.isThinking {
-                        ThinkingBubble()
-                    }
+                    if let failure = engine.failure { failureCard(failure) }
                     Color.clear.frame(height: 1).id("bottom")
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 6)
+                }.padding(.horizontal, 16).padding(.vertical, 8)
             }
             .scrollDismissesKeyboard(.interactively)
-            .onChange(of: engine.messages) { _, _ in
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo("bottom", anchor: .bottom)
-                }
+            .task(id: scrollEvent) {
+                // Scroll only at message/response boundaries, never on every text snapshot.
+                // Defer the command out of the state-change/layout transaction; scrolling a
+                // changing LazyVStack synchronously can feed back into height estimation.
+                await Task.yield()
+                guard !Task.isCancelled else { return }
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { proxy.scrollTo("bottom", anchor: .bottom) }
             }
-            .onChange(of: engine.isThinking) { _, _ in
-                withAnimation(.easeOut(duration: 0.2)) {
-                    proxy.scrollTo("bottom", anchor: .bottom)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var scrollEvent: ChatScrollEvent {
+        .init(lastMessageID: engine.messages.last?.id, isThinking: engine.isThinking,
+              failureUserID: engine.failure?.userMessageID, inputFocused: inputFocused)
+    }
+
+    private var availabilityCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if engine.isOnDeviceAI {
+                DisclosureGroup(isExpanded: $showDetails) {
+                    Text(engine.availability.detail).padding(.top, 6)
+                } label: {
+                    Label("무료 · 이 기기에서만 처리", systemImage: "iphone.gen3.radiowaves.left.and.right")
+                }
+            } else {
+                Label("자유 대화 준비가 필요해요", systemImage: "info.circle")
+                    .font(PB.F.body(14).weight(.semibold))
+                Text(engine.availability.detail)
+                Button("AI 상태 다시 확인", systemImage: "arrow.clockwise") { engine.refreshAvailability() }
+                    .buttonStyle(.bordered).disabled(engine.isThinking)
+                if let hint = engine.availability.environmentHint {
+                    Text(hint).font(PB.F.body(11))
                 }
             }
         }
+        .font(PB.F.body(12)).foregroundStyle(PB.C.secondary)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(13).background(PB.C.surface, in: RoundedRectangle(cornerRadius: 16))
     }
-
-    // MARK: 빈 상태 (첫 진입)
 
     private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image("AppMascot")
-                .resizable().scaledToFit()
-                .frame(height: 110)
-                .padding(.top, 18)
-            Text("궁금한 거 물어봐!\n네 기록을 함께 살펴볼게, 삐약!")
-                .font(PB.F.body(14))
-                .foregroundStyle(PB.C.textBrown.opacity(0.7))
-                .multilineTextAlignment(.center)
-                .lineSpacing(3)
-            VStack(spacing: 8) {
-                ForEach(suggestions, id: \.self) { s in
-                    Button {
-                        engine.send(s)
-                    } label: {
-                        Text(s)
-                            .font(PB.F.body(13))
-                            .foregroundStyle(PB.C.textBrown)
-                            .padding(.horizontal, 16).padding(.vertical, 10)
-                            .background(PB.C.surface, in: Capsule())
-                            .overlay(Capsule().strokeBorder(PB.C.brandYellow, lineWidth: 1.5))
-                    }
-                }
+        VStack(spacing: 12) {
+            Image("AppMascot").resizable().scaledToFit().frame(height: 135).accessibilityHidden(true)
+            Text(engine.isOnDeviceAI ? "오늘은 어떤 하루였어?" : "네 기록을 함께 살펴볼까?")
+                .font(PB.F.body(20).weight(.bold))
+            Text(engine.isOnDeviceAI
+                 ? "좋았던 일도, 마음에 걸리는 일도 들려줘.\n우리 방 이야기나 궁금한 걸 물어봐도 좋아!"
+                 : "오늘 수익과 포인트는 AI 없이도\n앱의 기록으로 정확하게 확인할 수 있어.")
+                .font(PB.F.body(14)).foregroundStyle(PB.C.secondary)
+                .multilineTextAlignment(.center).lineSpacing(4)
+            if engine.isOnDeviceAI {
+                Button("퇴근 후 기분 전환할 일을 같이 골라줘") {
+                    engine.send("퇴근 후 기분 전환할 일을 같이 골라줘")
+                }.font(PB.F.body(13)).buttonStyle(.bordered).padding(.top, 4)
             }
-            .padding(.top, 4)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.bottom, 12)
+        }.frame(maxWidth: .infinity).padding(.vertical, 18)
     }
 
-    // MARK: 입력바
+    private func failureCard(_ failure: PiyakChatFailure) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(failure.title, systemImage: "exclamationmark.bubble")
+                .font(PB.F.body(14).weight(.semibold))
+            Text(failure.detail).font(PB.F.body(13)).foregroundStyle(PB.C.secondary)
+            if failure.canRetry {
+                Button("다시 시도", systemImage: "arrow.clockwise") { engine.retry() }
+                    .font(PB.F.body(13)).buttonStyle(.bordered).disabled(engine.isThinking)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14).background(PB.C.coral.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var quickActions: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(["오늘 수익 알려줘", "내 포인트 얼마야", "사용법 알려줘"], id: \.self) { suggestion in
+                    Button { engine.send(suggestion) } label: {
+                        Text(suggestion).font(PB.F.body(12))
+                            .padding(.horizontal, 12).frame(minHeight: 44)
+                            .background(PB.C.surface, in: Capsule())
+                    }.disabled(engine.isThinking)
+                }
+            }.padding(.horizontal, 16)
+        }.padding(.top, 6)
+    }
 
     private var inputBar: some View {
-        HStack(spacing: 8) {
-            TextField("삐약이에게 말 걸기...", text: $input, axis: .vertical)
-                .font(PB.F.body(15))
-                .lineLimit(1...4)
-                .focused($inputFocused)
-                .padding(.horizontal, 16).padding(.vertical, 11)
-                .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 22))
-                .shadow(color: PB.C.textBrown.opacity(0.06), radius: 6, y: 2)
-                .onSubmit(submit)
-            Button(action: submit) {
-                Image(systemName: "arrow.up")
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(PB.C.ink)
-                    .frame(width: 44, height: 44)
-                    .background(canSend ? PB.C.brandYellow : PB.C.textBrown.opacity(0.2),
-                                in: Circle())
+        VStack(alignment: .trailing, spacing: 3) {
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField("삐약이에게 이야기하기", text: $input, axis: .vertical)
+                    .font(PB.F.body(15)).lineLimit(1...5).focused($inputFocused)
+                    .padding(.horizontal, 16).padding(.vertical, 12)
+                    .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 22))
+                    .onSubmit(submit)
+                    .onChange(of: input) { _, value in
+                        if value.count > PiyakConversation.maximumInput {
+                            input = String(value.prefix(PiyakConversation.maximumInput))
+                        }
+                    }
+                if engine.isThinking {
+                    Button { engine.cancel() } label: {
+                        Image(systemName: "stop.fill").frame(width: 44, height: 44)
+                            .background(PB.C.coral.opacity(0.12), in: Circle())
+                    }.accessibilityLabel("응답 생성 멈추기")
+                } else {
+                    Button(action: submit) {
+                        Image(systemName: "arrow.up").font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(PB.C.ink).frame(width: 44, height: 44)
+                            .background(canSend ? PB.C.brandYellow : PB.C.secondary.opacity(0.15), in: Circle())
+                    }.accessibilityLabel("메시지 보내기").disabled(!canSend)
+                }
             }
-            .accessibilityLabel("메시지 보내기")
-            .disabled(!canSend)
-            .animation(.easeOut(duration: 0.15), value: canSend)
+            if input.count > 650 {
+                Text("\(input.count) / \(PiyakConversation.maximumInput)자")
+                    .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16).padding(.vertical, 10)
         .background(PB.C.bg)
     }
 
-    private var canSend: Bool {
-        !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !engine.isThinking
-    }
-
+    private var canSend: Bool { !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !engine.isThinking }
     private func submit() {
         guard canSend else { return }
         let text = input
@@ -173,77 +220,47 @@ struct PiyakChatView: View {
     }
 }
 
-// MARK: - 말풍선
-
-private struct ChatBubble: View {
-    let message: PiyakChatMessage
-
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            if message.role == .piyak {
-                Image("AppMascot")
-                    .resizable().scaledToFit()
-                    .frame(width: 26, height: 26)
-                    .padding(4)
-                    .background(PB.C.brandYellow.opacity(0.25), in: Circle())
-            } else {
-                Spacer(minLength: 52)
-            }
-
-            Text(message.text)
-                .font(PB.F.body(15))
-                .lineSpacing(3)
-                .foregroundStyle(PB.C.textBrown)
-                .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(
-                    message.role == .user ? PB.C.coral.opacity(0.14) : PB.C.surface,
-                    in: UnevenRoundedRectangle(
-                        topLeadingRadius: 18,
-                        bottomLeadingRadius: message.role == .piyak ? 6 : 18,
-                        bottomTrailingRadius: message.role == .user ? 6 : 18,
-                        topTrailingRadius: 18
-                    )
-                )
-                .shadow(color: PB.C.textBrown.opacity(0.06), radius: 6, y: 2)
-
-            if message.role == .piyak {
-                Spacer(minLength: 52)
-            }
-        }
-        .frame(maxWidth: .infinity,
-               alignment: message.role == .user ? .trailing : .leading)
-    }
+private struct ChatScrollEvent: Hashable {
+    let lastMessageID: UUID?
+    let isThinking: Bool
+    let failureUserID: UUID?
+    let inputFocused: Bool
 }
 
-// MARK: - 생각 중 (점 3개 바운스)
+private struct ChatBubble: View, Equatable {
+    let message: PiyakChatMessage
+    let streaming: Bool
 
-private struct ThinkingBubble: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            Image("AppMascot")
-                .resizable().scaledToFit()
-                .frame(width: 26, height: 26)
-                .padding(4)
-                .background(PB.C.brandYellow.opacity(0.25), in: Circle())
-
-            TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduceMotion)) { timeline in
-                let t = timeline.date.timeIntervalSinceReferenceDate
-                HStack(spacing: 5) {
-                    ForEach(0..<3, id: \.self) { i in
-                        Circle()
-                            .fill(PB.C.textBrown.opacity(0.35))
-                            .frame(width: 7, height: 7)
-                            .offset(y: -abs(sin((t - Double(i) * 0.18) * 3.4)) * 4)
+        HStack(alignment: .top, spacing: 8) {
+            if message.role == .piyak {
+                Image("AppMascot").resizable().scaledToFit().frame(width: 30, height: 30).accessibilityHidden(true)
+            } else { Spacer(minLength: 32) }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(message.role == .piyak
+                     ? PiyakChatFormatting.attributed(message.text, streaming: !message.isComplete)
+                     : AttributedString(message.text))
+                    .font(PB.F.body(15)).lineSpacing(4).textSelection(.enabled)
+                if message.role == .piyak {
+                    if message.source == .records {
+                        Label("앱 기록에서 확인", systemImage: "checkmark.shield")
+                            .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
+                    } else if message.source == .memory || message.source == .groundedConversation {
+                        Label(message.source == .memory ? "직접 말해 준 정보" : "이름·취향은 직접 말해 준 정보", systemImage: "quote.bubble")
+                            .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
+                    } else if !message.isComplete {
+                        Text(streaming ? "답변을 쓰고 있어요…" : "응답이 중단되었어요")
+                            .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
                     }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 14)
-                .background(PB.C.surface, in: UnevenRoundedRectangle(
-                    topLeadingRadius: 18, bottomLeadingRadius: 6,
-                    bottomTrailingRadius: 18, topTrailingRadius: 18))
-                .shadow(color: PB.C.textBrown.opacity(0.06), radius: 6, y: 2)
             }
-            Spacer(minLength: 52)
-        }
+            .foregroundStyle(PB.C.textBrown)
+            .padding(.horizontal, 14).padding(.vertical, 12)
+            .background(message.role == .user ? PB.C.coral.opacity(0.12) : PB.C.surface,
+                        in: UnevenRoundedRectangle(topLeadingRadius: message.role == .piyak ? 5 : 18,
+                                                   bottomLeadingRadius: 18, bottomTrailingRadius: 18,
+                                                   topTrailingRadius: message.role == .user ? 5 : 18))
+            if message.role == .piyak { Spacer(minLength: 22) }
+        }.frame(maxWidth: .infinity, alignment: message.role == .user ? .trailing : .leading)
     }
 }

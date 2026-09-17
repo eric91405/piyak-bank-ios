@@ -15,8 +15,8 @@ jobs:
         run: xcodebuild -version
       - name: Assets and privacy manifests
         run: python3 scripts/check_release_assets.py
-      - name: Calculation and persistence regression tests
-        run: swift test
+      - name: Calculation, persistence, activity and conversation regression tests
+        run: swift test --jobs 2
       - name: iOS, watchOS and widget Release build
         run: >-
           xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank

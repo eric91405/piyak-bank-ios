@@ -1,6 +1,7 @@
 import Foundation
 import AppKit
 import SceneKit
+import CryptoKit
 
 /// Regenerate original artwork from the same geometry used by the app.
 /// xcrun swiftc PiyakBank/Views/PiyakScene.swift scripts/GenerateAssets.swift -o /tmp/piyak-assets
@@ -59,6 +60,14 @@ struct GenerateAssets {
                 try imageSet("thumb_" + id.replacingOccurrences(of: ".", with: "_"), data: render(scene, size: 320), assets: mainAssets)
             }
         }
-        print("Generated icons, mascots and \(ids.count) item previews.")
+        var sourceHashes: [String: String] = [:]
+        for path in ["PiyakBank/Views/PiyakScene.swift", "scripts/GenerateAssets.swift"] {
+            let bytes = try Data(contentsOf: root.appendingPathComponent(path))
+            sourceHashes[path] = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+        }
+        let manifest: [String: Any] = ["sources": sourceHashes, "catalogIds": ids.sorted()]
+        try JSONSerialization.data(withJSONObject: manifest, options: [.prettyPrinted, .sortedKeys])
+            .write(to: root.appendingPathComponent("scripts/generated_assets.json"))
+        print("Generated icons, mascots and \(ids.count) item previews; source fingerprint saved.")
     }
 }

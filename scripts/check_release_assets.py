@@ -4,12 +4,17 @@ import json
 import plistlib
 import re
 import struct
+import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'PiyakBank/Shared/Economy.swift').read_text()
 ids = re.findall(r'\.init\(id: "([A-Za-z]+\.[a-z_]+)"', source)
 assert len(ids) == len(set(ids)) == 81, 'Catalog IDs changed; review migration and screenshots.'
+generated = json.loads((ROOT / 'scripts/generated_assets.json').read_text())
+assert generated['catalogIds'] == sorted(ids), 'Regenerate previews after changing the catalog.'
+for path, digest in generated['sources'].items():
+    assert hashlib.sha256((ROOT / path).read_bytes()).hexdigest() == digest, f'{path} changed; regenerate matching previews.'
 for item_id in ids:
     folder = ROOT / 'PiyakBank/Assets.xcassets' / ('thumb_' + item_id.replace('.', '_') + '.imageset')
     images = json.loads((folder / 'Contents.json').read_text())['images']
