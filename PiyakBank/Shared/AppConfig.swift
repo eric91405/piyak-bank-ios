@@ -1,29 +1,48 @@
 import Foundation
 
-/// 3타깃(iOS/Watch/Widget) 공유 설정.
 enum AppConfig {
-    /// App Group 컨테이너 ID — Signing & Capabilities에서 동일하게 등록할 것
     static let appGroup = "group.com.minseo.piyakbank"
-
-    /// 공유 UserDefaults (세션 스냅샷 · 강제종료 복구)
     static var shared: UserDefaults? { UserDefaults(suiteName: appGroup) }
-
-    // 공유 키
     static let kSnapshot = "session_snapshot"
     static let kActiveSession = "active_session_id"
+    static let supportEmail = "eric91405@gmail.com"
+    static let operatorName = "김민서"
+    static let widgetKind = "PiyakComplication"
 }
 
-// MARK: - 세션 스냅샷 (iOS/Watch/Widget 공유)
-struct SessionSnapshot: Codable, Hashable {
+/// Optional additions preserve decoding of snapshots from earlier app versions.
+struct SessionSnapshot: Codable, Hashable, Sendable {
     var isRunning: Bool
     var isPaused: Bool
     var sessionId: String?
     var startedAt: Date?
     var accrued: Int
     var wage: Int
+    var segments: [WageSegment]?
+    var capturedAt: Date?
+    var completedToday: Int?
+    var preferredWage: Int?
+
+    static let empty = SessionSnapshot(isRunning: false, isPaused: false, accrued: 0, wage: 0)
+
+    func amount(at date: Date = .now) -> Int {
+        guard let segments else { return accrued }
+        return EarningsCalculator.total(segments, until: date)
+    }
+
+    func today(at date: Date = .now, calendar: Calendar = .current) -> Int {
+        let settled = capturedAt.map { calendar.isDate($0, inSameDayAs: date) } == true
+            ? (completedToday ?? 0) : 0
+        return settled + EarningsCalculator.earned(on: date, segments: segments ?? [], until: date, calendar: calendar)
+    }
 }
 
-// MARK: - 공유 헬퍼 (iOS/Watch/Widget)
+struct WatchCommand: Codable, Sendable {
+    var id = UUID().uuidString
+    var action: String
+    var sessionId: String?
+    var createdAt = Date()
+}
 
 func floorToInt(_ d: Decimal) -> Int {
     var v = d
@@ -33,8 +52,7 @@ func floorToInt(_ d: Decimal) -> Int {
 }
 
 extension Int {
-    var won: String {
-        let f = NumberFormatter(); f.numberStyle = .decimal
-        return (f.string(from: NSNumber(value: self)) ?? "\(self)") + "원"
-    }
+    var grouped: String { formatted(.number.locale(Locale(identifier: "ko_KR"))) }
+    var won: String { grouped + "원" }
+    var points: String { grouped + " P" }
 }

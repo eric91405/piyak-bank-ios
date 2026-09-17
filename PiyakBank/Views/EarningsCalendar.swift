@@ -4,20 +4,27 @@ import SwiftData
 /// 월 달력 + 일별 적립 표시
 struct EarningsCalendar: View {
     @Query private var txs: [PointTransaction]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selectedDate: Date
-    @State private var displayedMonth: Date = Calendar.current.startOfDay(for: .now)
+    private var displayedMonth: Date { selectedDate }
 
     private let cal = Calendar.current
     private let weekdays = ["일", "월", "화", "수", "목", "금", "토"]
 
     var body: some View {
         VStack(spacing: 14) {
-            monthHeader
-            weekdayRow
-            dayGrid
+            if dynamicTypeSize.isAccessibilitySize {
+                DatePicker("선택 날짜", selection: $selectedDate, displayedComponents: .date)
+                Text("날짜를 선택하면 해당 날짜의 근무 기록을 볼 수 있어요.")
+                    .font(.caption).foregroundStyle(PB.C.secondary)
+            } else {
+                monthHeader
+                weekdayRow
+                dayGrid
+            }
         }
         .padding(16)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
+        .background(PB.C.surface, in: RoundedRectangle(cornerRadius: PB.R.xl))
         .shadow(color: PB.C.textBrown.opacity(0.06), radius: 12, y: 4)
     }
 
@@ -27,8 +34,8 @@ struct EarningsCalendar: View {
         HStack {
             Button { moveMonth(-1) } label: {
                 Image(systemName: "chevron.left")
-                    .foregroundStyle(PB.C.textBrown.opacity(0.5))
-            }
+                    .foregroundStyle(PB.C.secondary).frame(width: 44, height: 44)
+            }.accessibilityLabel("이전 달")
             Spacer()
             Text(displayedMonth, format: .dateTime.year().month()
                 .locale(Locale(identifier: "ko_KR")))
@@ -37,14 +44,14 @@ struct EarningsCalendar: View {
             Spacer()
             Button { moveMonth(1) } label: {
                 Image(systemName: "chevron.right")
-                    .foregroundStyle(PB.C.textBrown.opacity(0.5))
-            }
+                    .foregroundStyle(PB.C.secondary).frame(width: 44, height: 44)
+            }.accessibilityLabel("다음 달")
         }
     }
 
     private func moveMonth(_ delta: Int) {
         if let m = cal.date(byAdding: .month, value: delta, to: displayedMonth) {
-            withAnimation(.spring(duration: 0.3)) { displayedMonth = m }
+            withAnimation(.spring(duration: 0.3)) { selectedDate = cal.date(from: cal.dateComponents([.year, .month], from: m)) ?? m }
         }
     }
 
@@ -52,7 +59,7 @@ struct EarningsCalendar: View {
         HStack {
             ForEach(weekdays, id: \.self) { d in
                 Text(d).font(PB.F.body(11))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.4))
+                    .foregroundStyle(PB.C.secondary)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -88,7 +95,7 @@ struct EarningsCalendar: View {
                     .foregroundStyle(PB.C.textBrown)
                 if earned > 0 {
                     Text(shortWon(earned))
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
+                        .font(.system(.caption2, design: .rounded, weight: .semibold))
                         .foregroundStyle(PB.C.coral)
                         .lineLimit(1).minimumScaleFactor(0.7)
                 } else {
@@ -104,6 +111,8 @@ struct EarningsCalendar: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), 정산된 예상 수익 \(earned.won)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     /// 표시 월의 날짜 배열 (앞쪽 빈칸은 nil)

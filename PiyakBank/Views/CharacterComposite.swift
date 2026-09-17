@@ -1,77 +1,65 @@
 import SwiftUI
 import SwiftData
+import SceneKit
 
 struct CharacterComposite: View {
-    var showRoom: Bool = true
-    var fillRoom: Bool = false
-    var isWorking: Bool = false
-    var workedHours: Double = 0
     @Query private var owned: [OwnedItem]
-    
-    @State private var bob = false
-    
-    private static let overlaySlots: [DecorSlot] = [.neck, .headband, .eyes, .headTop]
-    private static let roomSlots: [DecorSlot] = [.bg, .wallDeco, .bigFurniture, .floorProp, .rug]
-    
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var phase
+    var showRoom = true
+    var fillRoom = false
+    var isWorking = false
+    var workedHours: Double = 0
+    var preview: [String: String]?
+    @State private var visible = false
+
+    private var equipped: [String: String] {
+        if let preview { return preview }
+        var result: [String: String] = [:]
+        for item in owned { if let slot = item.equippedSlotRaw { result[slot] = item.catalogId } }
+        return result
+    }
     var body: some View {
-        GeometryReader { geo in
-            ZStack(alignment: .bottom) {
-                if showRoom {
-                    ForEach(Self.roomSlots, id: \.self) { slot in
-                        if let id = equipped[slot] {
-                            if fillRoom {
-                                Image(assetName(id))
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
-                                    .clipped()
-                            } else {
-                                // 꾸미기: 연장분 잘라내고 원본 정사각 영역만
-                                let side = min(geo.size.width, geo.size.height)
-                                Image(assetName(id))
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: side, height: side, alignment: .bottom)
-                                    .clipped()
-                                    .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
-                            }
-                        }
-                    }
-                }
-                TimelineView(.animation) { timeline in
-                    let t = timeline.date.timeIntervalSinceReferenceDate
-                    let period = isWorking ? 0.5 : 2.4      // 근무중 빠르게
-                    let height = isWorking ? 10.0 : 5.0     // 근무중 크게
-                    character(in: geo.size)
-                        .offset(y: -abs(sin(t * .pi / period)) * height)
-                }
-            }
-        }
+        PiyakSceneView(equipped: equipped, working: isWorking,
+                       animated: visible && phase == .active && !reduceMotion && isWorking, icon: !showRoom)
+            .accessibilityHidden(true)
+            .onAppear { visible = true }
+            .onDisappear { visible = false }
     }
-    
-    @ViewBuilder
-    private func character(in size: CGSize) -> some View {
-        ZStack {
-            Image(equipped[.bodyFront].map(assetName) ?? "piyak_base")
-                .resizable().scaledToFit()
-            ForEach(Self.overlaySlots, id: \.self) { slot in
-                if let id = equipped[slot] {
-                    Image(assetName(id))
-                        .resizable().scaledToFit()
-                }
-            }
-            if workedHours >= 4 {
-                Image("piyak_face_tired").resizable().scaledToFit()
-            } else if workedHours >= 2 {
-                Image("piyak_face_sweat").resizable().scaledToFit()
-            }
-        }
+}
+
+struct PiyakSceneView: UIViewRepresentable {
+    var equipped: [String: String]
+    var working = false
+    var animated = true
+    var icon = false
+
+    final class Coordinator {
+        var key = ""
     }
-    
-    
-    private var equipped: [DecorSlot: String] {
-        var m: [DecorSlot: String] = [:]
-        for o in owned { if let s = o.equippedSlot { m[s] = o.catalogId } }
-        return m
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeUIView(context: Context) -> SCNView {
+        let view = SCNView()
+        view.backgroundColor = .clear
+        view.isOpaque = false
+        view.antialiasingMode = .multisampling4X
+        view.preferredFramesPerSecond = 24
+        view.autoenablesDefaultLighting = false
+        view.allowsCameraControl = false
+        return view
+    }
+    func updateUIView(_ view: SCNView, context: Context) {
+        let key = equipped.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ";") + "\(working)\(icon)"
+        if key != context.coordinator.key {
+            context.coordinator.key = key
+            view.scene = PiyakScene.make(equipped: equipped, working: working, animated: true, icon: icon)
+            view.pointOfView = view.scene?.rootNode.childNodes.first { $0.camera != nil }
+            view.setNeedsDisplay()
+        }
+        view.scene?.isPaused = !animated
+        view.isPlaying = animated
+    }
+    static func dismantleUIView(_ view: SCNView, coordinator: Coordinator) {
+        view.isPlaying = false; view.scene = nil
     }
 }

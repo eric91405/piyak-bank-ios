@@ -1,253 +1,226 @@
 import SwiftUI
-import Combine
 import SwiftData
 
 struct HomeView: View {
-    @EnvironmentObject var session: SessionController
+    @EnvironmentObject private var session: SessionController
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.modelContext) private var context
-    @State private var showWageSheet = false
-    @State private var now = Date()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @Query private var transactions: [PointTransaction]
+    @State private var showWage = false
     @State private var showChat = false
-    @State private var bubbleText = ""
-    @State private var bubbleTick = 0
-    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var confirmStop = false
+    @State private var reward: Int?
 
-    private var workedHours: Double {
-        let s = session.snapshot
-        guard s.isRunning, s.wage > 0 else { return 0 }
-        return Double(s.accrued) / Double(s.wage)
-    }
-
-    static func cheers(for s: SessionSnapshot, hours: Double) -> [String] {
-        if !s.isRunning {
-            return ["오늘도 화이팅이야 삐약!", "쉬는 것도 중요해~", "나 보러 와줘서 고마워!"]
-        }
-        if s.isPaused {
-            return ["꿀휴식 중~ 🍯", "물 한 잔 마시고 가자!"]
-        }
-        if hours >= 4 {
-            return ["너무 무리하지는 마... 삐약", "조금만 더! 거의 다 왔어!", "오늘 진짜 고생 많았어 🥲"]
-        }
-        if hours >= 2 {
-            return ["벌써 \(Int(hours))시간! 대단해!", "조금 힘들지? 같이 버티자!", "간식 하나 먹고 해~"]
-        }
-        return ["돈 버는 중! 멋져 삐약!", "차곡차곡 쌓이고 있어!", "이 돈으로 뭐 살까~?"]
-    }
+    private var balance: Int { transactions.reduce(0) { $0 + $1.amount } }
+    private var settledEarnings: Int { transactions.filter { $0.kind == .accrual }.reduce(0) { $0 + $1.amount } }
+    private var running: Bool { session.snapshot.isRunning }
+    private var paused: Bool { session.snapshot.isPaused }
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .top) {
-                PB.C.bg.ignoresSafeArea()
-
-
-                CharacterComposite(showRoom: true, fillRoom: true,
-                                   isWorking: session.snapshot.isRunning && !session.snapshot.isPaused,
-                                   workedHours: workedHours)
-                .onTapGesture { showChat = true }
-                .sheet(isPresented: $showChat) {
-                    PiyakChatView(engine: PiyakChatEngine(
-                        container: context.container,
-                        snapshot: .capture(context: context)
-                    ))
+            ScrollView {
+                VStack(spacing: 18) {
+                    header
+                    if horizontalSizeClass == .regular {
+                        HStack(alignment: .top, spacing: 22) {
+                            VStack(spacing: 18) { room; growth }
+                                .frame(maxWidth: .infinity)
+                            VStack(spacing: 18) {
+                                TimelineView(.periodic(from: .now, by: 1)) { earnings(at: $0.date) }
+                                shopLink
+                            }.frame(maxWidth: 340)
+                        }
+                    } else {
+                        room
+                        TimelineView(.periodic(from: .now, by: 1)) { earnings(at: $0.date) }
+                        growth
+                        shopLink
+                    }
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 500)
-                .clipped()
-                .ignoresSafeArea(edges: .top)
-                .overlay(alignment: .bottom) {
-                    LinearGradient(colors: [.clear, PB.C.bg],
-                                   startPoint: .top, endPoint: .bottom)
-                    .frame(height: 60)
+                .padding(.horizontal, 20).padding(.vertical, 16)
+                .frame(maxWidth: horizontalSizeClass == .regular ? 1080 : 640).frame(maxWidth: .infinity)
+            }
+            .background(PB.C.bg.ignoresSafeArea())
+            .toolbar(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom, spacing: 0) { controls }
+            .sheet(isPresented: $showWage) {
+                WageEntrySheet(initialWage: session.preferredWage) { wage in
+                    if session.perform({ try session.start(wage: wage) }) {
+                        session.preferredWage = wage
+                        showWage = false
+                    }
                 }
-                .overlay(alignment: .top) {
-                    if !bubbleText.isEmpty {
-                        Text(bubbleText)
-                            .font(PB.F.body(13)).bold()
-                            .foregroundStyle(PB.C.textBrown)
-                            .padding(.horizontal, 14)
-                            .padding(.top, 9)
-                            .padding(.bottom, 19)   // 9 + 꼬리 높이 10
-                            .background {
-                                SpeechBubbleShape()
-                                    .fill(.white)
-                                    .shadow(color: PB.C.textBrown.opacity(0.1), radius: 8, y: 3)
+            }
+            .sheet(isPresented: $showChat) {
+                PiyakChatView(engine: PiyakChatEngine(container: context.container))
+            }
+            .confirmationDialog("근무를 마치고 포인트를 받을까요?", isPresented: $confirmStop, titleVisibility: .visible) {
+                Button("근무 마치기") {
+                    let amount = session.snapshot.amount()
+                    if session.perform({ try session.stop() }) { reward = amount }
+                }
+            } message: { Text("휴식 시간은 제외돼요. 잘못된 기록은 기록 탭에서 수정할 수 있어요.") }
+            .alert("오늘도 수고했어요!", isPresented: Binding(get: { reward != nil }, set: { if !$0 { reward = nil } })) {
+                Button("삐약이와 계속하기") { reward = nil }
+            } message: { Text("\((reward ?? 0).points)를 받았어요. 삐약이의 방에서 사용해 보세요.") }
+            .sensoryFeedback(.success, trigger: reward)
+        }
+    }
+
+    private var shopLink: some View {
+Button { router.tab = .decorate } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "gift.fill").font(.title2).foregroundStyle(PB.C.ink)
+                                .frame(width: 48, height: 48).background(.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 16))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("작은 방, 커다란 취향").font(.headline)
+                                Text("모은 포인트로 삐약이의 방을 꾸며요").font(.caption)
                             }
-                            .padding(.top, 130)
-                            .transition(.scale(scale: 0.8).combined(with: .opacity))
-                    }
-                }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.subheadline.bold())
+                        }.foregroundStyle(PB.C.ink).gameCard(PB.C.mint)
+                    }.buttonStyle(.plain)
+    }
 
-                VStack(spacing: 24) {
-                    Spacer().frame(height: 434)
-
-                    // 금액 플로팅 카드
-                    VStack(spacing: 10) {
-                        Text("오늘 번 돈").font(PB.F.body(13))
-                            .foregroundStyle(PB.C.textBrown.opacity(0.5))
-                        Text(displayAmount.won)
-                            .font(PB.F.amount(44))
-                            .foregroundStyle(isAccruing ? PB.C.coral : PB.C.textBrown)
-                            .contentTransition(.numericText())
-                        // 상태 캡슐 배지
-                        Text(statusText)
-                            .font(PB.F.body(13)).bold()
-                            .padding(.horizontal, 12).padding(.vertical, 5)
-                            .background(statusBadgeColor.opacity(0.15), in: Capsule())
-                            .foregroundStyle(statusBadgeColor)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 22)
-                    .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
-                    .shadow(color: PB.C.textBrown.opacity(0.08), radius: 16, y: 6)
-
-                    Spacer()
-                    controls
-                        .padding(.bottom, 40)
-                }
-                .padding(24)
+    private var header: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(Date(), format: .dateTime.month().day().weekday().locale(Locale(identifier: "ko_KR")))
+                    .font(.caption.weight(.medium)).foregroundStyle(PB.C.secondary)
+                Text("삐약이의 하루").font(.system(.title2, design: .rounded, weight: .heavy))
+                    .foregroundStyle(PB.C.textBrown)
             }
-            .overlay(alignment: .topTrailing) {
-                NavigationLink {
-                    HistoryView()
-                } label: {
-                    Image(systemName: "list.bullet.rectangle")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(PB.C.textBrown)
-                        .padding(11)
-                        .background(.white.opacity(0.95), in: Circle())
-                        .shadow(color: PB.C.textBrown.opacity(0.1), radius: 6, y: 2)
-                }
-                .padding(.trailing, 20)
-                .padding(.top, 50)
-            }
-        }
-        .onReceive(tick) { date in
-            now = date
-            session.refreshSnapshot()
-
-            bubbleTick += 1
-            if bubbleTick % 15 == 1 {
-                withAnimation(.spring(duration: 0.4)) {
-                    bubbleText = Self.cheers(for: session.snapshot, hours: workedHours).randomElement() ?? ""
-                }
-            }
-            if bubbleTick % 15 == 8 {
-                withAnimation(.easeOut(duration: 0.3)) { bubbleText = "" }
-            }
-        }
-        .sensoryFeedback(.success, trigger: session.snapshot.isRunning)
-        .sheet(isPresented: $showWageSheet) {
-            WageEntrySheet { wage in
-                session.start(wage: wage)
-                showWageSheet = false
-            }
+            Spacer(minLength: 8)
+            PointBadge(amount: balance)
         }
     }
 
-    // 오늘 누적(원장) + 현재 세션 진행분
-    private var displayAmount: Int {
-        let today = EconomyStore(context: context).dailyAccrued(on: now)
-        return today + session.snapshot.accrued
-    }
-
-    private var statusText: String {
-        let s = session.snapshot
-        if !s.isRunning { return "오늘도 삐약삐약 💰" }
-        if s.isPaused { return "잠시 멈춤" }
-        return "시급 \(s.wage.won) · 적립 중"
-    }
-
-    private var isAccruing: Bool {
-        session.snapshot.isRunning && !session.snapshot.isPaused
-    }
-    private var statusBadgeColor: Color {
-        let s = session.snapshot
-        if !s.isRunning { return PB.C.textBrown.opacity(0.6) }
-        if s.isPaused { return PB.C.brandYellow }
-        return PB.C.coral
-    }
-
-    @ViewBuilder private var controls: some View {
-        let s = session.snapshot
-        if !s.isRunning {
-            BigButton(title: "근무 시작", color: PB.C.coral) { showWageSheet = true }
-        } else {
-            HStack(spacing: 12) {
-                BigButton(title: s.isPaused ? "재개" : "일시정지",
-                          color: PB.C.brandYellow) {
-                    s.isPaused ? session.resume() : session.pause()
+    private var room: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Label(paused ? "휴식도 성장의 일부" : running ? "함께 열심히 일하는 중" : "오늘도 만나서 반가워!",
+                      systemImage: paused ? "moon.zzz.fill" : "sparkles")
+                    .font(.system(.footnote, design: .rounded, weight: .semibold))
+                    .foregroundStyle(PB.C.ink)
+                Spacer()
+                Text("Lv. \(max(1, settledEarnings / 50_000 + 1))")
+                    .font(.system(.caption, design: .rounded, weight: .heavy))
+                    .padding(.horizontal, 9).padding(.vertical, 6)
+                    .background(.white.opacity(0.8), in: Capsule()).foregroundStyle(PB.C.ink)
+            }.padding(.horizontal, 20).padding(.top, 18)
+            CharacterComposite(isWorking: running && !paused)
+                .frame(height: verticalSizeClass == .compact ? 220 : (horizontalSizeClass == .regular ? 420 : 295))
+                .overlay(alignment: .bottomTrailing) {
+                    Button { showChat = true } label: {
+                        Label("말 걸기", systemImage: "bubble.left.and.bubble.right.fill")
+                            .font(.subheadline.bold()).foregroundStyle(PB.C.ink)
+                            .padding(.horizontal, 14).padding(.vertical, 11)
+                            .background(.white, in: Capsule())
+                            .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
+                    }.padding(16)
                 }
-                BigButton(title: "정지", color: PB.C.coral) { session.stop() }
+        }
+        .background(LinearGradient(colors: [Color(hex: 0xE5DCF5), Color(hex: 0xF7E7CB)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .clipShape(RoundedRectangle(cornerRadius: 32))
+    }
+
+    private func earnings(at date: Date) -> some View {
+        let seconds = EarningsCalculator.workingSeconds(session.snapshot.segments ?? [], until: date)
+        return VStack(alignment: .leading, spacing: 13) {
+            HStack {
+                Label("오늘의 예상 수익", systemImage: "sun.max.fill").font(.subheadline.weight(.semibold))
+                    .foregroundStyle(PB.C.secondary)
+                Spacer()
+                if running {
+                    Label(paused ? "쉬는 중" : "근무 중", systemImage: paused ? "pause.circle.fill" : "record.circle")
+                        .font(.caption.bold()).foregroundStyle(PB.C.coral)
+                }
+            }
+            Text(session.snapshot.today(at: date).won)
+                .font(.system(.largeTitle, design: .rounded, weight: .heavy))
+                .monospacedDigit().foregroundStyle(PB.C.textBrown)
+                .minimumScaleFactor(0.6).lineLimit(1)
+                .accessibilityLabel("오늘의 예상 수익 \(session.snapshot.today(at: date).won)")
+            if running {
+                ViewThatFits(in: .horizontal) {
+                    HStack { details(seconds: seconds); Spacer(); Text("이번 근무 \(session.snapshot.amount(at: date).won)") }
+                    VStack(alignment: .leading, spacing: 5) { details(seconds: seconds); Text("이번 근무 \(session.snapshot.amount(at: date).won)") }
+                }.font(.caption).foregroundStyle(PB.C.secondary)
+                if let start = session.snapshot.startedAt, date.timeIntervalSince(start) > 12 * 3600 {
+                    Label("근무를 마쳤나요? 종료 후 기록을 수정할 수 있어요.", systemImage: "clock.badge.exclamationmark")
+                        .font(.caption).foregroundStyle(PB.C.coral)
+                }
+            } else {
+                Text("근무를 마치면 같은 숫자의 꾸미기 포인트를 받아요.")
+                    .font(.caption).foregroundStyle(PB.C.secondary)
+            }
+            Text("세전 단순 추정치 · 실제 급여와 다를 수 있어요")
+                .font(.caption2).foregroundStyle(PB.C.secondary)
+        }.gameCard()
+    }
+    private func details(seconds: TimeInterval) -> some View {
+        Label("\(Int(seconds) / 3600)시간 \(Int(seconds) % 3600 / 60)분 · 휴식 제외", systemImage: "clock")
+    }
+    private var growth: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("삐약이의 성장 노트", systemImage: "leaf.fill").font(.subheadline.bold())
+                Spacer()
+                Text("\(max(0, settledEarnings % 50_000).won) / 5만원").font(.caption).foregroundStyle(PB.C.secondary)
+            }
+            ProgressView(value: Double(max(0, settledEarnings % 50_000)), total: 50_000).tint(PB.C.coral)
+            Text("누적 예상 수익 5만원마다 한 레벨씩 자라요. 포인트를 써도 레벨은 유지돼요.")
+                .font(.caption).foregroundStyle(PB.C.secondary)
+        }.foregroundStyle(PB.C.textBrown).gameCard()
+    }
+    private var controls: some View {
+        HStack(spacing: 12) {
+            if running {
+                Button { session.perform { if paused { try session.resume() } else { try session.pause() } } } label: {
+                    Label(paused ? "계속 일하기" : "잠깐 쉬기", systemImage: paused ? "play.fill" : "pause.fill")
+                }.buttonStyle(GameButtonStyle(color: PB.C.lilac))
+                Button { confirmStop = true } label: { Label("근무 마치기", systemImage: "checkmark") }
+                    .buttonStyle(GameButtonStyle())
+            } else {
+                Button { showWage = true } label: { Label("삐약이와 근무 시작", systemImage: "play.fill") }
+                    .buttonStyle(GameButtonStyle())
             }
         }
+        .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 14)
+        .frame(maxWidth: 640).frame(maxWidth: .infinity).background(PB.C.bg.opacity(0.96))
     }
 }
-
-// MARK: 시급 입력 시트 (세션 시작 시점에만)
 
 struct WageEntrySheet: View {
-    @State private var text = "10000"
+    @Environment(\.dismiss) private var dismiss
+    @State private var text: String
     let onConfirm: (Int) -> Void
-
+    init(initialWage: Int, onConfirm: @escaping (Int) -> Void) {
+        _text = State(initialValue: String(initialWage)); self.onConfirm = onConfirm
+    }
+    private var valid: Bool { (1...EarningsCalculator.maximumWage).contains(Int(text) ?? 0) }
     var body: some View {
-        VStack(spacing: 18) {
-            Text("🐤").font(.system(size: 40))
-            Text("시급을 입력하세요").font(PB.F.body(17)).bold()
-                .foregroundStyle(PB.C.textBrown)
-            TextField("시급", text: $text)
-                .keyboardType(.numberPad)
-                .multilineTextAlignment(.center)
-                .font(PB.F.amount(28))
-                .padding()
-                .background(PB.C.bg, in: RoundedRectangle(cornerRadius: PB.R.md))
-            BigButton(title: "시작", color: PB.C.coral) {
-                onConfirm(Int(text) ?? 0)
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        TextField("시급", text: $text).keyboardType(.numberPad)
+                            .font(.system(.title2, design: .rounded, weight: .bold))
+                            .accessibilityLabel("시급, 원")
+                        Text("원 / 시간").foregroundStyle(.secondary)
+                    }
+                } header: { Text("오늘의 시급") } footer: { Text("1~1,000,000원. 입력한 시급은 다음 근무에도 기억해요. 휴식은 무급으로 계산해요.") }
+                Section {
+                    Text("표시 금액은 세금·수당·사업장별 정산 규칙을 반영하지 않은 예상치예요. 포인트는 앱 꾸미기 전용이며 현금으로 바꿀 수 없어요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Button("근무 시작") { if let wage = Int(text), valid { onConfirm(wage) } }
+                        .buttonStyle(GameButtonStyle()).disabled(!valid)
+                }
             }
-            .disabled((Int(text) ?? 0) <= 0)
-            .opacity((Int(text) ?? 0) <= 0 ? 0.4 : 1.0)
-        }
-        .padding(28)
-        .presentationDetents([.height(330)])
-        .presentationCornerRadius(28)
-    }
-}
-
-// MARK: 재사용 컴포넌트
-
-struct BigButton: View {
-    let title: String; let color: Color; let action: () -> Void
-    var body: some View {
-        Button(action: action) {
-            Text(title).font(PB.F.body(17)).bold()
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity).padding(.vertical, 16)
-                .background(color, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        }
-        .buttonStyle(SquishyButtonStyle())
-    }
-}
-
-struct SquishyButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
-            .animation(.spring(duration: 0.2), value: configuration.isPressed)
-    }
-}
-
-struct SpeechBubbleShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        let tailW: CGFloat = 18, tailH: CGFloat = 10
-        let body = CGRect(x: 0, y: 0, width: rect.width, height: rect.height - tailH)
-        p.addRoundedRect(in: body, cornerSize: .init(width: 16, height: 16))
-        // 아래 가운데 꼬리 (캐릭터 쪽으로)
-        p.move(to: .init(x: rect.midX - tailW / 2, y: body.maxY - 1))
-        p.addQuadCurve(to: .init(x: rect.midX, y: rect.maxY),
-                       control: .init(x: rect.midX - 4, y: body.maxY + tailH * 0.6))
-        p.addQuadCurve(to: .init(x: rect.midX + tailW / 2, y: body.maxY - 1),
-                       control: .init(x: rect.midX + 4, y: body.maxY + tailH * 0.6))
-        p.closeSubpath()
-        return p
+            .navigationTitle("출근 준비").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } } }
+        }.presentationDetents([.medium, .large])
     }
 }

@@ -46,9 +46,9 @@ final class CatalogItem {
     @Attribute(.unique) var id: String
     var slotRaw: String
     var displayName: String
-    /// 포인트 가격 (무료=0, IAP=결제 전용이라 0)
+    /// 포인트 가격 (기본 제공 아이템은 0)
     var price: Int
-    /// true면 포인트로 못 사고 StoreKit 결제 전용
+    /// 기존 저장소 호환용 필드. 무료 출시 버전은 false로 마이그레이션.
     var isIAP: Bool
     /// 신규 유저 기본 보유
     var isDefaultOwned: Bool
@@ -125,138 +125,216 @@ final class PointTransaction {
 @MainActor
 final class EconomyStore {
     let context: ModelContext
-    
-    init(context: ModelContext) {
+    // Injected by persistence tests to exercise a disk-write failure.
+    var save: () throws -> Void
+
+    init(context: ModelContext, save: (() throws -> Void)? = nil) {
         self.context = context
+        self.save = save ?? { try context.save() }
     }
-    
-    // 잔액 = 원장 전체 합산 (lazy)
-    var balance: Int {
-        let all = (try? context.fetch(FetchDescriptor<PointTransaction>())) ?? []
-        return all.reduce(0) { $0 + $1.amount }
+
+    func transaction(restoring restore: () -> Void = {}, _ changes: () throws -> Void) throws {
+        do {
+            try changes()
+            context.processPendingChanges()
+            try save()
+        } catch {
+            context.processPendingChanges()
+            context.rollback()
+            restore()
+            throw error
+        }
     }
-    
-    /// 특정 날짜의 적립 합 (자정 리셋 없이 날짜 필터로 계산)
-    func dailyAccrued(on day: Date) -> Int {
+
+    func balance() throws -> Int {
+        try context.fetch(FetchDescriptor<PointTransaction>()).reduce(0) { $0 + $1.amount }
+    }
+
+    /// Settled ledger plus the part of active work belonging to this date.
+    func dailyAccrued(on day: Date, includingActive: Bool = false, now: Date = .now) throws -> Int {
         let cal = Calendar.current
         let start = cal.startOfDay(for: day)
         guard let end = cal.date(byAdding: .day, value: 1, to: start) else { return 0 }
-        let desc = FetchDescriptor<PointTransaction>(
-            predicate: #Predicate { $0.date >= start && $0.date < end && $0.kindRaw == "accrual" }
-        )
-        let txs = (try? context.fetch(desc)) ?? []
-        return txs.reduce(0) { $0 + $1.amount }
-    }
-    
-    // MARK: 적립
-    
-    func recordAccrual(_ amount: Int, sessionId: String, at date: Date = .now) {
-        guard amount > 0 else { return }
-        context.insert(PointTransaction(amount: amount, kind: .accrual,
-                                        date: date, relatedId: sessionId))
-        try? context.save()
-    }
-    
-    // MARK: 구매 / 환불
-    
-    enum PurchaseError: Error { case alreadyOwned, insufficient, iapOnly, notFound }
-    
-    func purchase(_ catalogId: String) throws {
-        guard let item = catalog(catalogId) else { throw PurchaseError.notFound }
-        if item.isIAP { throw PurchaseError.iapOnly }      // StoreKit 경유해야 함
-        if owned(catalogId) != nil { throw PurchaseError.alreadyOwned }
-        guard balance >= item.price else { throw PurchaseError.insufficient }
-        
-        context.insert(PointTransaction(amount: -item.price, kind: .purchase,
-                                        relatedId: catalogId))
-        context.insert(OwnedItem(catalogId: catalogId))
-        try? context.save()
-    }
-    
-    /// IAP 결제 성공 후 StoreManager가 호출 (포인트 차감 없이 보유 추가)
-    func grantIAP(_ catalogId: String) {
-        guard owned(catalogId) == nil else { return }
-        context.insert(OwnedItem(catalogId: catalogId))
-        try? context.save()
-    }
-    
-    func refund(_ catalogId: String) {
-        guard let owned = owned(catalogId), let item = catalog(catalogId) else { return }
-        if item.isIAP { return }  // IAP는 자체 환불 정책
-        let back = Int((Decimal(item.price) * 0.5 as NSDecimalNumber).doubleValue)  // 50% floor
-        context.insert(PointTransaction(amount: back, kind: .refund, relatedId: catalogId))
-        context.delete(owned)
-        try? context.save()
-    }
-    
-    // MARK: 착용 / 배치
-    
-    func equip(_ catalogId: String) {
-        guard let target = owned(catalogId), let item = catalog(catalogId) else { return }
-        let slot = item.slot
-        // 같은 슬롯의 기존 착용 해제 (슬롯당 1개)
-        for o in ownedAll() where o.equippedSlot == slot {
-            o.equippedSlot = nil
-        }
-        target.equippedSlot = slot
-        try? context.save()
-        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
-    }
-    
-    func unequip(slot: DecorSlot) {
-        for o in ownedAll() where o.equippedSlot == slot {
-            o.equippedSlot = nil
-        }
-        try? context.save()
-        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
-    }
-    
-    func equippedId(for slot: DecorSlot) -> String? {
-        ownedAll().first { $0.equippedSlot == slot }?.catalogId
-    }
-    
-    func equippedMap() -> [String: String] {
-        var m: [String: String] = [:]
-        for o in ownedAll() {
-            if let s = o.equippedSlotRaw { m[s] = o.catalogId }
-        }
-        return m
-    }
-    
-    // MARK: 조회
-    
-    func catalog(_ id: String) -> CatalogItem? {
-        let desc = FetchDescriptor<CatalogItem>(predicate: #Predicate { $0.id == id })
-        return (try? context.fetch(desc))?.first
-    }
-    
-    func owned(_ id: String) -> OwnedItem? {
-        let desc = FetchDescriptor<OwnedItem>(predicate: #Predicate { $0.catalogId == id })
-        return (try? context.fetch(desc))?.first
-    }
-    
-    func ownedAll() -> [OwnedItem] {
-        (try? context.fetch(FetchDescriptor<OwnedItem>())) ?? []
-    }
-    
-    func catalogAll() -> [CatalogItem] {
-        (try? context.fetch(FetchDescriptor<CatalogItem>())) ?? []
-    }
-    
-    // MARK: 시드 (없는 항목만 추가 — 카탈로그 확장 시 재설치 불필요)
-    func seedIfNeeded() {
-        for s in CatalogSeed.items {
-            guard catalog(s.id) == nil else { continue }   // 이미 있으면 건너뜀
-            let item = CatalogItem(id: s.id, slot: s.slot, displayName: s.name,
-                                   price: s.price, isIAP: s.isIAP, isDefaultOwned: s.defaultOwned)
-            context.insert(item)
-            if s.defaultOwned && owned(s.id) == nil {
-                let o = OwnedItem(catalogId: s.id)
-                o.equippedSlot = s.slot
-                context.insert(o)
+        let desc = FetchDescriptor<PointTransaction>(predicate: #Predicate {
+            $0.date >= start && $0.date < end && $0.kindRaw == "accrual"
+        })
+        var amount = try context.fetch(desc).reduce(0) { $0 + $1.amount }
+        if includingActive {
+            for session in try context.fetch(FetchDescriptor<WorkSession>(predicate: #Predicate { $0.isActive })) {
+                amount += EarningsCalculator.earned(on: day, segments: try session.decodedSegments(), until: now)
             }
         }
-        try? context.save()
+        return amount
+    }
+
+    enum StoreError: LocalizedError {
+        case alreadyOwned, insufficient, notFound, invalidRecord, corruptRecord, activeRecord
+        var errorDescription: String? {
+            switch self {
+            case .alreadyOwned: "이미 보유한 아이템이에요."
+            case .insufficient: "포인트가 부족해요. 근무를 마치면 포인트를 받을 수 있어요."
+            case .notFound: "아이템을 찾지 못했어요. 다시 열어 주세요."
+            case .invalidRecord: "시간과 시급을 확인해 주세요. 구간은 겹칠 수 없고, 시급은 0~1,000,000원까지 입력할 수 있어요."
+            case .corruptRecord: "근무 기록을 읽지 못했어요. 원본을 보존했으니 지원팀에 문의해 주세요."
+            case .activeRecord: "진행 중인 근무를 먼저 마쳐 주세요."
+            }
+        }
+    }
+
+    func purchase(_ id: String, equip: Bool = false) throws {
+        guard let item = try catalog(id) else { throw StoreError.notFound }
+        guard try owned(id) == nil else { throw StoreError.alreadyOwned }
+        guard try balance() >= item.price else { throw StoreError.insufficient }
+        let restore = try equipmentRestorePoint()
+        try transaction(restoring: restore) {
+            context.insert(PointTransaction(amount: -item.price, kind: .purchase, relatedId: id))
+            if equip {
+                for previous in try ownedAll() where previous.equippedSlot == item.slot { previous.equippedSlot = nil }
+            }
+            context.insert(OwnedItem(catalogId: id, equippedSlot: equip ? item.slot : nil))
+        }
+        if equip { NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil) }
+    }
+
+    func equip(_ id: String) throws {
+        guard let target = try owned(id), let item = try catalog(id) else { throw StoreError.notFound }
+        let restore = try equipmentRestorePoint()
+        try transaction(restoring: restore) {
+            for itemOwned in try ownedAll() where itemOwned.equippedSlot == item.slot {
+                itemOwned.equippedSlot = nil
+            }
+            target.equippedSlot = item.slot
+        }
+        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
+    }
+
+    func unequip(slot: DecorSlot) throws {
+        let restore = try equipmentRestorePoint()
+        try transaction(restoring: restore) {
+            for item in try ownedAll() where item.equippedSlot == slot { item.equippedSlot = nil }
+        }
+        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
+    }
+
+    private func equipmentRestorePoint() throws -> () -> Void {
+        let values = try ownedAll().map { ($0, $0.equippedSlotRaw) }
+        return { for (item, slot) in values { item.equippedSlotRaw = slot } }
+    }
+
+    func equippedMap() throws -> [String: String] {
+        var result: [String: String] = [:]
+        for item in try ownedAll() {
+            if let slot = item.equippedSlotRaw { result[slot] = item.catalogId }
+        }
+        return result
+    }
+
+    func catalog(_ id: String) throws -> CatalogItem? {
+        try context.fetch(FetchDescriptor<CatalogItem>(predicate: #Predicate { $0.id == id })).first
+    }
+    func owned(_ id: String) throws -> OwnedItem? {
+        try context.fetch(FetchDescriptor<OwnedItem>(predicate: #Predicate { $0.catalogId == id })).first
+    }
+    func ownedAll() throws -> [OwnedItem] { try context.fetch(FetchDescriptor<OwnedItem>()) }
+
+    /// Settlement is part of the caller's single transaction, never a nested save.
+    func insertAccruals(for session: WorkSession, now: Date = .now) throws {
+        for day in EarningsCalculator.daily(try session.decodedSegments(), until: now) where day.amount > 0 {
+            context.insert(PointTransaction(amount: day.amount, kind: .accrual,
+                                            date: day.day, relatedId: session.id))
+        }
+    }
+
+    func replaceRecord(_ record: WorkSession?, segments: [WageSegment], now: Date = .now) throws {
+        guard record?.isActive != true else { throw StoreError.activeRecord }
+        let sorted = segments.sorted { $0.start < $1.start }
+        guard !sorted.isEmpty, let first = sorted.first, let end = sorted.last?.end,
+              end <= now, end.timeIntervalSince(first.start) <= EarningsCalculator.maximumSessionDuration,
+              sorted.allSatisfy({ $0.start < ($0.end ?? $0.start) && ($0.end ?? now) <= now && (0...EarningsCalculator.maximumWage).contains($0.hourlyWage) }),
+              zip(sorted, sorted.dropFirst()).allSatisfy({ ($0.0.end ?? now) <= $0.1.start }) else {
+            throw StoreError.invalidRecord
+        }
+        // Overlapping records would award the same working time twice.
+        for other in try context.fetch(FetchDescriptor<WorkSession>()) where other.id != record?.id {
+            let otherEnd = other.endedAt ?? now
+            guard end <= other.startedAt || first.start >= otherEnd else { throw StoreError.invalidRecord }
+        }
+        let restore = record?.restorePoint() ?? {}
+        try transaction(restoring: restore) {
+            let session = record ?? WorkSession(startedAt: first.start, wage: first.hourlyWage)
+            if record == nil { context.insert(session) }
+            try removeAccruals(for: session.id)
+            session.startedAt = first.start
+            session.endedAt = end
+            session.segments = sorted
+            session.isActive = false
+            try insertAccruals(for: session, now: now)
+        }
+    }
+
+    func deleteRecord(_ record: WorkSession) throws {
+        guard !record.isActive else { throw StoreError.activeRecord }
+        try transaction {
+            try removeAccruals(for: record.id)
+            context.delete(record)
+        }
+    }
+
+    private func removeAccruals(for id: String) throws {
+        for tx in try context.fetch(FetchDescriptor<PointTransaction>(predicate: #Predicate {
+            $0.relatedId == id && $0.kindRaw == "accrual"
+        })) { context.delete(tx) }
+    }
+
+    /// Update catalog metadata while preserving every existing ownership and ledger entry.
+    func seedIfNeeded() throws {
+        try transaction {
+            for seed in CatalogSeed.items {
+                if let item = try catalog(seed.id) {
+                    item.displayName = seed.name
+                    item.price = seed.price
+                    item.isIAP = false
+                } else {
+                    context.insert(CatalogItem(id: seed.id, slot: seed.slot, displayName: seed.name,
+                                               price: seed.price, isDefaultOwned: seed.defaultOwned))
+                    if seed.defaultOwned, try owned(seed.id) == nil {
+                        let hasSlot = try ownedAll().contains { $0.equippedSlot == seed.slot }
+                        context.insert(OwnedItem(catalogId: seed.id, equippedSlot: hasSlot ? nil : seed.slot))
+                    }
+                }
+            }
+        }
+    }
+
+    /// One-time, idempotent repair for the old per-segment Decimal rounding bug.
+    /// Purchases and ownership stay untouched; only completed work accruals are reconciled.
+    func reconcileCompletedAccruals() throws {
+        let completed = try context.fetch(FetchDescriptor<WorkSession>(predicate: #Predicate { !$0.isActive }))
+        guard !completed.isEmpty else { return }
+        try transaction {
+            for session in completed {
+                guard let end = session.endedAt, !(try session.decodedSegments()).isEmpty else {
+                    throw StoreError.corruptRecord
+                }
+                try removeAccruals(for: session.id)
+                try insertAccruals(for: session, now: end)
+            }
+        }
+    }
+
+    func resetAll() throws {
+        try transaction {
+            for item in try context.fetch(FetchDescriptor<WorkSession>()) { context.delete(item) }
+            for item in try context.fetch(FetchDescriptor<PointTransaction>()) { context.delete(item) }
+            for item in try ownedAll() { context.delete(item) }
+            for item in try context.fetch(FetchDescriptor<CatalogItem>()) { context.delete(item) }
+            // Seed in this transaction so reset cannot leave an empty, half-reset store.
+            for seed in CatalogSeed.items {
+                context.insert(CatalogItem(id: seed.id, slot: seed.slot, displayName: seed.name,
+                                           price: seed.price, isDefaultOwned: seed.defaultOwned))
+                if seed.defaultOwned { context.insert(OwnedItem(catalogId: seed.id, equippedSlot: seed.slot)) }
+            }
+        }
     }
 }
 
@@ -272,8 +350,8 @@ struct CatalogSeed {
         .init(id: "floorProp.plant",      slot: .floorProp, name: "화분",       price: 0, isIAP: false, defaultOwned: true),
         .init(id: "rug.oval_coral",       slot: .rug,       name: "코랄 러그",   price: 0, isIAP: false, defaultOwned: true),
         .init(id: "bodyFront.hoodie_mint",slot: .bodyFront, name: "민트 후드티", price: 0, isIAP: false, defaultOwned: true),
-        // IAP 전용 (결제)
-        .init(id: "bodyFront.graduation_gown", slot: .bodyFront, name: "졸업 가운", price: 0, isIAP: true, defaultOwned: false),
+        // 첫 버전은 모든 아이템을 근무 포인트로 구매
+        .init(id: "bodyFront.graduation_gown", slot: .bodyFront, name: "졸업 가운", price: 40000, isIAP: false, defaultOwned: false),
         // 포인트 구매 (가격 티어: 저 8~12k / 중 15~25k / 고 40~80k)
         .init(id: "bg.night_sky",     slot: .bg,           name: "밤하늘",     price: 25000, isIAP: false, defaultOwned: false),
         .init(id: "wallDeco.clock",   slot: .wallDeco,     name: "벽시계",     price: 9000,  isIAP: false, defaultOwned: false),

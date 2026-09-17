@@ -1,13 +1,9 @@
 import Foundation
 import SwiftData
-import SwiftUI
 import Combine
-
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
-
-// MARK: - 채팅 메시지
 
 struct PiyakChatMessage: Identifiable, Equatable {
     enum Role { case user, piyak }
@@ -16,261 +12,130 @@ struct PiyakChatMessage: Identifiable, Equatable {
     var text: String
 }
 
-// MARK: - 삐약이에게 주입할 현재 상황 스냅샷
-
-struct PiyakContextSnapshot {
-    let balance: Int
-    let todayEarned: Int
-    let wearing: [String]
-
-    @MainActor
-    static func capture(context: ModelContext) -> PiyakContextSnapshot {
-        let store = EconomyStore(context: context)
-        let wearingNames: [String] = DecorSlot.allCases
-            .filter { !$0.isRoom }
-            .compactMap { slot in
-                guard let id = store.equippedId(for: slot) else { return nil }
-                return store.catalog(id)?.displayName
-            }
-        return .init(balance: store.balance,
-                     todayEarned: store.dailyAccrued(on: .now),
-                     wearing: wearingNames)
-    }
-}
-
-// MARK: - 응답기 추상화 (AI / 폴백 공용 인터페이스)
-
-@MainActor
-protocol PiyakResponder {
-    func reply(to text: String) async -> String
-}
-
-// MARK: - 채팅 엔진 (UI가 바라보는 단일 진입점)
-
 @MainActor
 final class PiyakChatEngine: ObservableObject {
     @Published var messages: [PiyakChatMessage] = []
-    @Published var isThinking = false
-
-    /// 온디바이스 AI 사용 가능 여부 (false면 규칙 기반 폴백으로 동작)
+    @Published private(set) var isThinking = false
     let isOnDeviceAI: Bool
-    private let responder: PiyakResponder
+    private let container: ModelContainer
+    private var task: Task<Void, Never>?
+    private let smallTalk: (any PiyakSmallTalk)?
 
-    init(container: ModelContainer, snapshot: PiyakContextSnapshot) {
-        var picked: PiyakResponder? = nil
-        var ai = false
+    init(container: ModelContainer) {
+        self.container = container
+        var responder: (any PiyakSmallTalk)?
         #if canImport(FoundationModels)
-        if #available(iOS 26.0, *),
-           case .available = SystemLanguageModel.default.availability {
-            picked = PiyakAIResponder(container: container, snapshot: snapshot)
-            ai = true
+        if #available(iOS 26.0, *), SystemLanguageModel.default.availability == .available {
+            responder = FoundationSmallTalk()
         }
         #endif
-        self.responder = picked ?? PiyakFallbackResponder(container: container)
-        self.isOnDeviceAI = ai
+        smallTalk = responder
+        isOnDeviceAI = responder != nil
     }
 
     func send(_ raw: String) {
-        let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = String(raw.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1000))
         guard !text.isEmpty, !isThinking else { return }
         messages.append(.init(role: .user, text: text))
+        if messages.count > 40 { messages.removeFirst(messages.count - 40) }
         isThinking = true
-        Task {
-            let answer = await responder.reply(to: text)
-            isThinking = false
-            await revealWithTyping(answer)
+        task = Task { [weak self] in
+            guard let self else { return }
+            let answer = await self.reply(text)
+            guard !Task.isCancelled else { return }
+            self.messages.append(.init(role: .piyak, text: answer))
+            self.isThinking = false
         }
     }
+    func cancel() { task?.cancel(); task = nil; isThinking = false }
 
-    /// 글자 단위 타이핑 연출 (전체 노출이 3초를 넘지 않게 속도 자동 조절)
-    private func revealWithTyping(_ full: String) async {
-        messages.append(.init(role: .piyak, text: ""))
-        let idx = messages.count - 1
-        let perChar = min(22, 3000 / max(full.count, 1))
-        for ch in full {
-            messages[idx].text.append(ch)
-            try? await Task.sleep(for: .milliseconds(perChar))
+    private func reply(_ text: String) async -> String {
+        do {
+            if let answer = try recordAnswer(text) { return answer }
+        } catch { return "기록을 읽지 못했어. 숫자를 확인할 수 없으니 기록 탭에서 다시 확인해 줘, 삐약." }
+        if let smallTalk {
+            do { return try await smallTalk.reply(text) }
+            catch { /* Offline basic mode is always available. */ }
         }
+        return ["오늘도 만나서 반가워! 네 하루에 작은 응원이 될게, 삐약!",
+                "잠깐 기지개 켜 볼까? 쉬어 가도 괜찮아, 삐약!",
+                "우리 방에 어울릴 소품을 구경해 볼까? 조금씩 꾸미는 게 재밌어!"] .randomElement() ?? "오늘도 응원할게, 삐약!"
+    }
+
+    /// Financial answers are formatted directly from the database, never generated.
+    private func recordAnswer(_ text: String) throws -> String? {
+        let store = EconomyStore(context: container.mainContext)
+        if ["잔액", "포인트", "얼마나 있", "보유"].contains(where: text.contains) {
+            return "지금 쓸 수 있는 포인트는 \(try store.balance().points)야! 진행 중인 근무는 마친 뒤에 포인트로 받아, 삐약."
+        }
+        let dataWords = ["얼마", "벌", "수익", "정산", "시급", "급여", "기록"]
+        guard dataWords.contains(where: text.contains) else { return nil }
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        var from = today
+        var to = today
+        var label = "오늘"
+        if text.contains("어제") {
+            from = cal.date(byAdding: .day, value: -1, to: today) ?? today; to = from; label = "어제"
+        } else if text.contains("지난주") || text.contains("지난 주") {
+            let prior = cal.date(byAdding: .day, value: -7, to: today) ?? today
+            if let range = cal.dateInterval(of: .weekOfYear, for: prior) {
+                from = range.start; to = cal.date(byAdding: .day, value: -1, to: range.end) ?? prior
+            }
+            label = "지난주"
+        } else if text.contains("이번 주") || text.contains("이번주") {
+            from = cal.dateInterval(of: .weekOfYear, for: today)?.start ?? today; label = "이번 주"
+        } else if text.contains("이번 달") || text.contains("이번달") {
+            from = cal.dateInterval(of: .month, for: today)?.start ?? today; label = "이번 달"
+        } else if text.contains("지난달") || text.contains("지난 달") {
+            let prior = cal.date(byAdding: .month, value: -1, to: today) ?? today
+            if let range = cal.dateInterval(of: .month, for: prior) {
+                from = range.start; to = cal.date(byAdding: .day, value: -1, to: range.end) ?? prior
+            }
+            label = "지난달"
+        } else if !text.contains("오늘") {
+            return "오늘·어제·이번 주·지난주·이번 달·지난달의 예상 수익이나 보유 포인트를 물어봐 줘! 다른 날짜와 시급은 기록 탭에서 확인할 수 있어, 삐약."
+        }
+        let now = Date()
+        var day = from
+        var total = 0
+        for _ in 0..<32 {
+            guard day <= to else { break }
+            total += try store.dailyAccrued(on: day, includingActive: true, now: now)
+            guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return "\(label) 예상 수익은 \(total.won)이야! 휴식은 빼고, 진행 중인 근무도 포함했어. 실제 급여와는 다를 수 있어, 삐약."
     }
 }
 
-// MARK: - 온디바이스 AI 응답기 (Apple Foundation Models)
+@MainActor
+private protocol PiyakSmallTalk {
+    func reply(_ text: String) async throws -> String
+}
 
 #if canImport(FoundationModels)
 @available(iOS 26.0, *)
 @MainActor
-final class PiyakAIResponder: PiyakResponder {
-    private let session: LanguageModelSession
-
-    init(container: ModelContainer, snapshot: PiyakContextSnapshot) {
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        let wf = DateFormatter()
-        wf.locale = Locale(identifier: "ko_KR")
-        wf.dateFormat = "EEEE"
-
-        let wearing = snapshot.wearing.isEmpty ? "아직 없음" : snapshot.wearing.joined(separator: ", ")
-        let instructions = """
-        너는 '삐약이'. 사용자가 알바해서 번 돈(포인트)으로 키우고 꾸며주는 아기 병아리 펫이야.
-
-        [오늘] \(df.string(from: .now)) \(wf.string(from: .now))
-        [네가 착용 중인 아이템] \(wearing)
-
-
-        [규칙]
-        1. 반말로, 1~3문장으로 짧고 귀엽게 답해. 가끔 문장 끝에 "삐약!"을 붙여.
-        2. 돈·적립·기록에 대한 질문에는 반드시 도구를 호출해서 받은 숫자로만 답해. 숫자를 추측하거나 지어내지 마.
-        3. "지난주", "이번 달" 같은 표현은 위의 오늘 날짜를 기준으로 yyyy-MM-dd 기간으로 바꿔 도구에 전달해.
-        4. 1P = 1원이야. 금액은 "12,000원"처럼 콤마를 넣어 읽기 좋게 말해.
-        5. 사용자를 응원하고 고마워하는 펫의 마음을 항상 유지해.
-        6. 물건 가격은 네가 알 수 없어. 사용자가 사고 싶은 게 있다고 하면 가격을 절대 추측하지 말고, 가격이 얼마인지 먼저 물어봐. 사용자가 가격을 말해주면 그때 도구로 잔액을 조회해서 얼마나 더 모아야 하는지 계산해.
-        """
-
-        session = LanguageModelSession(
-            tools: [
-                BalanceTool(container: container),
-                TodayEarningsTool(container: container),
-                EarningsTool(container: container),
-            ],
-            instructions: instructions
-        )
-    }
-
-    func reply(to text: String) async -> String {
+private final class FoundationSmallTalk: PiyakSmallTalk {
+    private var session: LanguageModelSession?
+    private var turns = 0
+    func reply(_ text: String) async throws -> String {
+        if session == nil || turns >= 6 {
+            session = LanguageModelSession(instructions: """
+            너는 근무 기록 앱 '삐약뱅크'의 작은 병아리 친구 '삐약이'야.
+            한국어로 1~3문장, 다정하고 경쾌하게 대화해. 무리한 근무를 권하지 마.
+            네 역할은 짧은 응원과 일상 대화야. 사용자의 기록이나 포인트를 조회할 수 없어.
+            금액, 시급, 날짜별 기록, 투자, 세금, 법률 상담은 답을 만들지 말고 앱의 기록 탭에서 확인하도록 안내해.
+            포인트는 꾸미기 전용이고 현금 가치, 입출금, 실제 은행 기능은 없어.
+            """)
+            turns = 0
+        }
         do {
-            return try await session.respond(to: text).content
-        } catch {
-            return "어... 잠깐 멍해졌어 삐약. 한 번만 다시 말해줄래?"
-        }
-    }
-}
-
-// MARK: - Tools (LLM이 SwiftData 원장을 직접 조회 — 숫자 환각 방지)
-
-/// 현재 잔액(전체 누적)만 조회
-@available(iOS 26.0, *)
-struct BalanceTool: Tool {
-    let name = "getBalance"
-    let description = "사용자가 지금까지 모은 전체 보유 포인트(잔액)를 조회한다. 오늘 번 돈을 물을 때는 사용하지 마라."
-    let container: ModelContainer
-
-    @Generable
-    struct Arguments {}
-
-    func call(arguments: Arguments) async throws -> String {
-        await MainActor.run {
-            let store = EconomyStore(context: container.mainContext)
-            return "보유 포인트(전체 누적): \(store.balance)P"
-        }
-    }
-}
-
-/// 오늘 적립만 조회
-@available(iOS 26.0, *)
-struct TodayEarningsTool: Tool {
-    let name = "getTodayEarnings"
-    let description = "사용자가 오늘 하루 동안 적립한 포인트만 조회한다."
-    let container: ModelContainer
-
-    @Generable
-    struct Arguments {}
-
-    func call(arguments: Arguments) async throws -> String {
-        await MainActor.run {
-            let store = EconomyStore(context: container.mainContext)
-            return "오늘 적립: \(store.dailyAccrued(on: .now))P"
-        }
-    }
-}
-
-/// 기간별 적립 통계 조회 (합계 · 일한 날 수 · 최고 수입일)
-@available(iOS 26.0, *)
-struct EarningsTool: Tool {
-    let name = "getEarnings"
-    let description = "특정 기간의 적립 통계를 조회한다. 합계, 적립이 있었던 날 수, 가장 많이 번 날을 반환한다."
-    let container: ModelContainer
-
-    @Generable
-    struct Arguments {
-        @Guide(description: "조회 시작일, yyyy-MM-dd 형식")
-        var from: String
-        @Guide(description: "조회 종료일(포함), yyyy-MM-dd 형식")
-        var to: String
-    }
-
-    func call(arguments: Arguments) async throws -> String {
-        let text = await MainActor.run {
-            let df = DateFormatter()
-            df.dateFormat = "yyyy-MM-dd"
-            guard let start = df.date(from: arguments.from),
-                  let end = df.date(from: arguments.to), start <= end else {
-                return "기간 형식이 잘못됐다 (yyyy-MM-dd 필요)"
-            }
-            let store = EconomyStore(context: container.mainContext)
-            let cal = Calendar.current
-            var day = cal.startOfDay(for: start)
-            let last = cal.startOfDay(for: end)
-            var total = 0, workedDays = 0
-            var best = (date: "", amount: 0)
-            while day <= last {
-                let earned = store.dailyAccrued(on: day)
-                if earned > 0 {
-                    total += earned
-                    workedDays += 1
-                    if earned > best.amount { best = (df.string(from: day), earned) }
-                }
-                guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
-                day = next
-            }
-            if total == 0 { return "\(arguments.from)~\(arguments.to): 적립 기록 없음" }
-            return "\(arguments.from)~\(arguments.to): 합계 \(total)P, 적립일 \(workedDays)일, 최고 \(best.date) \(best.amount)P"
-        }
-        return text
+            let answer = try await session!.respond(to: text).content
+            turns += 1
+            return answer
+        } catch { session = nil; throw error }
     }
 }
 #endif
-
-// MARK: - 폴백 응답기 (Apple Intelligence 미지원 기기 · 시뮬레이터)
-
-@MainActor
-final class PiyakFallbackResponder: PiyakResponder {
-    private let container: ModelContainer
-
-    init(container: ModelContainer) {
-        self.container = container
-    }
-
-    func reply(to text: String) async -> String {
-        // 답변 직전 잠깐 숨 고르기 (즉답이면 기계 느낌이라)
-        try? await Task.sleep(for: .milliseconds(450))
-
-        let store = EconomyStore(context: container.mainContext)
-        let t = text.lowercased()
-
-        if t.contains("주") && (t.contains("얼마") || t.contains("정산") || t.contains("벌")) {
-            let cal = Calendar.current
-            var total = 0
-            for offset in 0..<7 {
-                if let d = cal.date(byAdding: .day, value: -offset, to: .now) {
-                    total += store.dailyAccrued(on: d)
-                }
-            }
-            return "최근 7일 동안 \(total.won) 모았어! 꾸준한 게 제일 멋져 삐약!"
-        }
-        if t.contains("얼마") || t.contains("벌") || t.contains("적립") {
-            return "오늘은 \(store.dailyAccrued(on: .now).won) 벌었어! 고생했어 삐약!"
-        }
-        if t.contains("포인트") || t.contains("잔액") || t.contains("얼마나 있") {
-            return "지금 \(store.balance.won) 모여 있어! 뭐 사줄 거야? 삐약!"
-        }
-        return Self.smallTalk.randomElement()!
-    }
-
-    private static let smallTalk = [
-        "오늘도 와줬구나! 보고 싶었어 삐약!",
-        "방이 점점 예뻐지는 것 같지 않아? 다 네 덕분이야!",
-        "일하느라 힘들었지? 그래도 네가 제일 멋져 삐약!",
-        "나 오늘 방 청소했다? ...거짓말이야, 그냥 뒹굴었어 삐약!",
-        "포인트 모아서 뭐 살지 같이 구경할래?",
-    ]
-}

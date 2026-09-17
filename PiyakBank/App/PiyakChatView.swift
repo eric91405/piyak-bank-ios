@@ -25,13 +25,14 @@ struct PiyakChatView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .sensoryFeedback(.impact, trigger: engine.messages.count)
+        .onDisappear { engine.cancel() }
     }
 
     // MARK: 헤더
 
     private var header: some View {
         HStack(spacing: 10) {
-            Image("piyak_base")
+            Image("AppMascot")
                 .resizable().scaledToFit()
                 .frame(width: 38, height: 38)
                 .padding(5)
@@ -55,9 +56,10 @@ struct PiyakChatView: View {
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(PB.C.textBrown.opacity(0.5))
                     .padding(10)
-                    .background(.white, in: Circle())
-            }
+                    .background(PB.C.surface, in: Circle())
+            }.accessibilityLabel("대화 닫기")
         }
+        .accessibilityElement(children: .contain)
         .padding(.horizontal, 16)
         .padding(.top, 18)
         .padding(.bottom, 10)
@@ -101,11 +103,11 @@ struct PiyakChatView: View {
 
     private var emptyState: some View {
         VStack(spacing: 14) {
-            Image("piyak_base")
+            Image("AppMascot")
                 .resizable().scaledToFit()
                 .frame(height: 110)
                 .padding(.top, 18)
-            Text("궁금한 거 물어봐!\n네가 번 돈은 내가 다 기억하고 있어 삐약!")
+            Text("궁금한 거 물어봐!\n네 기록을 함께 살펴볼게, 삐약!")
                 .font(PB.F.body(14))
                 .foregroundStyle(PB.C.textBrown.opacity(0.7))
                 .multilineTextAlignment(.center)
@@ -119,7 +121,7 @@ struct PiyakChatView: View {
                             .font(PB.F.body(13))
                             .foregroundStyle(PB.C.textBrown)
                             .padding(.horizontal, 16).padding(.vertical, 10)
-                            .background(.white, in: Capsule())
+                            .background(PB.C.surface, in: Capsule())
                             .overlay(Capsule().strokeBorder(PB.C.brandYellow, lineWidth: 1.5))
                     }
                 }
@@ -139,17 +141,18 @@ struct PiyakChatView: View {
                 .lineLimit(1...4)
                 .focused($inputFocused)
                 .padding(.horizontal, 16).padding(.vertical, 11)
-                .background(.white, in: RoundedRectangle(cornerRadius: 22))
+                .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 22))
                 .shadow(color: PB.C.textBrown.opacity(0.06), radius: 6, y: 2)
                 .onSubmit(submit)
             Button(action: submit) {
                 Image(systemName: "arrow.up")
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 42, height: 42)
-                    .background(canSend ? PB.C.coral : PB.C.textBrown.opacity(0.2),
+                    .foregroundStyle(PB.C.ink)
+                    .frame(width: 44, height: 44)
+                    .background(canSend ? PB.C.brandYellow : PB.C.textBrown.opacity(0.2),
                                 in: Circle())
             }
+            .accessibilityLabel("메시지 보내기")
             .disabled(!canSend)
             .animation(.easeOut(duration: 0.15), value: canSend)
         }
@@ -178,7 +181,7 @@ private struct ChatBubble: View {
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if message.role == .piyak {
-                Image("piyak_base")
+                Image("AppMascot")
                     .resizable().scaledToFit()
                     .frame(width: 26, height: 26)
                     .padding(4)
@@ -190,10 +193,10 @@ private struct ChatBubble: View {
             Text(message.text)
                 .font(PB.F.body(15))
                 .lineSpacing(3)
-                .foregroundStyle(message.role == .user ? .white : PB.C.textBrown)
+                .foregroundStyle(PB.C.textBrown)
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(
-                    message.role == .user ? PB.C.coral : .white,
+                    message.role == .user ? PB.C.coral.opacity(0.14) : PB.C.surface,
                     in: UnevenRoundedRectangle(
                         topLeadingRadius: 18,
                         bottomLeadingRadius: message.role == .piyak ? 6 : 18,
@@ -215,15 +218,16 @@ private struct ChatBubble: View {
 // MARK: - 생각 중 (점 3개 바운스)
 
 private struct ThinkingBubble: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            Image("piyak_base")
+            Image("AppMascot")
                 .resizable().scaledToFit()
                 .frame(width: 26, height: 26)
                 .padding(4)
                 .background(PB.C.brandYellow.opacity(0.25), in: Circle())
 
-            TimelineView(.animation) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduceMotion)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 HStack(spacing: 5) {
                     ForEach(0..<3, id: \.self) { i in
@@ -234,7 +238,7 @@ private struct ThinkingBubble: View {
                     }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 14)
-                .background(.white, in: UnevenRoundedRectangle(
+                .background(PB.C.surface, in: UnevenRoundedRectangle(
                     topLeadingRadius: 18, bottomLeadingRadius: 6,
                     bottomTrailingRadius: 18, topTrailingRadius: 18))
                 .shadow(color: PB.C.textBrown.opacity(0.06), radius: 6, y: 2)

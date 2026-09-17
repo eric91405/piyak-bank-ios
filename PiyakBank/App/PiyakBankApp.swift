@@ -2,39 +2,58 @@ import SwiftUI
 import SwiftData
 import UserNotifications
 import Combine
-import StoreKit
 
 @main
 struct PiyakBankApp: App {
+    @StateObject private var persistence = AppPersistence()
     @StateObject private var router = AppRouter()
-    @State private var container: ModelContainer = {
-        let schema = Schema([CatalogItem.self, OwnedItem.self,
-                             PointTransaction.self, WorkSession.self])
-        return try! ModelContainer(for: schema)
-    }()
-    
     var body: some Scene {
         WindowGroup {
-            RootView()
-                .environmentObject(router)
-                .modelContainer(container)
-                .tint(PB.C.coral)
-                .onOpenURL { router.handle(url: $0) }
+            Group {
+                if let container = persistence.container {
+                    RootView().modelContainer(container).environmentObject(router)
+                } else {
+                    ContentUnavailableView {
+                        Label("기록을 열지 못했어요", systemImage: "externaldrive.badge.exclamationmark")
+                    } description: {
+                        Text("기존 기록은 삭제하지 않았어요. 저장 공간을 확인하고 다시 시도해 주세요. 문제가 계속되면 지원팀에 문의해 주세요.")
+                    } actions: {
+                        Button("다시 시도") { persistence.load() }.buttonStyle(.borderedProminent)
+                        Link("지원 문의", destination: URL(string: "mailto:\(AppConfig.supportEmail)")!)
+                    }
+                }
+            }
+            .modifier(DevelopmentDisplayOptions())
+            .tint(PB.C.coral)
+            .environment(\.locale, Locale(identifier: "ko_KR"))
+            .onOpenURL { router.handle(url: $0) }
         }
     }
 }
 
-// MARK: 딥링크 라우터
+@MainActor
+final class AppPersistence: ObservableObject {
+    @Published var container: ModelContainer?
+    init() { load() }
+    func load() {
+        do {
+            let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self])
+            container = try ModelContainer(for: schema)
+            container?.mainContext.autosaveEnabled = false
+        } catch { container = nil }
+    }
+}
 
+@MainActor
 final class AppRouter: ObservableObject {
-    enum Tab: Hashable { case home, decorate, settings }
+    enum Tab: Hashable { case home, decorate, history, settings }
     @Published var tab: Tab = .home
-    
-    /// piyakbank://home 등
     func handle(url: URL) {
+        guard url.scheme?.lowercased() == "piyakbank" else { return }
         switch url.host {
         case "home": tab = .home
         case "decorate": tab = .decorate
+        case "history": tab = .history
         case "settings": tab = .settings
         default: break
         }
@@ -42,349 +61,135 @@ final class AppRouter: ObservableObject {
 }
 
 struct RootView: View {
-    @EnvironmentObject var router: AppRouter
+    @EnvironmentObject private var router: AppRouter
     @Environment(\.modelContext) private var context
-    
-    @StateObject private var sessionHolder = ServiceHolder()
-    @State private var showSplash = true
-    
+    @Environment(\.scenePhase) private var phase
+    @AppStorage("did_onboard") private var didOnboard = false
+    @StateObject private var services = ServiceHolder()
     var body: some View {
-        ZStack {
-            if let session = sessionHolder.session {
-                TabView(selection: $router.tab) {
-                    HomeView()
-                        .environmentObject(session)
-                        .tabItem { Label("홈", systemImage: "house.fill") }
-                        .tag(AppRouter.Tab.home)
-                    
-                    DecorateView()
-                        .environmentObject(sessionHolder.store)
-                        .tabItem { Label("꾸미기", systemImage: "paintbrush.fill") }
-                        .tag(AppRouter.Tab.decorate)
-                    
-                    SettingsView()
-                        .environmentObject(session)
-                        .tabItem { Label("설정", systemImage: "gearshape.fill") }
-                        .tag(AppRouter.Tab.settings)
+        Group {
+            if let session = services.session {
+                Group {
+                    if didOnboard {
+                        TabView(selection: $router.tab) {
+                            HomeView().tabItem { Label("삐약이", systemImage: "house.fill") }.tag(AppRouter.Tab.home)
+                            DecorateView().tabItem { Label("꾸미기", systemImage: "sparkles") }.tag(AppRouter.Tab.decorate)
+                            HistoryView().tabItem { Label("기록", systemImage: "calendar") }.tag(AppRouter.Tab.history)
+                            SettingsView().tabItem { Label("설정", systemImage: "gearshape.fill") }.tag(AppRouter.Tab.settings)
+                        }
+                    } else {
+                        OnboardingView { didOnboard = true }
+                    }
                 }
-            }
-            
-            if showSplash {
-                SplashView()
-                    .transition(.opacity)
-                    .zIndex(1)
-            }
+                .environmentObject(session)
+                .alert("변경을 완료하지 못했어요", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.errorMessage = nil } })) {
+                    Button("확인") { session.errorMessage = nil }
+                } message: { Text(session.errorMessage ?? "다시 시도해 주세요.") }
+            } else if let error = services.error {
+                ContentUnavailableView {
+                    Label("준비를 마치지 못했어요", systemImage: "externaldrive.badge.exclamationmark")
+                } description: { Text(error) } actions: {
+                    Button("다시 시도") { services.bootstrap(context: context) }
+                    Link("지원 문의", destination: URL(string: "mailto:\(AppConfig.supportEmail)")!)
+                }
+            } else { ProgressView("삐약이의 방을 여는 중") }
         }
-        .task {
-            sessionHolder.bootstrap(context: context)
-            try? await Task.sleep(for: .seconds(1.4))
-            withAnimation(.easeOut(duration: 0.45)) { showSplash = false }
-        }
+        .task { services.bootstrap(context: context) }
+        .onChange(of: phase) { _, value in if value == .active { services.refresh() } }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in services.refresh() }
     }
 }
 
-/// 서비스 lifetime 보관 (EconomyStore / Scheduler / SessionController / Watch / Store)
+@MainActor
 final class ServiceHolder: ObservableObject {
-    @Published var session: SessionController!
-    private var economy: EconomyStore!
-    private var scheduler: NotificationScheduler!
-    private var watch: WatchSync!
-    @Published var store: StoreManager!
-    private var bridge: WatchBridge!
-    private var didBoot = false
-    
-    @MainActor
+    @Published var session: SessionController?
+    @Published var error: String?
+    private var watch: WatchSync?
+    private var bridge: WatchBridge?
+    private var equipmentObserver: AnyCancellable?
+
     func bootstrap(context: ModelContext) {
-        guard !didBoot else { return }
-        didBoot = true
-        economy = EconomyStore(context: context)
-        economy.seedIfNeeded()
-        scheduler = NotificationScheduler()
-        session = SessionController(context: context, economy: economy, scheduler: scheduler)
-        
-        watch = WatchSync()
-        watch.onRemoteCommand = { [weak self] cmd, wage in
-            self?.session.handleRemoteCommand(cmd, wage: wage)
-        }
-        watch.activate()
-        bridge = WatchBridge(watch: watch)
-        session.syncDelegate = bridge
-        
-        store = StoreManager()
-        store.onPurchased = { [weak self] catalogId in self?.economy.grantIAP(catalogId) }
-        
-        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
-        Task { _ = await scheduler.requestAuth(); await store.loadProducts() }
-        NotificationCenter.default.addObserver(
-            forName: .piyakEquippedChanged, object: nil, queue: .main
-        ) { [weak self] _ in
-            guard let self else { return }
-            MainActor.assumeIsolated {
-                self.watch.send(equipped: self.economy.equippedMap())
+        guard session == nil else { return }
+        do {
+            let economy = EconomyStore(context: context)
+            try economy.seedIfNeeded()
+            if AppConfig.shared?.integer(forKey: "earnings_revision") != 2 {
+                try economy.reconcileCompletedAccruals()
+                AppConfig.shared?.set(2, forKey: "earnings_revision")
             }
+            let controller = SessionController(context: context, economy: economy, scheduler: NotificationScheduler())
+            try controller.recoverIfNeeded()
+            let watch = WatchSync()
+            self.watch = watch
+            watch.onRemoteCommand = { [weak controller] command in
+                guard UserDefaults.standard.bool(forKey: "did_onboard") else { throw SetupError.onboarding }
+                try controller?.handleRemoteCommand(command)
+            }
+            watch.onRequestSnapshot = { [weak controller] in controller?.refreshSnapshot() }
+            let bridge = WatchBridge(watch: watch)
+            self.bridge = bridge
+            controller.syncDelegate = bridge
+            self.session = controller
+            self.error = nil
+            equipmentObserver = NotificationCenter.default.publisher(for: .piyakEquippedChanged)
+                .sink { [weak self] _ in Task { @MainActor in self?.refreshEquipment() } }
+            try watch.send(equipped: economy.equippedMap())
+            watch.activate()
+            controller.refreshSnapshot()
+            UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        } catch {
+            self.error = "기존 기록을 보존했어요. \(error.localizedDescription)"
         }
-        watch.send(equipped: economy.equippedMap())   // 부팅 시 1회 초기 전송
-        session.recoverIfNeeded()
+    }
+    func refresh() {
+        session?.refreshSnapshot()
+        session?.updateReminders()
+        refreshEquipment()
+    }
+    private func refreshEquipment() {
+        guard let session else { return }
+        do { try watch?.send(equipped: session.economy.equippedMap()) }
+        catch { session.errorMessage = error.localizedDescription }
+    }
+    private enum SetupError: LocalizedError {
+        case onboarding
+        var errorDescription: String? { "iPhone 앱에서 처음 설정을 마쳐 주세요." }
     }
 }
 
-/// SessionSyncing → WatchSync 어댑터
+@MainActor
 final class WatchBridge: SessionSyncing {
     let watch: WatchSync
     init(watch: WatchSync) { self.watch = watch }
-    func didUpdateSession(_ snapshot: SessionSnapshot) {
-        Task { @MainActor in watch.send(snapshot: snapshot) }
-    }
+    func didUpdateSession(_ snapshot: SessionSnapshot) { watch.send(snapshot: snapshot) }
 }
-
-// MARK: 알림 탭 → 딥링크
 
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
-    
-    func userNotificationCenter(_ c: UNUserNotificationCenter,
-                                willPresent n: UNNotification) async -> UNNotificationPresentationOptions {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
     }
-    func userNotificationCenter(_ c: UNUserNotificationCenter,
-                                didReceive r: UNNotificationResponse) async {
-        if let link = r.notification.request.content.userInfo["deeplink"] as? String,
-           let url = URL(string: link) {
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
+        if let link = response.notification.request.content.userInfo["deeplink"] as? String,
+           let url = URL(string: link), url.scheme == "piyakbank" {
             await MainActor.run { UIApplication.shared.open(url) }
         }
     }
 }
-struct SettingsView: View {
-    @EnvironmentObject var session: SessionController
-    @Query private var transactions: [PointTransaction]
-    @State private var showRestoreDone = false
-    
-    // MARK: 원장 기반 통계
-    private var accruals: [PointTransaction] {
-        transactions.filter { $0.kind == .accrual }
-    }
-    private var totalEarned: Int {
-        accruals.reduce(0) { $0 + $1.amount }
-    }
-    private var daysTogether: Int {
-        guard let first = accruals.map(\.date).min() else { return 1 }
-        return (Calendar.current.dateComponents([.day], from: first, to: .now).day ?? 0) + 1
-    }
-    private var workedDays: Int {
-        Set(accruals.map { Calendar.current.startOfDay(for: $0.date) }).count
-    }
-    private var bestDay: Int {
-        Dictionary(grouping: accruals) { Calendar.current.startOfDay(for: $0.date) }
-            .values.map { $0.reduce(0) { $0 + $1.amount } }.max() ?? 0
-    }
-    
-    var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    profileCard
-                    statRow
-                    settingsCard(title: "알림") {
-                        HStack {
-                            Text("주기 알림 간격").font(PB.F.body(15))
-                                .foregroundStyle(PB.C.textBrown)
-                            Spacer()
-                            Picker("", selection: $session.interval) {
-                                ForEach(NotificationScheduler.Interval.allCases, id: \.self) { iv in
-                                    Text("\(iv.rawValue)분").tag(iv)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .frame(maxWidth: 180)
-                        }
-                    }
-                    settingsCard(title: "구매") {
-                        Button {
-                            Task {
-                                try? await AppStore.sync()
-                                showRestoreDone = true
-                            }
-                        } label: {
-                            HStack {
-                                Text("구매 복원").font(PB.F.body(15))
-                                    .foregroundStyle(PB.C.textBrown)
-                                Spacer()
-                                Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(PB.C.coral)
-                            }
-                        }
-                    }
-                    settingsCard(title: "정보") {
-                        VStack(spacing: 12) {
-                            infoRow("버전", value: "1.0.0")
-                            Divider()
-                            Link(destination: URL(string: "https://github.com/eric91405/piyak-bank-ios")!) {
-                                HStack {
-                                    Text("GitHub").font(PB.F.body(15))
-                                        .foregroundStyle(PB.C.textBrown)
-                                    Spacer()
-                                    Image(systemName: "arrow.up.right")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(PB.C.textBrown.opacity(0.4))
-                                }
-                            }
-                            Divider()
-                            infoRow("만든 사람", value: "김민서")
-                        }
-                    }
-                }
-                .padding(16)
-            }
-            .background(PB.C.bg.ignoresSafeArea())
-            .navigationTitle("설정")
-            .navigationBarTitleDisplayMode(.inline)
-            .alert("구매 복원", isPresented: $showRestoreDone) {
-                Button("확인", role: .cancel) {}
-            } message: {
-                Text("구매 내역 복원을 요청했어요.")
-            }
-        }
-    }
-    
-    // MARK: 프로필 카드
-    private var profileCard: some View {
-        VStack(spacing: 10) {
-            Image("piyak_base")
-                .resizable().scaledToFit()
-                .frame(height: 88)
-                .padding(10)
-                .background(PB.C.brandYellow.opacity(0.22), in: Circle())
-            Text("삐약이와 함께한 지 \(daysTogether)일")
-                .font(PB.F.body(15)).bold()
-                .foregroundStyle(PB.C.textBrown)
-            HStack(spacing: 5) {
-                Text("통산 적립")
-                    .font(PB.F.body(12))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.5))
-                Text(totalEarned.won)
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                    .foregroundStyle(PB.C.coral)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 22)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
-        .shadow(color: PB.C.textBrown.opacity(0.07), radius: 12, y: 4)
-    }
-    
-    private var statRow: some View {
-        HStack(spacing: 10) {
-            statCell("calendar", title: "적립일", value: "\(workedDays)일")
-            statCell("crown.fill", title: "최고 하루", value: bestDay.won)
-            statCell("bell.badge.fill", title: "알림 간격", value: "\(session.interval.rawValue)분")
-        }
-    }
-    private func statCell(_ icon: String, title: String, value: String) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(PB.C.coral)
-            Text(title).font(PB.F.body(11))
-                .foregroundStyle(PB.C.textBrown.opacity(0.5))
-            Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .foregroundStyle(PB.C.textBrown)
-                .lineLimit(1).minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        .shadow(color: PB.C.textBrown.opacity(0.05), radius: 8, y: 3)
-    }
-    
-    // MARK: 카드 컨테이너
-    private func settingsCard<Content: View>(title: String,
-                                             @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title).font(PB.F.body(12)).bold()
-                .foregroundStyle(PB.C.textBrown.opacity(0.45))
-            content()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        .shadow(color: PB.C.textBrown.opacity(0.05), radius: 8, y: 3)
-    }
-    
-    private func infoRow(_ label: String, value: String) -> some View {
-        HStack {
-            Text(label).font(PB.F.body(15)).foregroundStyle(PB.C.textBrown)
-            Spacer()
-            Text(value).font(PB.F.body(15))
-                .foregroundStyle(PB.C.textBrown.opacity(0.5))
-        }
-    }
-}
 
-// MARK: 스플래시
-
-struct SplashView: View {
-    @State private var appear = false
-    
-    var body: some View {
-        ZStack {
-            LinearGradient(colors: [Color(red: 1.0, green: 0.98, blue: 0.93), PB.C.bg],
-                           startPoint: .top, endPoint: .bottom)
-            .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                Spacer()
-                
-                // 앱 아이콘 타일
-                Image("splash_logo")
-                    .resizable().scaledToFit()
-                    .frame(width: 112, height: 112)
-                    .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    .shadow(color: PB.C.textBrown.opacity(0.18), radius: 18, y: 8)
-                    .scaleEffect(appear ? 1.0 : 0.7)
-                    .opacity(appear ? 1 : 0)
-                
-                // 워드마크
-                Text("삐약뱅크")
-                    .font(.system(size: 30, weight: .heavy, design: .rounded))
-                    .foregroundStyle(PB.C.textBrown)
-                    .padding(.top, 22)
-                    .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 10)
-                
-                Text("내 시간이 돈이 되는 순간")
-                    .font(PB.F.body(14))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.45))
-                    .padding(.top, 8)
-                    .opacity(appear ? 1 : 0)
-                    .offset(y: appear ? 0 : 10)
-                
-                Spacer()
-                
-                // 로딩 점
-                TimelineView(.animation) { tl in
-                    let t = tl.date.timeIntervalSinceReferenceDate
-                    HStack(spacing: 8) {
-                        ForEach(0..<3, id: \.self) { i in
-                            Circle()
-                                .fill(PB.C.coral)
-                                .frame(width: 8, height: 8)
-                                .opacity(0.3 + 0.7 * abs(sin((t - Double(i) * 0.22) * 2.8)))
-                        }
-                    }
-                }
-                .padding(.bottom, 24)
-                
-                Text("PiyakBank")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.3))
-                    .padding(.bottom, 28)
-                    .opacity(appear ? 1 : 0)
-            }
+// Launch-only visual QA overrides. They never exist in a Release build and do not
+// change system preferences or the user's stored app settings.
+private struct DevelopmentDisplayOptions: ViewModifier {
+    @ViewBuilder func body(content: Content) -> some View {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--piyak-accessibility") {
+            content.environment(\.dynamicTypeSize, .accessibility3)
+                .preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--piyak-dark") ? .dark : nil)
+        } else {
+            content.preferredColorScheme(ProcessInfo.processInfo.arguments.contains("--piyak-dark") ? .dark : nil)
         }
-        .onAppear {
-            withAnimation(.spring(duration: 0.55, bounce: 0.35)) { appear = true }
-        }
+        #else
+        content
+        #endif
     }
 }

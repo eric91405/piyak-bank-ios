@@ -1,0 +1,24 @@
+name: Validate release candidate
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test-and-build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain
+        run: xcodebuild -version
+      - name: Assets and privacy manifests
+        run: python3 scripts/check_release_assets.py
+      - name: Calculation and persistence regression tests
+        run: swift test
+      - name: iOS, watchOS and widget Release build
+        run: >-
+          xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank
+          -configuration Release -jobs 2 -destination 'generic/platform=iOS'
+          -derivedDataPath /tmp/PiyakBank-CI CODE_SIGNING_ALLOWED=NO build
