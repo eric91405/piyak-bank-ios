@@ -6,6 +6,7 @@
 //   scripts/ProbeLocalChat.swift -o /tmp/piyak-local-chat-probe
 // Run: /tmp/piyak-local-chat-probe
 // UI regression: /tmp/piyak-local-chat-probe --ui-repro
+// Short conversational latency: /tmp/piyak-local-chat-probe --latency
 // This uses the real app engine and the Mac's local Apple Intelligence model.
 // It verifies neither iPhone performance nor iPhone model availability.
 // Only synthetic prompts and an empty, in-memory database are used.
@@ -30,7 +31,12 @@ struct ProbeLocalChat {
                 exit(3)
             }
             let uiReproduction = CommandLine.arguments.contains("--ui-repro")
-            let prompts = uiReproduction ? [
+            let latencyProbe = CommandLine.arguments.contains("--latency")
+            let prompts = latencyProbe ? [
+                "안녕!", "오늘 일이 많아서 조금 지쳤어. 짧게 응원해 줘.",
+                "실내에서 5분 안에 할 수 있는 기분 전환 하나만 알려줘.",
+                "그 활동의 첫 단계만 한 문장으로 알려줘."
+            ] : uiReproduction ? [
                 "오늘 수익 알려줘", "내 포인트 얼마야", "사용법 알려줘", "오늘 수익 알려줘",
                 "My name is Mina. I like walks. Suggest one thing for tonight.",
                 "I cannot go outside. Suggest one quiet indoor activity instead."
@@ -40,6 +46,11 @@ struct ProbeLocalChat {
                 "추천한 활동이 싫으면 다른 조용한 실내 활동을 하나만 알려줘."
             ]
             let clock = ContinuousClock()
+            if latencyProbe {
+                engine.prepareForConversation()
+                // Match time spent opening the chat/typing; never prewarm in a loop.
+                try await Task.sleep(for: .milliseconds(1_100))
+            }
             var previousAnswer: String?
             for (index, prompt) in prompts.enumerated() {
                 guard ProcessInfo.processInfo.thermalState.rawValue < ProcessInfo.ThermalState.serious.rawValue else {
@@ -55,14 +66,17 @@ struct ProbeLocalChat {
                         print("Deferred: thermal pressure increased; generation canceled.")
                         exit(75)
                     }
-                    if start.duration(to: clock.now) >= .seconds(20) {
+                    if start.duration(to: clock.now) >= .seconds(45) {
                         engine.cancel()
-                        print("Failure: 20-second response timeout; generation canceled.")
+                        print("Failure: 45-second probe safeguard; the app watchdog did not settle.")
                         exit(2)
                     }
                     try await Task.sleep(for: .milliseconds(100))
                 }
                 print("Duration:", start.duration(to: clock.now))
+                if let metrics = engine.lastResponseMetrics {
+                    print("Metrics: first-token=\(metrics.firstTokenSeconds ?? -1)s total=\(metrics.totalSeconds)s attempts=\(metrics.attempts) outcome=\(metrics.outcome)")
+                }
                 if let failure = engine.failure {
                     print("Failure:", failure.title, failure.detail)
                     exit(1)
@@ -91,7 +105,7 @@ struct ProbeLocalChat {
                         print("Failure: this fixed leisure-only scenario received unrelated financial claims.")
                         exit(6)
                     }
-                    if index == prompts.count - 1 {
+                    if !latencyProbe && index == prompts.count - 1 {
                         let outdoor = ["산책", "밖에서", "밖으로", "야외", "공원", "카페", "walk", "outside"]
                         let indoor = ["독서", "책", "읽", "명상", "호흡", "스트레칭", "그림", "퍼즐", "일기", "음악", "정리", "글쓰기", "요가", "뜨개", "색칠"]
                         guard !outdoor.contains(where: lower.contains), indoor.contains(where: lower.contains) else {
@@ -101,9 +115,10 @@ struct ProbeLocalChat {
                     }
                     previousAnswer = comparable
                 }
+                try await Task.sleep(for: .seconds(2))
             }
             print("\nResult: \(prompts.count) completed responses with no exact consecutive duplicate in generated replies.")
-            print("The fixed scenario also passed conservative financial/indoor keyword checks. These are regression checks, not a general accuracy guarantee; review all answers manually.")
+            print("The fixed scenario also passed conservative financial checks\(latencyProbe ? "" : " and indoor keyword checks"). These are regression checks, not a general accuracy guarantee; review all answers manually.")
         } catch {
             print("Failure:", error.localizedDescription)
             exit(1)

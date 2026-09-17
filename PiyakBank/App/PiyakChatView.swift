@@ -22,10 +22,10 @@ struct PiyakChatView: View {
         .background(PB.C.bg.ignoresSafeArea())
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)
-        .onAppear { engine.refreshAvailability() }
+        .onAppear { engine.prepareForConversation() }
         .onDisappear { engine.cancel() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { engine.refreshAvailability() }
+            if phase == .active { engine.prepareForConversation() }
             else if phase == .background { engine.cancel() }
         }
         .confirmationDialog("이 대화를 지우고 새로 시작할까요?", isPresented: $confirmClear, titleVisibility: .visible) {
@@ -75,10 +75,10 @@ struct PiyakChatView: View {
                                    streaming: engine.isThinking && message.id == engine.messages.last?.id)
                             .equatable()
                     }
-                    if engine.isThinking && !engine.isStreaming {
+                    if engine.isThinking && (!engine.isStreaming || engine.isSlowResponse || engine.isRecoveringResponse) {
                         HStack(spacing: 10) {
                             ProgressView().tint(PB.C.coral)
-                            Text("이야기를 생각하고 있어요…").font(PB.F.body(13)).foregroundStyle(PB.C.secondary)
+                            Text(engine.progressText).font(PB.F.body(13)).foregroundStyle(PB.C.secondary)
                             Spacer()
                         }.padding(.vertical, 8)
                     }
@@ -248,7 +248,8 @@ private struct ChatBubble: View, Equatable {
                     } else if message.source == .memory || message.source == .groundedConversation {
                         Label(message.source == .memory ? "직접 말해 준 정보" : "이름·취향은 직접 말해 준 정보", systemImage: "quote.bubble")
                             .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
-                    } else if !message.isComplete {
+                    }
+                    if !message.isComplete {
                         Text(streaming ? "답변을 쓰고 있어요…" : "응답이 중단되었어요")
                             .font(PB.F.body(10)).foregroundStyle(PB.C.secondary)
                     }

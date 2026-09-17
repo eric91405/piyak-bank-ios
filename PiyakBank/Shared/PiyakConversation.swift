@@ -214,8 +214,10 @@ enum PiyakConversation {
         }
     }
 
-    static func isUnrequestedRepeat(_ answer: String, of previous: String?, request: String) -> Bool {
+    static func isUnrequestedRepeat(_ answer: String, of previous: String?, request: String,
+                                    previousRequest: String? = nil) -> Bool {
         guard let previous else { return false }
+        if let previousRequest, normalizedAnswer(request) == normalizedAnswer(previousRequest) { return false }
         let compact = request.lowercased().filter { !$0.isWhitespace }
         let explicitlyAvoidsRepeat = ["반복하지", "다르게", "donotrepeat", "don'trepeat", "notthesame"]
             .contains(where: compact.contains)
@@ -224,7 +226,10 @@ enum PiyakConversation {
             .contains(where: compact.contains)
         guard explicitlyAvoidsRepeat || !requestsRepeat else { return false }
         let candidate = normalizedAnswer(answer)
-        return !candidate.isEmpty && candidate == normalizedAnswer(previous)
+        // A greeting or short acknowledgement can legitimately be identical twice.
+        guard candidate.count >= 4,
+              !["안녕하세요", "안녕반가워", "고마워", "잘자", "반가워"].contains(candidate) else { return false }
+        return candidate == normalizedAnswer(previous)
     }
 
     private static func normalizedAnswer(_ text: String) -> String {

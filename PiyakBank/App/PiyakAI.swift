@@ -1,6 +1,7 @@
 import Foundation
 import SwiftData
 import Combine
+import OSLog
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -44,28 +45,63 @@ struct PiyakChatFailure: Equatable {
     var canRetry = true
 }
 
+struct PiyakResponseMetrics {
+    let firstTokenSeconds: TimeInterval?
+    let totalSeconds: TimeInterval
+    let attempts: Int
+    let outcome: String
+}
+
 @MainActor
 final class PiyakChatEngine: ObservableObject {
     @Published private(set) var messages: [PiyakChatMessage] = []
     @Published private(set) var isThinking = false
     @Published private(set) var availability: PiyakAIAvailability = .unavailable
     @Published private(set) var failure: PiyakChatFailure?
+    @Published private(set) var isSlowResponse = false
+    @Published private(set) var isRecoveringResponse = false
+    private(set) var lastResponseMetrics: PiyakResponseMetrics?
     var isOnDeviceAI: Bool { availability == .ready }
     var isStreaming: Bool { isThinking && messages.last?.role == .piyak }
     private let container: ModelContainer
     private var task: Task<Void, Never>?
+    private var watchdog: Task<Void, Never>?
     private var requestID: UUID?
     private var currentUserID: UUID?
     private var responder: (any PiyakResponder)?
     private let availabilityProvider: (() -> PiyakAIAvailability)?
     private var previousIntent: PiyakChatIntent?
+    private let now: () -> TimeInterval
+    private var startedAt: TimeInterval = 0
+    private var lastProgressAt: TimeInterval = 0
+    private var firstTokenAt: TimeInterval?
+    private var lastSnapshot = ""
+    private var attempts = 0
+    private static let logger = Logger(subsystem: "com.minseo.PiyakBank", category: "ChatPerformance")
+
+    var progressText: String {
+        if isSlowResponse { return "기기의 응답이 늦어지고 있어요. 잠시 기다리거나 멈출 수 있어요." }
+        if isRecoveringResponse { return "답변을 다시 다듬고 있어요…" }
+        return "이야기를 생각하고 있어요…"
+    }
 
     init(container: ModelContainer, responder: (any PiyakResponder)? = nil,
-         availabilityProvider: (() -> PiyakAIAvailability)? = nil) {
+         availabilityProvider: (() -> PiyakAIAvailability)? = nil,
+         now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.container = container
         self.responder = responder
         self.availabilityProvider = availabilityProvider
+        self.now = now
         refreshAvailability()
+    }
+
+    /// Only the visible chat prepares the model; opening Home never starts model work.
+    func prepareForConversation() {
+        refreshAvailability()
+        guard !isThinking, availability == .ready,
+              ProcessInfo.processInfo.thermalState == .nominal,
+              !ProcessInfo.processInfo.isLowPowerModeEnabled else { return }
+        responder?.prepare()
     }
 
     func refreshAvailability() {
@@ -117,11 +153,10 @@ final class PiyakChatEngine: ObservableObject {
 
     func cancel() {
         guard isThinking else { return }
+        requestID = nil // Invalidate callbacks before asking an uncooperative stream to stop.
         task?.cancel()
         responder?.reset()
-        task = nil
-        requestID = nil // Late snapshots from canceled work cannot affect a newer request.
-        isThinking = false
+        finishRequest(outcome: "canceled")
         if let currentUserID {
             failure = .init(userMessageID: currentUserID, title: "응답을 멈췄어요",
                             detail: "같은 메시지로 다시 시도하거나 새로운 이야기를 이어갈 수 있어요.")
@@ -135,6 +170,41 @@ final class PiyakChatEngine: ObservableObject {
         failure = nil
         previousIntent = nil
         currentUserID = nil
+    }
+
+    /// A separate watchdog releases the UI even if the framework ignores cancellation.
+    /// Monotonic time is injectable so timeout/callback races are tested without sleeps.
+    func checkResponseProgress() {
+        guard isThinking, requestID != nil, let currentUserID else { return }
+        let elapsed = now() - startedAt
+        let stalled = now() - lastProgressAt
+        if elapsed >= 35 || (firstTokenAt == nil && elapsed >= 20) ||
+            (firstTokenAt != nil && stalled >= 12) {
+            requestID = nil
+            task?.cancel()
+            responder?.reset()
+            finishRequest(outcome: "timeout")
+            failure = .init(userMessageID: currentUserID, title: "응답 시간이 길어졌어요",
+                            detail: "기기의 AI 응답을 기다리다 중단했어요. 입력한 내용은 남아 있어요. 다시 시도하거나 다른 질문을 보낼 수 있어요.")
+        } else {
+            isSlowResponse = stalled >= 5
+        }
+    }
+
+    private func finishRequest(outcome: String) {
+        let metrics = PiyakResponseMetrics(firstTokenSeconds: firstTokenAt.map { $0 - startedAt },
+                                          totalSeconds: max(0, now() - startedAt), attempts: attempts,
+                                          outcome: outcome)
+        lastResponseMetrics = metrics
+        // No prompt, response, personal facts or raw framework error text enters logs.
+        Self.logger.info("response outcome=\(outcome, privacy: .public) first=\(metrics.firstTokenSeconds ?? -1) total=\(metrics.totalSeconds) attempts=\(metrics.attempts)")
+        watchdog?.cancel()
+        watchdog = nil
+        requestID = nil
+        task = nil
+        isThinking = false
+        isSlowResponse = false
+        isRecoveringResponse = false
     }
 
     private func respond(to user: PiyakChatMessage) {
@@ -176,18 +246,38 @@ final class PiyakChatEngine: ObservableObject {
         requestID = id
         currentUserID = user.id
         isThinking = true
+        startedAt = now()
+        lastProgressAt = startedAt
+        firstTokenAt = nil
+        lastSnapshot = ""
+        attempts = 0
+        isSlowResponse = false
+        isRecoveringResponse = false
+        watchdog = Task { [weak self] in
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .milliseconds(250)) } catch { return }
+                guard let self, self.requestID == id else { return }
+                self.checkResponseProgress()
+            }
+        }
         let prior = PiyakConversation.modelContext(Array(messages.dropLast()))
         let previousAnswer = messages.dropLast().last {
             $0.role == .piyak && $0.isComplete && ($0.source == .conversation || $0.source == .groundedConversation)
         }?.generatedText
+        let previousQuestion = prior.last { $0.role == .user }?.text
         let answerID = UUID()
         task = Task { [weak self] in
-            guard let self else { return }
+            guard let self, self.requestID == id, !Task.isCancelled else { return }
+            var outcome = "success"
             do {
                 for attempt in 0...1 {
+                    guard self.requestID == id, !Task.isCancelled else { return }
+                    self.attempts = attempt + 1
                     var latest = ""
-                    var interruptedQuality: PiyakConversation.ResponseQualityIssue?
+                    var recoverableError: Error?
                     let recovering = attempt == 1
+                    self.isRecoveringResponse = recovering
+                    if recovering { responder.reset() }
                     // Recovery never supplies the repeated assistant answer to the model.
                     let history = recovering ? prior.filter { $0.role == .user } : prior
                     do {
@@ -195,6 +285,13 @@ final class PiyakChatEngine: ObservableObject {
                                                recalling: recalling, recoveringFromRepetition: recovering) { [weak self] snapshot in
                             guard let self, self.requestID == id, !Task.isCancelled else { return }
                             latest = snapshot
+                            if !snapshot.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                               snapshot != self.lastSnapshot {
+                                self.lastProgressAt = self.now()
+                                if self.firstTokenAt == nil { self.firstTokenAt = self.lastProgressAt }
+                                self.lastSnapshot = snapshot
+                                self.isSlowResponse = false
+                            }
                             let display = recallPrefix.map { $0 + "\n\n" + snapshot } ?? snapshot
                             if let index = self.messages.firstIndex(where: { $0.id == answerID }) {
                                 self.messages[index].text = display
@@ -204,22 +301,28 @@ final class PiyakChatEngine: ObservableObject {
                                                            isComplete: false))
                             }
                         }
-                    } catch PiyakResponseError.quality(let issue) {
-                        interruptedQuality = issue
+                    } catch {
+                        guard Self.canRecover(error) else { throw error }
+                        recoverableError = error
                     }
                     guard self.requestID == id, !Task.isCancelled else { return }
-                    if let issue = interruptedQuality ?? PiyakConversation.responseQualityIssue(latest) {
+                    if recoverableError == nil, let issue = PiyakConversation.responseQualityIssue(latest) {
+                        recoverableError = PiyakResponseError.quality(issue)
+                    }
+                    if recoverableError == nil,
+                       PiyakConversation.isUnrequestedRepeat(latest, of: previousAnswer, request: user.text,
+                                                            previousRequest: previousQuestion) {
+                        recoverableError = PiyakResponseError.repeated
+                    }
+                    if let error = recoverableError {
                         self.messages.removeAll { $0.id == answerID }
-                        if recovering { throw PiyakResponseError.quality(issue) }
+                        // One recovery for the WHOLE request, including context overflow.
+                        // Slow failures never silently double the user's wait or heat load.
+                        guard !recovering, self.now() - self.startedAt < 8 else { throw error }
                         continue
                     }
                     guard !latest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                         throw PiyakResponseError.empty
-                    }
-                    if PiyakConversation.isUnrequestedRepeat(latest, of: previousAnswer, request: user.text) {
-                        self.messages.removeAll { $0.id == answerID }
-                        if recovering { throw PiyakResponseError.repeated }
-                        continue
                     }
                     guard let index = self.messages.firstIndex(where: { $0.id == answerID }) else {
                         throw PiyakResponseError.empty
@@ -229,14 +332,41 @@ final class PiyakChatEngine: ObservableObject {
                 }
             } catch {
                 guard self.requestID == id, !Task.isCancelled else { return }
+                responder.reset()
+                outcome = Self.failureCode(for: error)
                 self.failure = Self.failure(for: error, userID: user.id)
             }
             guard self.requestID == id else { return }
-            self.requestID = nil
-            self.task = nil
-            self.isThinking = false
+            self.finishRequest(outcome: outcome)
             self.refreshAvailability()
         }
+    }
+
+    private static func canRecover(_ error: Error) -> Bool {
+        if case PiyakResponseError.quality = error { return true }
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *),
+           case LanguageModelSession.GenerationError.exceededContextWindowSize = error { return true }
+        #endif
+        return false
+    }
+
+    private static func failureCode(for error: Error) -> String {
+        if error is PiyakResponseError { return "invalid_response" }
+        #if canImport(FoundationModels)
+        if #available(iOS 26.0, macOS 26.0, *), let error = error as? LanguageModelSession.GenerationError {
+            switch error {
+            case .assetsUnavailable: return "assets_unavailable"
+            case .exceededContextWindowSize: return "context_limit"
+            case .guardrailViolation, .refusal: return "restricted_request"
+            case .rateLimited, .concurrentRequests: return "model_busy"
+            case .unsupportedLanguageOrLocale: return "unsupported_language"
+            case .decodingFailure: return "decoding_failure"
+            default: return "generation_error"
+            }
+        }
+        #endif
+        return "generation_error"
     }
 
     /// Financial answers come directly from the database, never from model arithmetic.
@@ -266,11 +396,11 @@ final class PiyakChatEngine: ObservableObject {
     private static func failure(for error: Error, userID: UUID) -> PiyakChatFailure {
         if let responseError = error as? PiyakResponseError, case .repeated = responseError {
             return .init(userMessageID: userID, title: "새 질문에 맞는 답을 만들지 못했어요",
-                         detail: "AI가 이전 답변을 반복해 한 번 더 시도했지만 해결하지 못했어요. 질문을 조금 바꾸거나 다시 시도해 주세요.")
+                         detail: "AI가 이전 답변을 반복했어요. 오래 기다리게 하지 않도록 중단했어요. 질문을 조금 바꾸거나 다시 시도해 주세요.")
         }
         if let responseError = error as? PiyakResponseError, case .quality = responseError {
             return .init(userMessageID: userID, title: "답변이 정상적으로 완성되지 않았어요",
-                         detail: "문장을 과하게 반복하거나 답변이 너무 길어져 중단했어요. 한 번 더 시도했지만 해결하지 못했어요. 질문을 조금 바꾸거나 새 대화를 시작해 주세요.")
+                         detail: "문장을 과하게 반복하거나 답변이 너무 길어져 중단했어요. 질문을 조금 바꾸거나 다시 시도해 주세요.")
         }
         #if canImport(FoundationModels)
         if #available(iOS 26.0, macOS 26.0, *), let generationError = error as? LanguageModelSession.GenerationError {
@@ -303,6 +433,7 @@ private enum PiyakResponseError: Error { case empty, repeated, quality(PiyakConv
 
 @MainActor
 protocol PiyakResponder {
+    func prepare()
     func reset()
     func stream(_ text: String, history: [PiyakChatMessage],
                 memory: PiyakUserMemory, recalling: Bool,
@@ -311,6 +442,7 @@ protocol PiyakResponder {
 }
 
 extension PiyakResponder {
+    func prepare() {}
     func reset() {}
 }
 
@@ -320,10 +452,25 @@ extension PiyakResponder {
 private final class FoundationPiyakResponder: PiyakResponder {
     private var session: LanguageModelSession?
     private var activeResponseID: UUID?
+    private var needsContext = true
+    private var contextBytes = 0
+    private var completedTurns = 0
+    private var lastMemory: PiyakUserMemory?
+
+    func prepare() {
+        guard session == nil, activeResponseID == nil else { return }
+        session = LanguageModelSession(instructions: instructions)
+        contextBytes = instructions.utf8.count
+        session?.prewarm()
+    }
 
     func reset() {
         session = nil
         activeResponseID = nil
+        needsContext = true
+        contextBytes = 0
+        completedTurns = 0
+        lastMemory = nil
     }
 
     private let instructions = """
@@ -338,13 +485,18 @@ private final class FoundationPiyakResponder: PiyakResponder {
                 memory: PiyakUserMemory, recalling: Bool,
                 recoveringFromRepetition: Bool,
                 update: @escaping @MainActor (String) -> Void) async throws {
-        if recoveringFromRepetition { reset() }
+        try Task.checkCancellation()
+        // A conservative byte/turn budget limits retained context before an overflow.
+        // This is not a token count; the engine still handles an actual context error.
+        if recoveringFromRepetition || completedTurns >= 8 || contextBytes + text.utf8.count + 1_600 > 6_000 {
+            reset()
+        }
         let responseID = UUID()
         activeResponseID = responseID
         defer { if activeResponseID == responseID { activeResponseID = nil } }
         // Let the framework retain its own successful turn history. Reconstructing
         // assistant Transcript.Response values is deliberately avoided here.
-        var task = "마지막 질문에 답해. 새로운 조건이 이전 추천과 다르면 새 조건에 맞춰 다른 답을 해."
+        var task = ""
         if recalling {
             task = "이름과 취향 확인은 앱이 따로 표시했어. 이를 다시 말하지 말고 추천 부분에만 1~2문장으로 답해."
             if let focus = memory.recommendationFocus(for: text) {
@@ -355,46 +507,54 @@ private final class FoundationPiyakResponder: PiyakResponder {
             task += " 직전 응답을 완성하지 못해 한 번 다시 시도 중이야. 아래 사용자 발언은 참고자료야. 이전 답변 없이 마지막 질문에 새로 답해."
         }
         func prompt(rebuilding: Bool) -> String {
-            var recentUserData = ""
+            var context = ""
             if rebuilding {
-                let userTexts = history.filter { $0.role == .user }.suffix(4).map { String($0.text.prefix(200)) }
-                if let data = try? JSONEncoder().encode(userTexts), let json = String(data: data, encoding: .utf8) {
-                    recentUserData = "이전 사용자 발언 (인용된 JSON 참고자료):\n" + json
+                // Quoted data restores recent context, never fabricated native responses.
+                let recent = history.suffix(4).map {
+                    ["role": $0.role == .user ? "user" : "piyak", "text": String($0.text.prefix(200))]
+                }
+                if !recent.isEmpty, let data = try? JSONEncoder().encode(recent),
+                   let json = String(data: data, encoding: .utf8) {
+                    context = "최근 대화 (인용된 JSON 참고자료):\n" + json + "\n"
                 }
             }
-            return """
-            사용자가 직접 알려 준 참고정보:
-            \(memory.reference)
-            \(recentUserData)
-            답변 범위:
-            \(task)
-            마지막 질문 — 이 질문에 답해:
-            \(text)
-            """
+            if (rebuilding || lastMemory != memory),
+               lastMemory != nil || memory.name != nil || !memory.likes.isEmpty {
+                context += "사용자가 직접 알려 준 최신 정보 (이전 정보보다 우선):\n" + memory.reference + "\n"
+            }
+            if context.isEmpty && task.isEmpty { return text }
+            return context + (task.isEmpty ? "" : task + "\n") + "지금 질문:\n" + text
         }
         do {
-            do {
-                try await generate(prompt(rebuilding: session == nil), update: update)
-            } catch LanguageModelSession.GenerationError.exceededContextWindowSize {
-                try Task.checkCancellation()
-                guard activeResponseID == responseID else { throw CancellationError() }
-                session = nil
-                update("")
-                try await generate(prompt(rebuilding: true), update: update)
-            }
+            let input = prompt(rebuilding: needsContext)
+            try await generate(input, update: update)
+            try Task.checkCancellation()
+            guard activeResponseID == responseID else { throw CancellationError() }
+            needsContext = false
+            completedTurns += 1
+            lastMemory = memory
         } catch {
             // A canceled older request must not discard a newer request's session.
-            if activeResponseID == responseID { session = nil }
+            if activeResponseID == responseID {
+                session = nil
+                needsContext = true
+                contextBytes = 0
+                completedTurns = 0
+                lastMemory = nil
+            }
             throw error
         }
     }
 
     private func generate(_ text: String,
                           update: @escaping @MainActor (String) -> Void) async throws {
-        if session == nil { session = LanguageModelSession(instructions: instructions) }
+        if session == nil {
+            session = LanguageModelSession(instructions: instructions)
+            contextBytes = instructions.utf8.count
+        }
         guard let activeSession = session else { throw PiyakResponseError.empty }
         let response = activeSession.streamResponse(to: text,
-            options: GenerationOptions(temperature: 0.4, maximumResponseTokens: 320))
+            options: GenerationOptions(temperature: 0.4, maximumResponseTokens: 240))
         var lastUpdate = Date.distantPast
         var latest = ""
         for try await snapshot in response {
@@ -410,6 +570,7 @@ private final class FoundationPiyakResponder: PiyakResponder {
         }
         try Task.checkCancellation()
         if let issue = PiyakConversation.responseQualityIssue(latest) { throw PiyakResponseError.quality(issue) }
+        contextBytes += text.utf8.count + latest.utf8.count
         update(latest)
     }
 }

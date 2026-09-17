@@ -18,15 +18,15 @@
 ## 검증 명령
 
 ```sh
-nice -n 10 swift test --jobs 1 --scratch-path /tmp/piyak-core-tests
+nice -n 15 swift test --jobs 1 --scratch-path /tmp/piyak-core-tests
 python3 scripts/check_release_assets.py
-xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Debug -jobs 2 -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/piyak-bank-release-work CODE_SIGNING_ALLOWED=NO build
-xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Release -jobs 2 -destination 'generic/platform=iOS' -derivedDataPath /tmp/piyak-bank-release-work-device CODE_SIGNING_ALLOWED=NO build
+nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Debug -jobs 1 -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/piyak-bank-release-work CODE_SIGNING_ALLOWED=NO build
+nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Release -jobs 1 -destination 'generic/platform=iOS' -derivedDataPath /tmp/piyak-bank-release-work-device CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## 자동 검증 결과
 
-- **Swift Testing 47개 통과.** 실제 공통 계산기, SessionController, SwiftData 저장소, 대화 엔진을 대상으로 실행했습니다. XCTest의 별도 0개 출력과 구분합니다.
+- **Swift Testing 57개 통과.** 실제 공통 계산기, SessionController, SwiftData 저장소, 대화 엔진을 대상으로 실행했습니다. XCTest의 별도 0개 출력과 구분합니다.
 - 정수 시급, 휴식, 자정 분할, DST, 1,000개 소수 밀리초 구간의 금액 보존, 예전 스냅샷 호환성을 검증했습니다.
 - 강제 저장 실패 시 정산·구매·장착·기록 수정·삭제·초기화의 원장과 화면 모델 복원을 확인했습니다.
 - 근무 상태 복구, 중복/만료/다른 세션 워치 명령 차단, 설정 유지, 기존 정산 보정의 재실행 안전성을 확인했습니다.
@@ -57,6 +57,20 @@ xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Release
 [실제 화면 캡처](screenshots/): iPhone 1320×2868, iPad 2064×2752. 원본 시뮬레이터 화면을 크기 변경 없이 JPEG로 내보냈으며 합성 목업이 아닙니다. 접근성 다크 모드 이미지는 QA 참고용입니다.
 
 빌드·렌더·AI 추론·시뮬레이터를 동시에 실행하지 않았고, 화면 확인은 한 기기씩 수행했습니다. 추가 발열 요청 이후 로컬 검증은 낮은 프로세스 우선순위·작업 수 1개와 냉각 간격을 적용하고, 시뮬레이터를 모두 종료했습니다. 마지막 앱 전체 빌드는 원격 GitHub Actions에서 수행합니다. 대화 검증 도구도 심한 발열 상태에서는 중단하도록 구성했습니다. M4·16GB Mac에서 10초 간격으로 CPU·메모리 압력·스왑·macOS 발열 단계를 관찰한 마지막 테스트 구간의 전체 CPU 평균은 약 11~14%, 메모리 압력은 정상, 발열 단계는 `nominal`이었습니다. 이는 표면 온도나 내부 센서 온도 측정값은 아닙니다.
+
+## 말 걸기 지연·오류 후속 수정
+
+사용자 테스트에서 보고된 지연·오류에 대해 앱 코드에서 무제한 대기, 중첩 자동 재호출, 첫 전송 시 모델 준비, 중복 프롬프트 누적을 확인했습니다. 사용자에게 나타난 정확한 오류 문구는 확보하지 못했으므로 특정 시스템 오류를 재현했다고 주장하지 않습니다.
+
+- 채팅 화면에서 한 번만 `prewarm()`하고, 반복 지시문 대신 새 질문과 변경된 확인 정보만 전달합니다. 모델 세션은 대략적인 문자 바이트/턴 예산으로 관리합니다. 이는 정확한 토큰 계수가 아니며 실제 문맥 초과도 처리합니다.
+- 요청 시작 8초 이내에만 자동 복구를 한 번 허용합니다. 문맥 초과와 반복 응답이 겹쳐도 총 모델 호출은 두 번이며, 오래 걸린 실패는 자동 재호출하지 않습니다.
+- 별도 감시 작업으로 첫 내용 20초·새 내용 없음 12초·전체 35초 제한을 적용합니다. 프레임워크가 취소를 즉시 처리하지 않아도 입력을 해제하고 뒤늦은 콜백을 버립니다. 5초 지연과 복구 상태를 표시합니다.
+- 추가 회귀 테스트 10개는 세 가지 시간 제한, 정상 완료 후 감시 무효화, 지연 안내, 8초 복구 예산, 문맥 초과와 품질 오류의 공통 예산, 같은 질문/인사의 정상 중복, 첫 실행 직전 취소 및 늦은 콜백을 검증합니다. 합성 시간과 제어 가능한 응답기를 사용하여 실제 35초씩 기다리지 않습니다.
+- 후속 수정이 포함된 iOS 시뮬레이터 Debug 빌드(앱·Watch·위젯)는 성공했습니다. 지원 환경의 실물 iPhone에서는 아직 검증하지 않았습니다.
+- `ProbeLocalChat.swift --latency`: Mac M4의 실제 모델에서 예열 후 인사→응원→실내 활동→후속 질문 4턴을 각각 한 번의 호출로 완료했습니다. 첫 내용까지 **0.44 / 0.45 / 0.32 / 0.35초**, 엔진 완료까지 **0.56 / 0.63 / 1.01 / 0.44초**였습니다. 서로 다른 질문의 소규모 측정이므로 이전 버전 대비 속도 향상률이나 iPhone 성능으로 해석하지 않습니다. 일부 표현의 어색함은 남아 있습니다.
+- 로그에는 첫 내용/완료 시간·시도 횟수·일반화한 오류 분류만 남깁니다. 사용자 질문·AI 답변·개인정보·원시 오류 텍스트를 로그에 저장하지 않습니다.
+
+모델 준비 동작의 근거: Apple의 [prewarm 문서](https://developer.apple.com/documentation/foundationmodels/languagemodelsession/prewarm(promptprefix:)). 이번 수정은 무료·기기 내 처리를 유지하며 외부 AI 서비스나 모델 다운로드 의존성을 추가하지 않습니다.
 
 ## 제출 전 남은 검증
 

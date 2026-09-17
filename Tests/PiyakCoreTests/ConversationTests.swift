@@ -2,6 +2,15 @@ import Foundation
 import Testing
 @testable import PiyakCore
 
+@Test func repeatedGreetingsAndRepeatedQuestionsDoNotCauseExtraGeneration() {
+    #expect(!PiyakConversation.isUnrequestedRepeat("안녕!", of: "안녕!", request: "또 왔어"))
+    #expect(!PiyakConversation.isUnrequestedRepeat("안녕, 반가워!", of: "안녕, 반가워!", request: "하이"))
+    #expect(!PiyakConversation.isUnrequestedRepeat("나는 삐약이야.", of: "나는 삐약이야.",
+                                                  request: "네 이름은 뭐야?", previousRequest: "네 이름은 뭐야?"))
+    #expect(PiyakConversation.isUnrequestedRepeat("산책을 추천해.", of: "산책을 추천해.",
+                                                 request: "산책 말고 실내 활동 알려줘", previousRequest: "뭐 할까?"))
+}
+
 @Test func routesOnlyExplicitMoneyQuestions() {
     #expect(PiyakConversation.intent("오늘 얼마 벌었어?") == .earnings(.today))
     #expect(PiyakConversation.intent("이번 주 정산해줘") == .earnings(.thisWeek))
