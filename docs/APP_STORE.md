@@ -14,8 +14,10 @@
 - 키워드: 근무,시급,알바,출퇴근,시간기록,급여계산,병아리,꾸미기,포인트,타이머
 - 지원 이메일: eric91405@gmail.com
 - 운영자: 김민서
-- 개인정보 URL: 이 저장소의 공개 docs/PRIVACY.md URL (공개 반영 후 접속 확인)
-- 지원 URL: 이 저장소의 공개 docs/SUPPORT.md URL (공개 반영 후 접속 확인)
+- 개인정보 URL: [공개 개인정보처리방침](https://github.com/eric91405/piyak-bank-ios/blob/codex/app-store-launch/docs/PRIVACY.md)
+- 지원 URL: [공개 지원 안내](https://github.com/eric91405/piyak-bank-ios/blob/codex/app-store-launch/docs/SUPPORT.md)
+
+위 URL은 출시 후보 브랜치에서 접속 확인한 주소입니다. PR을 병합한 뒤 제출할 때는 `blob/main/docs/PRIVACY.md`, `blob/main/docs/SUPPORT.md` 주소로 바꾸고 최종 접속을 확인하세요.
 
 ### 준비된 화면
 
