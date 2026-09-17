@@ -2,222 +2,174 @@ import SwiftUI
 import SwiftData
 
 struct HistoryView: View {
-    @Query(sort: \PointTransaction.date, order: .reverse) private var txs: [PointTransaction]
-    @Query(sort: \WorkSession.startedAt, order: .reverse) private var sessions: [WorkSession]
-    @Environment(\.modelContext) private var context
-    private var store: EconomyStore { EconomyStore(context: context) }
-    @State private var selectedDate: Date = .now
+    @EnvironmentObject private var session: SessionController
+    @Query(sort: \WorkSession.startedAt, order: .reverse) private var records: [WorkSession]
+    @State private var selectedDate = Date()
+    @State private var editing: WorkSession?
+    @State private var showEditor = false
+    @State private var deleting: WorkSession?
+    private let calendar = Calendar.current
 
-    enum HistoryTab: String, CaseIterable {
-        case sessions = "근무 기록"
-        case transactions = "거래 내역"
+    private var dayRecords: [WorkSession] {
+        let start = calendar.startOfDay(for: selectedDate)
+        let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        return records.filter { $0.startedAt < end && ($0.endedAt ?? .now) > start }
     }
-    @State private var tab: HistoryTab = .sessions
-
+    private var monthTotal: Int {
+        records.reduce(0) { result, record in
+            result + EarningsCalculator.daily(record.segments).filter {
+                calendar.isDate($0.day, equalTo: selectedDate, toGranularity: .month)
+            }.reduce(0) { $0 + $1.amount }
+        }
+    }
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                balanceCard
-                tabPicker
-
-                switch tab {
-                case .sessions:
-                    monthSummaryCard
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(selectedDate, format: .dateTime.year().month().locale(Locale(identifier: "ko_KR")))
+                            .font(.subheadline.bold()).foregroundStyle(PB.C.secondary)
+                        Text(monthTotal.won).font(.system(.largeTitle, design: .rounded, weight: .heavy))
+                            .minimumScaleFactor(0.6).lineLimit(1)
+                        Text("이번에 선택한 달의 예상 수익 · 진행 중인 근무 포함")
+                            .font(.caption).foregroundStyle(PB.C.secondary)
+                    }.gameCard()
                     EarningsCalendar(selectedDate: $selectedDate)
-                    sectionHeader("\(dayLabel) 근무")
-                    let dayDone = sessions.filter {
-                        !$0.isActive && Calendar.current.isDate($0.startedAt, inSameDayAs: selectedDate)
+                    HStack {
+                        Text(selectedDate, format: .dateTime.month().day().weekday().locale(Locale(identifier: "ko_KR")))
+                            .font(.headline)
+                        Spacer()
+                        Text("\(dayRecords.count)개의 근무").font(.caption).foregroundStyle(PB.C.secondary)
                     }
-                    if dayDone.isEmpty {
-                        emptyCard("이 날은 근무 기록이 없어요", sub: "다른 날짜를 선택해보세요!")
-                    } else {
-                        ForEach(dayDone, id: \.id) { s in
-                            SessionCard(session: s)
+                    if dayRecords.isEmpty {
+                        ContentUnavailableView("아직 조용한 하루예요", systemImage: "calendar.badge.plus",
+                                               description: Text("놓친 근무가 있다면 오른쪽 위 +로 추가해 주세요."))
+                    }
+                    ForEach(dayRecords) { record in
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Label(record.isActive ? "진행 중인 근무" : "마친 근무", systemImage: record.isActive ? "clock.fill" : "checkmark.seal.fill")
+                                    .font(.subheadline.bold()).foregroundStyle(PB.C.coral)
+                                Spacer()
+                                if !record.isActive {
+                                    Menu {
+                                        Button("기록 수정", systemImage: "pencil") { editing = record; showEditor = true }
+                                        Button("기록 삭제", systemImage: "trash", role: .destructive) { deleting = record }
+                                    } label: {
+                                        Image(systemName: "ellipsis").padding(12).contentShape(Rectangle())
+                                    }.accessibilityLabel("근무 기록 수정 또는 삭제")
+                                }
+                            }
+                            Text(EarningsCalculator.earned(on: selectedDate, segments: record.segments).won)
+                                .font(.system(.title2, design: .rounded, weight: .bold))
+                            Text("선택한 날짜에 해당하는 예상 수익").font(.caption).foregroundStyle(PB.C.secondary)
+                            Text("\(record.startedAt.formatted(date: .abbreviated, time: .shortened)) → \(record.endedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "지금")")
+                                .font(.caption).foregroundStyle(PB.C.secondary)
+                            let seconds = Int(EarningsCalculator.workingSeconds(record.segments))
+                            Text("유급 근무 \(seconds / 3600)시간 \(seconds % 3600 / 60)분 · 휴식 제외")
+                                .font(.caption).foregroundStyle(PB.C.secondary)
+                        }.gameCard()
+                    }
+                }.padding(20).frame(maxWidth: 700).frame(maxWidth: .infinity)
+            }.background(PB.C.bg.ignoresSafeArea()).foregroundStyle(PB.C.textBrown)
+                .navigationTitle("차곡차곡 기록").navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("근무 추가", systemImage: "plus") { editing = nil; showEditor = true }
+                    }
+                }
+                .sheet(isPresented: $showEditor) {
+                    WorkRecordEditor(record: editing, wage: session.preferredWage).environmentObject(session)
+                }
+                .confirmationDialog("이 기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+                    Button("근무 기록 삭제", role: .destructive) {
+                        if let record = deleting {
+                            session.perform { try session.economy.deleteRecord(record) }
+                            session.refreshSnapshot()
                         }
+                        deleting = nil
                     }
-                case .transactions:
-                    if txs.isEmpty {
-                        emptyCard("아직 기록이 없어요", sub: "근무를 시작하면 여기에 쌓여요!")
-                    } else {
-                        txListCard
-                    }
-                }
-            }
-            .padding(16)
+                } message: { Text("이 근무의 시간과 예상 수익을 삭제해요. 이미 받은 포인트와 레벨은 유지되며, 기록을 다시 추가해도 포인트는 늘지 않아요. 삭제는 되돌릴 수 없어요.") }
         }
-        .background(PB.C.bg.ignoresSafeArea())
-        .navigationTitle("기록")
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    // 탭 토글 (브랜드 캡슐)
-    private var tabPicker: some View {
-        HStack(spacing: 8) {
-            ForEach(HistoryTab.allCases, id: \.self) { t in
-                Button {
-                    withAnimation(.spring(duration: 0.3)) { tab = t }
-                } label: {
-                    Text(t.rawValue)
-                        .font(PB.F.body(14)).bold()
-                        .padding(.horizontal, 18).padding(.vertical, 9)
-                        .background(tab == t ? PB.C.brandYellow : .white, in: Capsule())
-                        .shadow(color: PB.C.textBrown.opacity(tab == t ? 0.12 : 0.04),
-                                radius: 6, y: 2)
-                        .foregroundStyle(PB.C.textBrown)
-                }
-            }
-            Spacer()
-        }
-    }
-
-    private var dayLabel: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "ko_KR")
-        f.dateFormat = "M월 d일"
-        return f.string(from: selectedDate)
-    }
-
-    private var monthEarned: Int {
-        let cal = Calendar.current
-        guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: Date())),
-              let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) else { return 0 }
-        return txs.filter { $0.kind == .accrual && $0.date >= monthStart && $0.date < monthEnd }
-            .reduce(0) { $0 + $1.amount }
-    }
-
-    private var monthSummaryCard: some View {
-        HStack {
-            Text("이번 달 번 돈").font(PB.F.body(14))
-                .foregroundStyle(PB.C.textBrown.opacity(0.6))
-            Spacer()
-            Text(monthEarned.won)
-                .font(PB.F.amount(22))
-                .foregroundStyle(PB.C.coral)
-        }
-        .padding(.horizontal, 18).padding(.vertical, 14)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        .shadow(color: PB.C.textBrown.opacity(0.06), radius: 10, y: 4)
-    }
-    
-    private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(PB.F.body(16)).bold()
-            .foregroundStyle(PB.C.textBrown)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 4)
-    }
-    
-    private var balanceCard: some View {
-        VStack(spacing: 6) {
-            Text("현재 잔액").font(PB.F.body(13))
-                .foregroundStyle(PB.C.textBrown.opacity(0.5))
-            Text(store.balance.won)
-                .font(PB.F.amount(32))
-                .foregroundStyle(PB.C.textBrown)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.xl))
-        .shadow(color: PB.C.textBrown.opacity(0.08), radius: 16, y: 6)
-    }
-
-    private var txListCard: some View {
-        VStack(spacing: 0) {
-            ForEach(Array(txs.enumerated()), id: \.element.id) { i, tx in
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(label(tx)).font(PB.F.body(14))
-                            .foregroundStyle(PB.C.textBrown)
-                        Text(tx.date, format: .dateTime.month().day().hour().minute()
-                            .locale(Locale(identifier: "ko_KR")))
-                            .font(PB.F.body(11)).foregroundStyle(PB.C.textBrown.opacity(0.4))
-                    }
-                    Spacer()
-                    Text(signed(tx.amount))
-                        .font(PB.F.amount(15))
-                        .foregroundStyle(tx.amount >= 0 ? PB.C.textBrown : PB.C.coral)
-                }
-                .padding(.vertical, 10)
-                if i < txs.count - 1 {
-                    Divider().overlay(PB.C.textBrown.opacity(0.06))
-                }
-            }
-        }
-        .padding(.horizontal, 16).padding(.vertical, 6)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        .shadow(color: PB.C.textBrown.opacity(0.05), radius: 10, y: 4)
-    }
-
-    private func emptyCard(_ message: String, sub: String) -> some View {
-        VStack(spacing: 10) {
-            Text("🐤").font(.system(size: 44))
-            Text(message).font(PB.F.body(14))
-                .foregroundStyle(PB.C.textBrown.opacity(0.6))
-            Text(sub).font(PB.F.body(12))
-                .foregroundStyle(PB.C.textBrown.opacity(0.4))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 28)
-        .background(.white.opacity(0.6), in: RoundedRectangle(cornerRadius: PB.R.lg))
-    }
-
-    private func label(_ tx: PointTransaction) -> String {
-        switch tx.kind {
-        case .accrual: "근무 적립"
-        case .purchase: "아이템 구매"
-        case .refund: "환불 (50%)"
-        case .adjust: "보정"
-        }
-    }
-    private func signed(_ v: Int) -> String {
-        (v >= 0 ? "+" : "") + v.won
     }
 }
 
-// MARK: 세션 카드
+private struct SegmentDraft: Identifiable {
+    let id = UUID()
+    var start: Date
+    var end: Date
+    var wage: String
+}
 
-struct SessionCard: View {
-    let session: WorkSession
-
+struct WorkRecordEditor: View {
+    @EnvironmentObject private var session: SessionController
+    @Environment(\.dismiss) private var dismiss
+    let record: WorkSession?
+    @State private var drafts: [SegmentDraft]
+    @State private var error: String?
+    @State private var confirmSave = false
+    init(record: WorkSession?, wage: Int) {
+        self.record = record
+        let now = Date()
+        _drafts = State(initialValue: record?.segments.map {
+            SegmentDraft(start: $0.start, end: $0.end ?? now, wage: String($0.hourlyWage))
+        } ?? [SegmentDraft(start: now.addingTimeInterval(-3600), end: now, wage: String(wage))])
+    }
     var body: some View {
-        HStack(spacing: 14) {
-            // 동전 아이콘 칩
-            Text("🪙")
-                .font(.system(size: 22))
-                .frame(width: 44, height: 44)
-                .background(PB.C.brandYellow.opacity(0.2), in: Circle())
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(session.startedAt, format: .dateTime.month().day()
-                    .locale(Locale(identifier: "ko_KR")))
-                    .font(PB.F.body(14)).bold()
-                    .foregroundStyle(PB.C.textBrown)
-                Text("\(timeRange) · \(durationText)")
-                    .font(PB.F.body(12))
-                    .foregroundStyle(PB.C.textBrown.opacity(0.45))
+        NavigationStack {
+            Form {
+                Section {
+                    Text("근무와 휴식을 시간 구간으로 나눠 입력해요. 휴식 구간의 시급은 0원이에요. 날짜가 바뀌어도 자동으로 나눠 계산해요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("직접 추가하거나 수정한 기록은 예상 수익에만 반영돼요. 추가 포인트는 없으며, 타이머로 이미 받은 포인트와 레벨은 유지돼요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach($drafts) { $draft in
+                    Section(draft.wage == "0" ? "휴식 구간" : "근무 구간") {
+                        DatePicker("시작", selection: $draft.start, in: ...Date())
+                        DatePicker("종료", selection: $draft.end, in: ...Date())
+                        HStack {
+                            Text("시급")
+                            TextField("0~1,000,000", text: $draft.wage).keyboardType(.numberPad).multilineTextAlignment(.trailing)
+                                .accessibilityLabel("이 구간의 시급")
+                            Text("원").foregroundStyle(.secondary)
+                        }
+                        if drafts.count > 1 {
+                            Button("이 구간 삭제", role: .destructive) { drafts.removeAll { $0.id == draft.id } }
+                        }
+                    }
+                }
+                Section {
+                    Button("구간 추가", systemImage: "plus") {
+                        let end = drafts.last?.end ?? .now
+                        drafts.append(SegmentDraft(start: end, end: max(end, Date()), wage: "0"))
+                    }
+                } footer: {
+                    Text("구간은 겹칠 수 없고 한 기록은 최대 7일이에요. 수동 기록은 꾸미기 포인트를 적립하지 않아요.")
+                }
             }
-            Spacer()
-            Text("+" + session.accrued(until: session.endedAt ?? .now).won)
-                .font(PB.F.amount(18))
-                .foregroundStyle(PB.C.coral)
+            .navigationTitle(record == nil ? "놓친 근무 추가" : "근무 기록 수정").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("저장") { confirmSave = true }.bold() }
+            }
+            .confirmationDialog("근무 기록을 저장할까요?", isPresented: $confirmSave, titleVisibility: .visible) {
+                Button("기록 저장") { save() }
+            } message: { Text("근무 시간과 예상 수익에 반영돼요. 적립 포인트와 레벨은 바뀌지 않아요.") }
+            .alert("기록을 저장하지 못했어요", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                Button("확인") { error = nil }
+            } message: { Text(error ?? "") }
         }
-        .padding(14)
-        .background(.white, in: RoundedRectangle(cornerRadius: PB.R.lg))
-        .shadow(color: PB.C.textBrown.opacity(0.05), radius: 10, y: 4)
     }
-
-    private var timeRange: String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        let start = f.string(from: session.startedAt)
-        let end = session.endedAt.map { f.string(from: $0) } ?? "진행 중"
-        return "\(start)~\(end)"
-    }
-
-    private var durationText: String {
-        guard let end = session.endedAt else { return "" }
-        let mins = Int(end.timeIntervalSince(session.startedAt) / 60)
-        if mins < 60 { return "\(mins)분" }
-        return "\(mins / 60)시간 \(mins % 60)분"
+    private func save() {
+        do {
+            let segments = try drafts.map { draft -> WageSegment in
+                guard let wage = Int(draft.wage) else { throw EconomyStore.StoreError.invalidRecord }
+                return WageSegment(start: draft.start, end: draft.end, hourlyWage: wage)
+            }
+            try session.economy.replaceRecord(record, segments: segments)
+            session.refreshSnapshot()
+            dismiss()
+        } catch { self.error = error.localizedDescription }
     }
 }
