@@ -43,6 +43,8 @@ struct ProbeRoomBehavior {
         let testedPause: Bool
         let testedStop: Bool
         let testedDismount: Bool
+        let testedReactions: Bool
+        let testedSeatedReaction: Bool
     }
     struct Report: Codable {
         let generatedAt: String
@@ -107,6 +109,7 @@ struct ProbeRoomBehavior {
         var samples: [Sample] = []
         var observedVisits: Set<String> = []
         var testedPause = false, testedStop = false, testedDismount = false
+        var testedReactions = false, testedSeatedReaction = false
         private var previous: PiyakBehavior.DebugSnapshot?
         private var largestMovement = 0.0
         private let initialPosition: [Double]
@@ -183,9 +186,57 @@ struct ProbeRoomBehavior {
             return state
         }
 
+        func checkReactions(_ evidence: Evidence) {
+            let count = 2 + ["floorProp", "bigFurniture"].filter { equipped[$0] != nil }.count
+            for _ in 0..<count {
+                if evidence.overBudget { evidence.completedWithinBudget = false; return }
+                let before = behavior.debugSnapshot()
+                guard behavior.react() else {
+                    evidence.issue(name, "An active room rejects its next available touch reaction.")
+                    return
+                }
+                // Unlike SCNView in an app, this tight command-line loop has no
+                // main run-loop transaction commit. update(atTime:) alone does
+                // not publish a newly replaced action graph to the renderer.
+                SCNTransaction.flush()
+                let accepted = behavior.debugSnapshot()
+                if !accepted.reacting || distance(before.position, accepted.position) > 0.0001 {
+                    evidence.issue(name, "A touch fails to enter reaction state or teleports the character.")
+                }
+                // Repeated input must neither enqueue actions nor advance the
+                // generation/selection. No extra renderer snapshot is needed.
+                for _ in 0..<8 {
+                    if behavior.react() { evidence.issue(name, "A rapid repeated touch starts an overlapping reaction.") }
+                }
+                if behavior.debugSnapshot().generation != accepted.generation {
+                    evidence.issue(name, "Rejected touches change the active action generation.")
+                }
+                let started = time
+                var sawSelectedPose = false
+                while behavior.debugSnapshot().reacting && time - started < 60 && !evidence.overBudget {
+                    let state = advance(evidence)
+                    if state.visit == accepted.reaction { sawSelectedPose = true }
+                }
+                if evidence.overBudget { evidence.completedWithinBudget = false; return }
+                if behavior.debugSnapshot().reacting || !sawSelectedPose {
+                    evidence.issue(name, "A touch reaction does not perform its selected pose and finish within 60 simulated seconds.")
+                    return
+                }
+                if scene.rootNode.action(forKey: "piyak.life") == nil {
+                    evidence.issue(name, "The normal room routine is missing after a touch reaction.")
+                }
+                for _ in 0..<4 { _ = advance(evidence) }
+            }
+            testedReactions = true
+        }
+
         func checkPauseAndStop(_ evidence: Evidence) {
             let before = behavior.debugSnapshot()
             scene.isPaused = true; renderer.isPlaying = false
+            SCNTransaction.flush()
+            if behavior.react() || behavior.debugSnapshot().generation != before.generation {
+                evidence.issue(name, "A paused room accepts a touch or changes its action generation.")
+            }
             for _ in 0..<3 {
                 time += 0.1
                 renderer.update(atTime: clock)
@@ -198,7 +249,9 @@ struct ProbeRoomBehavior {
             }
             testedPause = true
             behavior.stop()
+            if behavior.react() { evidence.issue(name, "Stopped behavior accepts a touch reaction.") }
             scene.isPaused = false; renderer.isPlaying = true
+            SCNTransaction.flush()
             for _ in 0..<5 {
                 time += 0.1
                 renderer.update(atTime: clock)
@@ -216,7 +269,8 @@ struct ProbeRoomBehavior {
         func report() -> RoomReport {
             RoomReport(name: name, equipped: equipped, observedVisits: observedVisits.sorted(), simulatedSeconds: time,
                 updates: updates, samples: samples, testedPause: testedPause, testedStop: testedStop,
-                testedDismount: testedDismount)
+                testedDismount: testedDismount, testedReactions: testedReactions,
+                testedSeatedReaction: testedSeatedReaction)
         }
     }
 
@@ -261,10 +315,20 @@ struct ProbeRoomBehavior {
                             try evidence.capture(probe, activity: visit)
                             captured.insert(visit)
                             if visit == "rest" {
-                                // Switch modes while the model is visibly seated,
-                                // then verify the first update is not a fall to y=0.
+                                // A touch while seated must preserve the same
+                                // exit waypoint as a work-mode change. Interrupt
+                                // that pending exit too, exercising both paths.
                                 let before = probe.behavior.debugSnapshot()
+                                let accepted = probe.behavior.react()
+                                let reacted = probe.behavior.debugSnapshot()
+                                if !accepted || !reacted.reacting || !reacted.dismounting ||
+                                    distance(before.position, reacted.position) > 0.0001 {
+                                    evidence.issue(name, "Touching the seated character fails to preserve a safe dismount.")
+                                } else {
+                                    probe.testedSeatedReaction = true
+                                }
                                 probe.behavior.configure(working: true)
+                                SCNTransaction.flush()
                                 let configured = probe.behavior.debugSnapshot()
                                 if distance(before.position, configured.position) > 0.0001 {
                                     evidence.issue(name, "Mode configuration immediately teleports the seated character.")
@@ -304,6 +368,7 @@ struct ProbeRoomBehavior {
                 if evidence.clockSupported && evidence.completedWithinBudget {
                     let missing = targets.subtracting(captured)
                     if !missing.isEmpty { evidence.issue(name, "Required interactions were not captured: \(missing.sorted().joined(separator: ", ")).") }
+                    probe.checkReactions(evidence)
                     probe.checkPauseAndStop(evidence)
                 } else {
                     probe.behavior.stop(); probe.renderer.isPlaying = false; probe.renderer.scene = nil

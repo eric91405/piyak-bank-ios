@@ -17,6 +17,8 @@ struct CharacterComposite: View {
     var inspectionYaw: Double = 0
     var inspectionZoom: Double = 1
     var inspectionResetID = 0
+    var interactionID = 0
+    var onInteract: (() -> Void)?
     var onActivity: (String) -> Void = { _ in }
     @State private var visible = false
     @State private var intersectsScreen = true
@@ -53,6 +55,7 @@ struct CharacterComposite: View {
                        animated: shouldAnimate, icon: !showRoom,
                        allowsInspection: allowsInspection, inspectionYaw: inspectionYaw,
                        inspectionZoom: inspectionZoom, inspectionResetID: inspectionResetID,
+                       interactionID: interactionID, onInteract: onInteract,
                        onActivity: onActivity,
                        debugPlaybackGate: debugPlaybackGate, playbackPauseReason: playbackPauseReason)
             .accessibilityHidden(true)
@@ -102,6 +105,8 @@ struct PiyakSceneView: UIViewRepresentable {
     var inspectionYaw: Double = 0
     var inspectionZoom: Double = 1
     var inspectionResetID = 0
+    var interactionID = 0
+    var onInteract: (() -> Void)?
     var onActivity: (String) -> Void = { _ in }
     var debugPlaybackGate: String?
     var playbackPauseReason: String?
@@ -115,6 +120,9 @@ struct PiyakSceneView: UIViewRepresentable {
         var lastActivity = ""
         var wasAnimating = false
         var playbackPauseReason: String?
+        var onInteract: (() -> Void)?
+        var lastInteractionID: Int?
+        private var characterTap: UITapGestureRecognizer?
         private(set) var inspectionEnabled = false
         private weak var inspectionView: SCNView?
         private let observedGestures = NSHashTable<UIGestureRecognizer>.weakObjects()
@@ -127,6 +135,32 @@ struct PiyakSceneView: UIViewRepresentable {
         #if DEBUG
         var lastDiagnostic = ""
         #endif
+
+        func enableCharacterTap(in view: SCNView, enabled: Bool) {
+            guard enabled else {
+                if let characterTap { view.removeGestureRecognizer(characterTap) }
+                characterTap = nil
+                return
+            }
+            guard characterTap == nil else { return }
+            let tap = UITapGestureRecognizer(target: self, action: #selector(tappedCharacter(_:)))
+            tap.cancelsTouchesInView = false
+            view.addGestureRecognizer(tap)
+            characterTap = tap
+        }
+
+        @objc private func tappedCharacter(_ gesture: UITapGestureRecognizer) {
+            guard !invalidated, gesture.state == .ended,
+                  let view = gesture.view as? SCNView,
+                  let hit = view.hitTest(gesture.location(in: view), options: [
+                    .searchMode: SCNHitTestSearchMode.closest.rawValue
+                  ]).first else { return }
+            var node: SCNNode? = hit.node
+            while let current = node {
+                if current.name == "piyak" { onInteract?(); return }
+                node = current.parent
+            }
+        }
 
         func captureInspectionCamera(in view: SCNView) {
             guard let camera = view.pointOfView else { return }
@@ -216,6 +250,7 @@ struct PiyakSceneView: UIViewRepresentable {
     func updateUIView(_ view: SCNView, context: Context) {
         let coordinator = context.coordinator
         coordinator.onActivity = onActivity
+        coordinator.onInteract = onInteract
         let pauseReasonChanged = coordinator.playbackPauseReason != playbackPauseReason
         let resumed = animated && !coordinator.wasAnimating
         coordinator.playbackPauseReason = playbackPauseReason
@@ -245,6 +280,7 @@ struct PiyakSceneView: UIViewRepresentable {
         }
         let inspectionStarted = allowsInspection && !coordinator.inspectionEnabled
         view.allowsCameraControl = allowsInspection
+        coordinator.enableCharacterTap(in: view, enabled: onInteract != nil && !allowsInspection)
         coordinator.observeCameraGestures(in: view, enabled: allowsInspection)
         if inspectionStarted {
             // Some OS versions install default recognizers when the view joins
@@ -271,6 +307,33 @@ struct PiyakSceneView: UIViewRepresentable {
             view.setNeedsDisplay()
         }
         coordinator.wasAnimating = animated
+        if coordinator.lastInteractionID != interactionID {
+            let hasPreviousValue = coordinator.lastInteractionID != nil
+            coordinator.lastInteractionID = interactionID
+            if hasPreviousValue, onInteract != nil {
+                if animated {
+                    if coordinator.behavior?.react() == true {
+                        SCNTransaction.flush()
+                        view.setNeedsDisplay()
+                    }
+                } else {
+                    // A touch still receives a response while motion is paused.
+                    // Never override Reduce Motion, low power, thermal or user pause.
+                    let generation = coordinator.sceneGeneration
+                    let expectedID = interactionID
+                    Task { @MainActor [weak coordinator] in
+                        guard let coordinator, !coordinator.invalidated,
+                              coordinator.sceneGeneration == generation,
+                              coordinator.lastInteractionID == expectedID,
+                              !coordinator.wasAnimating else { return }
+                        let label = coordinator.playbackPauseReason.map { "반가워! " + $0 }
+                            ?? "반가워! 쉬면서도 함께할게"
+                        coordinator.lastActivity = label
+                        coordinator.onActivity(label)
+                    }
+                }
+            }
+        }
         if pauseReasonChanged || resumed {
             let generation = coordinator.sceneGeneration
             let expectedReason = playbackPauseReason
@@ -307,6 +370,8 @@ struct PiyakSceneView: UIViewRepresentable {
         coordinator.invalidated = true
         coordinator.sceneGeneration += 1
         coordinator.removeCameraObservers()
+        coordinator.enableCharacterTap(in: view, enabled: false)
+        coordinator.onInteract = nil
         coordinator.behavior?.stop(); coordinator.behavior = nil
         coordinator.wasAnimating = false
         view.rendersContinuously = false; view.isPlaying = false; view.scene = nil

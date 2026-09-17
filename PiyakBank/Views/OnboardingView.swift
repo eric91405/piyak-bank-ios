@@ -20,7 +20,8 @@ struct OnboardingView: View {
                     VStack(alignment: .leading, spacing: 18) {
                         feature("clock.fill", "시작, 휴식, 마침", "일한 시간에 입력한 시급을 곱해 예상 수익을 계산해요.")
                         feature("sparkles", "차곡차곡, 나만의 방", "근무를 마치면 꾸미기 포인트를 받아요. 첫 버전은 무료예요.")
-                        feature("lock.fill", "내 기록은 내 기기에", "회원가입과 광고가 없어요. 근무와 대화 내용을 개발자 서버로 보내지 않아요.")
+                        feature("hand.tap.fill", "삐약이와 놀아요", "삐약이를 누르거나 놀아주기 버튼으로 인사하고 가구와 함께 놀아요.")
+                        feature("lock.fill", "내 기록은 내 기기에", "회원가입과 광고가 없어요. 근무 기록을 개발자 서버로 보내지 않아요.")
                     }.gameCard()
                     VStack(alignment: .leading, spacing: 10) {
                         Text("기본 시급을 알려주세요").font(.headline)

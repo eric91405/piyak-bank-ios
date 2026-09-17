@@ -4,15 +4,14 @@ import SwiftData
 struct HomeView: View {
     @EnvironmentObject private var session: SessionController
     @EnvironmentObject private var router: AppRouter
-    @Environment(\.modelContext) private var context
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @Query private var transactions: [PointTransaction]
     @State private var showWage = false
-    @State private var showChat = false
     @State private var confirmStop = false
     @State private var reward: Int?
-    @State private var chatEngine: PiyakChatEngine?
+    @State private var interactionID = 0
+    @State private var lastInteractionAt: TimeInterval = -.infinity
     @State private var activity = "반가워! 오늘도 함께해"
     @AppStorage("room_animations_enabled") private var roomAnimationsEnabled = true
 
@@ -56,9 +55,6 @@ struct HomeView: View {
                     }
                 }
             }
-            .sheet(isPresented: $showChat) {
-                if let chatEngine { PiyakChatView(engine: chatEngine) }
-            }
             .confirmationDialog("근무를 마치고 포인트를 받을까요?", isPresented: $confirmStop, titleVisibility: .visible) {
                 Button("근무 마치기") {
                     let amount = session.snapshot.amount()
@@ -69,6 +65,7 @@ struct HomeView: View {
                 Button("삐약이와 계속하기") { reward = nil }
             } message: { Text("\((reward ?? 0).points)를 받았어요. 삐약이의 방에서 사용해 보세요.") }
             .sensoryFeedback(.success, trigger: reward)
+            .sensoryFeedback(.selection, trigger: interactionID)
         }
     }
 
@@ -114,20 +111,21 @@ Button { router.tab = .decorate } label: {
                     .background(.white.opacity(0.8), in: Capsule()).foregroundStyle(PB.C.ink)
             }.padding(.horizontal, 20).padding(.top, 18)
             CharacterComposite(isWorking: running && !paused,
-                               animateLife: roomAnimationsEnabled && !showChat && !showWage && reward == nil && !confirmStop,
+                               animateLife: roomAnimationsEnabled && !showWage && reward == nil && !confirmStop,
+                               interactionID: interactionID, onInteract: playWithPiyak,
                                onActivity: { activity = $0 })
                 .frame(height: verticalSizeClass == .compact ? 220 : (horizontalSizeClass == .regular ? 420 : 295))
                 .overlay(alignment: .bottomTrailing) {
-                    Button {
-                        if chatEngine == nil { chatEngine = PiyakChatEngine(container: context.container) }
-                        showChat = true
-                    } label: {
-                        Label("말 걸기", systemImage: "bubble.left.and.bubble.right.fill")
+                    Button(action: playWithPiyak) {
+                        Label("놀아주기", systemImage: "hand.tap.fill")
                             .font(.subheadline.bold()).foregroundStyle(PB.C.ink)
                             .padding(.horizontal, 14).padding(.vertical, 11)
                             .background(.white, in: Capsule())
                             .shadow(color: .black.opacity(0.06), radius: 8, y: 3)
-                    }.padding(16)
+                    }
+                    .accessibilityLabel("삐약이와 놀아주기")
+                    .accessibilityHint("삐약이가 인사하거나 방 안의 가구와 소품으로 놀아요")
+                    .padding(16)
                 }
                 .overlay(alignment: .bottomLeading) {
                     Button {
@@ -141,9 +139,19 @@ Button { router.tab = .decorate } label: {
                     .accessibilityLabel(roomAnimationsEnabled ? "삐약이 움직임 멈추기" : "삐약이 움직임 재생")
                     .padding(16)
                 }
+            Text("삐약이를 톡 눌러서 함께 놀아요")
+                .font(.caption).foregroundStyle(PB.C.secondary)
+                .padding(.horizontal, 20).padding(.bottom, 14)
         }
         .background(LinearGradient(colors: [Color(hex: 0xE5DCF5), Color(hex: 0xF7E7CB)], startPoint: .topLeading, endPoint: .bottomTrailing))
         .clipShape(RoundedRectangle(cornerRadius: 32))
+    }
+
+    private func playWithPiyak() {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard now - lastInteractionAt >= 0.8 else { return }
+        lastInteractionAt = now
+        interactionID &+= 1
     }
 
     private func earnings(at date: Date) -> some View {

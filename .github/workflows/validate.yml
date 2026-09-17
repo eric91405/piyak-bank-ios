@@ -15,7 +15,7 @@ jobs:
         run: xcodebuild -version
       - name: Assets and privacy manifests
         run: python3 scripts/check_release_assets.py
-      - name: Calculation, persistence, activity and conversation regression tests
+      - name: Calculation, persistence and room activity regression tests
         run: swift test --jobs 2
       - name: iOS, watchOS and widget Release build
         run: >-

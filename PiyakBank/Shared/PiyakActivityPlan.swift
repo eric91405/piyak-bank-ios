@@ -8,11 +8,12 @@ struct PiyakRoomPoint: Equatable, Sendable {
 }
 
 enum PiyakActivity: String, Sendable {
-    case greet, lookAround, stretch, water, read, work, piano, rest, watch, pet, play, inspect, tidy
+    case greet, celebrate, lookAround, stretch, water, read, work, piano, rest, watch, pet, play, inspect, tidy
 
     var title: String {
         switch self {
         case .greet: "반가워! 오늘도 함께해"
+        case .celebrate: "같이 놀아 주니 신나!"
         case .lookAround: "우리 방을 산책하는 중"
         case .stretch: "쭉쭉, 기지개 켜는 중"
         case .water: "초록 친구에게 물 주는 중"
@@ -74,6 +75,23 @@ enum PiyakActivityPlan {
         visits.append(visit(.stretch, .init(x: 0.05, z: 0.66), facing: .init(x: 2, z: 6), seconds: 5))
         visits.append(visit(.lookAround, .init(x: 0.58, z: 1.12), facing: .init(x: 2, z: -1), seconds: 3))
         return visits
+    }
+
+    /// Touches cycle deterministically, so quick repeat taps never start random
+    /// competing actions. Greetings stay on the current safe floor waypoint;
+    /// equipped-object visits reuse the same contact points as the normal walk.
+    static func reaction(equipped: [String: String], working: Bool,
+                         sequence: UInt64, at point: PiyakRoomPoint) -> PiyakRoomVisit {
+        var choices = [visit(.greet, point, facing: .init(x: 2, z: 6), seconds: 2.4),
+                       visit(.celebrate, point, facing: .init(x: 2, z: 6), seconds: 2.8)]
+        choices += itinerary(equipped: equipped, working: working)
+            .filter { ![.greet, .lookAround, .stretch].contains($0.activity) }
+            .map { original in
+                var choice = original
+                choice.duration = original.activity == .rest ? 6 : 5
+                return choice
+            }
+        return choices[Int(sequence % UInt64(choices.count))]
     }
 
     static func route(from start: PiyakRoomPoint, to end: PiyakRoomPoint) -> [PiyakRoomPoint] {

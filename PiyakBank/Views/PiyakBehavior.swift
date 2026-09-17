@@ -37,6 +37,9 @@ final class PiyakBehavior {
     private var generation: UInt64 = 0
     private var activeVisit: PiyakRoomVisit?
     private var dismountDestination: PiyakRoomPoint?
+    private var reactionSequence: UInt64 = 0
+    private var reactionActivity: PiyakActivity?
+    private var isReacting = false
     private var activity = ""
     private let announce: (String) -> Void
 
@@ -80,6 +83,8 @@ final class PiyakBehavior {
         stateLock.lock(); defer { stateLock.unlock() }
         guard self.working != working else { return }
         self.working = working
+        isReacting = false
+        reactionActivity = nil
         generation &+= 1
         let token = generation
         scene.rootNode.removeAction(forKey: "piyak.life")
@@ -98,31 +103,58 @@ final class PiyakBehavior {
         } else {
             dismountDestination = nil
         }
-        let visits = PiyakActivityPlan.itinerary(equipped: equipped, working: working)
         // First reach the standard starting point from the current pose, including after a mode change.
-        actions += travel(from: routeStart, to: PiyakActivityPlan.home, working: working, token: token)
-        var cursor = PiyakActivityPlan.home
-        var loop: [SCNAction] = []
-        for visit in visits {
-            loop += travel(from: cursor, to: visit.point, working: working, token: token)
-            loop.append(turn(toward: heading(from: visit.point, to: visit.facing), token: token))
-            loop.append(event(token: token) { $0.activeVisit = visit })
-            loop.append(announcement(visit.activity.title, token: token))
-            loop.append(pose(duration: visit.duration, token: token) { behavior, elapsed in
-                behavior.perform(visit, elapsed: elapsed)
-            })
-            loop.append(event(token: token) { behavior in
-                behavior.neutral()
-                // Make the endpoint exact even if the renderer skips the last
-                // custom-action sample after a dropped frame.
-                behavior.chick.position = SCNVector3(SCNFloat(visit.point.x), 0, SCNFloat(visit.point.z))
-                behavior.activeVisit = nil
-            })
-            cursor = visit.point
-        }
-        loop += travel(from: cursor, to: PiyakActivityPlan.home, working: working, token: token)
-        actions.append(.repeatForever(.sequence(loop)))
+        actions += routine(from: routeStart, working: working, token: token)
         scene.rootNode.runAction(.sequence(actions), forKey: "piyak.life")
+    }
+
+    /// Accept only one touch choreography at a time. The same SceneKit action
+    /// owns its acknowledgement, safe travel, interaction, cooldown and return
+    /// to the routine; no extra timer or independently running action is added.
+    @discardableResult
+    func react() -> Bool {
+        stateLock.lock(); defer { stateLock.unlock() }
+        guard let working, !isReacting, !scene.isPaused, !scene.rootNode.isPaused,
+              scene.rootNode.action(forKey: "piyak.life") != nil else { return false }
+        let floorPoint = dismountDestination ?? (activeVisit?.activity == .rest ? activeVisit?.point : nil)
+        generation &+= 1
+        let token = generation
+        scene.rootNode.removeAction(forKey: "piyak.life")
+        neutral()
+        activeVisit = nil
+        isReacting = true
+        var actions: [SCNAction] = []
+        var routeStart = point
+        if let floorPoint, abs(chick.position.y) > 0.001 || point.distance(to: floorPoint) > 0.025 {
+            dismountDestination = floorPoint
+            actions += dismount(to: floorPoint, token: token)
+            routeStart = floorPoint
+        } else {
+            dismountDestination = nil
+        }
+        let selected = PiyakActivityPlan.reaction(equipped: equipped, working: working,
+                                                  sequence: reactionSequence, at: routeStart)
+        reactionSequence &+= 1
+        reactionActivity = selected.activity
+        if selected.activity != .greet && selected.activity != .celebrate {
+            // Acknowledge immediately where the chick is standing before the
+            // longer walk to an object. Never teleport across room furniture.
+            let hello = PiyakRoomVisit(activity: .greet, point: routeStart,
+                                       facing: .init(x: 2, z: 6), duration: 1.4)
+            actions += visit(hello, token: token)
+        }
+        actions += travel(from: routeStart, to: selected.point, working: working, token: token)
+        actions += visit(selected, token: token)
+        // This scene-clock cooldown pauses with the view. Rapid taps cannot
+        // queue another reaction while a pose or the final settling is active.
+        actions.append(.wait(duration: 0.6))
+        actions.append(event(token: token) { behavior in
+            behavior.isReacting = false
+            behavior.reactionActivity = nil
+        })
+        actions += routine(from: selected.point, working: working, token: token)
+        scene.rootNode.runAction(.sequence(actions), forKey: "piyak.life")
+        return true
     }
 
     func stop() {
@@ -130,6 +162,7 @@ final class PiyakBehavior {
         generation &+= 1
         scene.rootNode.removeAction(forKey: "piyak.life")
         working = nil
+        isReacting = false; reactionActivity = nil
         activeVisit = nil; dismountDestination = nil; activity = ""
         neutral()
         chick.position = SCNVector3(SCNFloat(PiyakActivityPlan.home.x), 0, SCNFloat(PiyakActivityPlan.home.z))
@@ -137,6 +170,36 @@ final class PiyakBehavior {
     }
 
     private var point: PiyakRoomPoint { .init(x: Double(chick.position.x), z: Double(chick.position.z)) }
+
+    private func routine(from start: PiyakRoomPoint, working: Bool, token: UInt64) -> [SCNAction] {
+        var actions = travel(from: start, to: PiyakActivityPlan.home, working: working, token: token)
+        var cursor = PiyakActivityPlan.home
+        var loop: [SCNAction] = []
+        for destination in PiyakActivityPlan.itinerary(equipped: equipped, working: working) {
+            loop += travel(from: cursor, to: destination.point, working: working, token: token)
+            loop += visit(destination, token: token)
+            cursor = destination.point
+        }
+        loop += travel(from: cursor, to: PiyakActivityPlan.home, working: working, token: token)
+        actions.append(.repeatForever(.sequence(loop)))
+        return actions
+    }
+
+    private func visit(_ destination: PiyakRoomVisit, token: UInt64) -> [SCNAction] {
+        [turn(toward: heading(from: destination.point, to: destination.facing), token: token),
+         event(token: token) { $0.activeVisit = destination },
+         announcement(destination.activity.title, token: token),
+         pose(duration: destination.duration, token: token) { behavior, elapsed in
+             behavior.perform(destination, elapsed: elapsed)
+         },
+         event(token: token) { behavior in
+             behavior.neutral()
+             // Keep the endpoint exact even if the renderer skips the final
+             // pose sample. A sofa visit already descends to this floor point.
+             behavior.chick.position = SCNVector3(SCNFloat(destination.point.x), 0, SCNFloat(destination.point.z))
+             behavior.activeVisit = nil
+         }]
+    }
 
     private func travel(from: PiyakRoomPoint, to: PiyakRoomPoint, working: Bool, token: UInt64) -> [SCNAction] {
         var current = from
@@ -255,6 +318,8 @@ final class PiyakBehavior {
         let rightFootHeight: Double
         let bookVisible: Bool
         let wateringCanVisible: Bool
+        let reacting: Bool
+        let reaction: String?
     }
 
     /// Compile a renderer probe with -DDEBUG, advance that renderer's scene
@@ -266,7 +331,8 @@ final class PiyakBehavior {
             position: [Double(chick.position.x), Double(chick.position.y), Double(chick.position.z)],
             heading: Double(chick.eulerAngles.y), leftFootHeight: Double(rig["foot.left"]?.position.y ?? 0),
             rightFootHeight: Double(rig["foot.right"]?.position.y ?? 0), bookVisible: !book.isHidden,
-            wateringCanVisible: !wateringCan.isHidden)
+            wateringCanVisible: !wateringCan.isHidden, reacting: isReacting,
+            reaction: reactionActivity?.rawValue)
     }
     #endif
 
@@ -286,6 +352,15 @@ final class PiyakBehavior {
         case .greet:
             rig["wing.right"]?.eulerAngles.z += SCNFloat((1.6 + sin(t * 7) * 0.25) * envelope)
             rig["headRig"]?.eulerAngles.z = SCNFloat(-0.12 * envelope)
+        case .celebrate:
+            // The root and feet remain planted; express joy through the rig
+            // rather than bringing back the old floating/bobbing animation.
+            let flutter = sin(t * 13) * 0.28
+            rig["wing.right"]?.eulerAngles.z += SCNFloat((1.4 + flutter) * envelope)
+            rig["wing.left"]?.eulerAngles.z -= SCNFloat((1.4 + flutter) * envelope)
+            rig["headRig"]?.eulerAngles.z = SCNFloat(sin(t * 5) * 0.13 * envelope)
+            rig["headRig"]?.eulerAngles.x = SCNFloat(-0.07 * envelope)
+            rig["bodyRig"]?.eulerAngles.z = SCNFloat(sin(t * 5) * 0.035 * envelope)
         case .lookAround:
             rig["headRig"]?.eulerAngles.y = SCNFloat(sin(t * 1.35) * 0.32 * envelope)
         case .stretch:
