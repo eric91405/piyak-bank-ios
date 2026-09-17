@@ -19,7 +19,7 @@ struct OnboardingView: View {
                     }.multilineTextAlignment(.center)
                     VStack(alignment: .leading, spacing: 18) {
                         feature("clock.fill", "시작, 휴식, 마침", "일한 시간에 입력한 시급을 곱해 예상 수익을 계산해요.")
-                        feature("sparkles", "차곡차곡, 나만의 방", "근무를 마치면 꾸미기 포인트를 받아요. 첫 버전은 무료예요.")
+                        feature("sparkles", "차곡차곡, 나만의 방", "시급과 무관하게 타이머 10분에 100P, 하루 최대 4,800P를 모아요. 첫 버전은 무료예요.")
                         feature("hand.tap.fill", "삐약이와 놀아요", "삐약이를 누르거나 놀아주기 버튼으로 인사하고 가구와 함께 놀아요.")
                         feature("lock.fill", "내 기록은 내 기기에", "회원가입과 광고가 없어요. 근무 기록을 개발자 서버로 보내지 않아요.")
                     }.gameCard()
@@ -31,7 +31,7 @@ struct OnboardingView: View {
                                 .accessibilityLabel("기본 시급, 원")
                             Text("원 / 시간").foregroundStyle(PB.C.secondary)
                         }.padding(16).background(PB.C.surface, in: RoundedRectangle(cornerRadius: 16))
-                        Text("1~1,000,000원 · 나중에 바꿀 수 있어요")
+                        Text("1~1,000,000원 · 예상 수익에만 반영되며 나중에 바꿀 수 있어요")
                             .font(.caption).foregroundStyle(PB.C.secondary)
                     }
                     Text("예상 수익은 세금·수당을 반영하지 않아요. 포인트는 현금이나 금융 자산이 아니며, 현금 전환·송금·인출 기능은 없어요.")

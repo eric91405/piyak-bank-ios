@@ -23,7 +23,7 @@ struct SettingsView: View {
                         Image("AppMascot").resizable().scaledToFit().frame(width: 74, height: 74).accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 5) {
                             Text("나와 삐약이").font(.title3.bold())
-                            Text("Lv. \(max(1, total / 50_000 + 1)) · 완료한 근무 \(records.filter { !$0.isActive }.count)회")
+                            Text("Lv. \(max(1, total / RewardPolicy.pointsPerLevel + 1)) · 완료한 근무 \(records.filter { !$0.isActive }.count)회")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                     }.padding(.vertical, 6)
@@ -34,6 +34,19 @@ struct SettingsView: View {
                     }.disabled(session.current != nil)
                     Text("진행 중인 근무의 시급은 바뀌지 않아요. 종료 후 기록에서 수정할 수 있어요.")
                         .font(.caption).foregroundStyle(.secondary)
+                }
+                Section("꾸미기 보상") {
+                    LabeledContent("타이머 근무", value: "10분에 100P")
+                    LabeledContent("하루 적립 한도", value: RewardPolicy.pointsPerDay.points)
+                    LabeledContent("하루 기준", value: "한국 시간 00시")
+                    Text("시급과 무관하며 휴식은 제외해요. 기록을 직접 추가·수정해도 보상이 늘지 않고, 이미 받은 포인트와 레벨은 기록을 수정·삭제해도 유지돼요.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Text("한 타이머의 보상은 누적 유급 근무 24시간까지만 계산해요. 그 뒤에도 예상 수익은 계속 기록되며, 보상을 다시 모으려면 근무를 마치고 새로 시작해 주세요. 새로 시작해도 하루 적립 한도는 유지돼요.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if transactions.contains(where: { $0.kind == .migration }) {
+                        Text("이전 포인트는 새 아이템 가격에 맞춰 20분의 1로 전환했어요. 전환 포인트는 최대 4,800P이며 레벨에는 반영되지 않아요. 근무 기록과 보유 아이템은 유지돼요.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
                 Section {
                     Toggle("근무 중 알림", isOn: Binding(get: { session.notificationsEnabled }, set: { enabled in
@@ -115,7 +128,7 @@ private struct WagePreferenceView: View {
     var body: some View {
         Form {
             TextField("시급 (원)", text: $text).keyboardType(.numberPad)
-            Text("1~1,000,000원 · 다음 근무부터 적용돼요").font(.footnote).foregroundStyle(.secondary)
+            Text("1~1,000,000원 · 다음 근무의 예상 수익에 적용돼요. 꾸미기 포인트에는 영향을 주지 않아요.").font(.footnote).foregroundStyle(.secondary)
             Button("저장") { if let wage = Int(text) { save(wage) } }
                 .disabled(!(1...EarningsCalculator.maximumWage).contains(Int(text) ?? 0))
         }.navigationTitle("기본 시급").navigationBarTitleDisplayMode(.inline)

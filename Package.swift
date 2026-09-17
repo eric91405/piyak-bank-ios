@@ -10,7 +10,7 @@ let package = Package(
             "App/PiyakBankApp.swift", "Views", "Watch", "Widget", "Assets.xcassets", "Info.plist", "PiyakBank.entitlements",
             "Services/NotificationScheduler.swift", "Services/WatchSync.swift",
             "PrivacyInfo.xcprivacy", "Shared/DesignTokens.swift"
-        ], sources: ["Shared/AppConfig.swift", "Shared/EarningsCalculator.swift", "Shared/Economy.swift", "Shared/PiyakActivityPlan.swift",
+        ], sources: ["Shared/AppConfig.swift", "Shared/EarningsCalculator.swift", "Shared/Economy.swift", "Shared/PiyakActivityPlan.swift", "Shared/RewardPolicy.swift", "Shared/RewardTracking.swift",
                      "Services/WorkSession.swift", "Services/SessionController.swift"]),
         .testTarget(name: "PiyakCoreTests", dependencies: ["PiyakCore"], path: "Tests/PiyakCoreTests")
     ],

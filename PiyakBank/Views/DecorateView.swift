@@ -9,7 +9,7 @@ struct DecorateView: View {
     @State private var slot: DecorSlot = .bodyFront
     @State private var onlyOwned = false
     @State private var selected: CatalogItem?
-    private var balance: Int { transactions.reduce(0) { $0 + $1.amount } }
+    private var balance: Int { transactions.filter { $0.kind != .legacy }.reduce(0) { $0 + $1.amount } }
     private var equipped: [String: String] {
         var map: [String: String] = [:]
         for item in owned { if let slot = item.equippedSlotRaw { map[slot] = item.catalogId } }

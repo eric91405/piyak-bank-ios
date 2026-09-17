@@ -15,8 +15,8 @@ struct HomeView: View {
     @State private var activity = "반가워! 오늘도 함께해"
     @AppStorage("room_animations_enabled") private var roomAnimationsEnabled = true
 
-    private var balance: Int { transactions.reduce(0) { $0 + $1.amount } }
-    private var settledEarnings: Int { transactions.filter { $0.kind == .accrual }.reduce(0) { $0 + $1.amount } }
+    private var balance: Int { transactions.filter { $0.kind != .legacy }.reduce(0) { $0 + $1.amount } }
+    private var earnedPoints: Int { transactions.filter { $0.kind == .accrual }.reduce(0) { $0 + $1.amount } }
     private var running: Bool { session.snapshot.isRunning }
     private var paused: Bool { session.snapshot.isPaused }
 
@@ -55,15 +55,18 @@ struct HomeView: View {
                     }
                 }
             }
-            .confirmationDialog("근무를 마치고 포인트를 받을까요?", isPresented: $confirmStop, titleVisibility: .visible) {
+            .confirmationDialog("근무를 마치고 기록할까요?", isPresented: $confirmStop, titleVisibility: .visible) {
                 Button("근무 마치기") {
-                    let amount = session.snapshot.amount()
-                    if session.perform({ try session.stop() }) { reward = amount }
+                    session.perform { reward = try session.stop() }
                 }
-            } message: { Text("휴식 시간은 제외돼요. 잘못된 기록은 기록 탭에서 수정할 수 있어요.") }
+            } message: { Text("휴식을 뺀 타이머 근무 10분마다 100P, 하루 최대 4,800P를 받아요. 시급은 포인트에 영향을 주지 않아요.") }
             .alert("오늘도 수고했어요!", isPresented: Binding(get: { reward != nil }, set: { if !$0 { reward = nil } })) {
                 Button("삐약이와 계속하기") { reward = nil }
-            } message: { Text("\((reward ?? 0).points)를 받았어요. 삐약이의 방에서 사용해 보세요.") }
+            } message: {
+                Text((reward ?? 0) > 0
+                     ? "근무를 저장하고 \((reward ?? 0).points)를 적립했어요. 삐약이의 방에서 사용해 보세요."
+                     : "근무를 저장했어요. 이번에 추가된 포인트는 없어요. 하루 최대 4,800P까지, 같은 날의 타이머 근무 시간을 합쳐 적립해요.")
+            }
             .sensoryFeedback(.success, trigger: reward)
             .sensoryFeedback(.selection, trigger: interactionID)
         }
@@ -105,7 +108,7 @@ Button { router.tab = .decorate } label: {
                     .font(.system(.footnote, design: .rounded, weight: .semibold))
                     .foregroundStyle(PB.C.ink)
                 Spacer()
-                Text("Lv. \(max(1, settledEarnings / 50_000 + 1))")
+                Text("Lv. \(max(1, earnedPoints / RewardPolicy.pointsPerLevel + 1))")
                     .font(.system(.caption, design: .rounded, weight: .heavy))
                     .padding(.horizontal, 9).padding(.vertical, 6)
                     .background(.white.opacity(0.8), in: Capsule()).foregroundStyle(PB.C.ink)
@@ -156,6 +159,9 @@ Button { router.tab = .decorate } label: {
 
     private func earnings(at date: Date) -> some View {
         let seconds = EarningsCalculator.workingSeconds(session.snapshot.segments ?? [], until: date)
+        let todayPoints = transactions.filter {
+            $0.kind == .accrual && RewardPolicy.calendar.isDate($0.date, inSameDayAs: date)
+        }.reduce(0) { $0 + $1.amount }
         return VStack(alignment: .leading, spacing: 13) {
             HStack {
                 Label("오늘의 예상 수익", systemImage: "sun.max.fill").font(.subheadline.weight(.semibold))
@@ -177,14 +183,27 @@ Button { router.tab = .decorate } label: {
                     VStack(alignment: .leading, spacing: 5) { details(seconds: seconds); Text("이번 근무 \(session.snapshot.amount(at: date).won)") }
                 }.font(.caption).foregroundStyle(PB.C.secondary)
                 if let start = session.snapshot.startedAt, date.timeIntervalSince(start) > 12 * 3600 {
-                    Label("근무를 마쳤나요? 종료 후 기록을 수정할 수 있어요.", systemImage: "clock.badge.exclamationmark")
+                    Label("근무를 마쳤나요? 한 타이머의 보상은 누적 유급 24시간까지만 계산돼요. 그 뒤에는 근무를 마치고 새로 시작해 주세요. 예상 수익은 계속 기록돼요.", systemImage: "clock.badge.exclamationmark")
                         .font(.caption).foregroundStyle(PB.C.coral)
                 }
-            } else {
-                Text("근무를 마치면 같은 숫자의 꾸미기 포인트를 받아요.")
-                    .font(.caption).foregroundStyle(PB.C.secondary)
             }
             Text("세전 단순 추정치 · 실제 급여와 다를 수 있어요")
+                .font(.caption2).foregroundStyle(PB.C.secondary)
+            Divider()
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Text("오늘 받은 꾸미기 포인트")
+                    Spacer()
+                    Text("\(todayPoints.points) / \(RewardPolicy.pointsPerDay.points)").bold().monospacedDigit()
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("오늘 받은 꾸미기 포인트")
+                    Text("\(todayPoints.points) / \(RewardPolicy.pointsPerDay.points)").bold().monospacedDigit()
+                }
+            }.font(.caption).foregroundStyle(PB.C.textBrown)
+            Text("시급과 무관하게 타이머 10분에 100P · 근무를 마치면 적립돼요")
+                .font(.caption2).foregroundStyle(PB.C.secondary)
+            Text("하루 한도는 한국 시간 00시에 새로 시작해요")
                 .font(.caption2).foregroundStyle(PB.C.secondary)
         }.gameCard()
     }
@@ -196,10 +215,11 @@ Button { router.tab = .decorate } label: {
             HStack {
                 Label("삐약이의 성장 노트", systemImage: "leaf.fill").font(.subheadline.bold())
                 Spacer()
-                Text("\(max(0, settledEarnings % 50_000).won) / 5만원").font(.caption).foregroundStyle(PB.C.secondary)
+                Text("\(max(0, earnedPoints % RewardPolicy.pointsPerLevel).points) / \(RewardPolicy.pointsPerLevel.points)")
+                    .font(.caption).foregroundStyle(PB.C.secondary)
             }
-            ProgressView(value: Double(max(0, settledEarnings % 50_000)), total: 50_000).tint(PB.C.coral)
-            Text("누적 예상 수익 5만원마다 한 레벨씩 자라요. 포인트를 써도 레벨은 유지돼요.")
+            ProgressView(value: Double(max(0, earnedPoints % RewardPolicy.pointsPerLevel)), total: Double(RewardPolicy.pointsPerLevel)).tint(PB.C.coral)
+            Text("타이머 보상 4,800P를 모을 때마다 한 레벨씩 자라요. 하루 한도 안에서 인정된 근무 8시간에 해당해요. 포인트를 써도 레벨은 유지돼요.")
                 .font(.caption).foregroundStyle(PB.C.secondary)
         }.foregroundStyle(PB.C.textBrown).gameCard()
     }
@@ -241,7 +261,9 @@ struct WageEntrySheet: View {
                     }
                 } header: { Text("오늘의 시급") } footer: { Text("1~1,000,000원. 입력한 시급은 다음 근무에도 기억해요. 휴식은 무급으로 계산해요.") }
                 Section {
-                    Text("표시 금액은 세금·수당·사업장별 정산 규칙을 반영하지 않은 예상치예요. 포인트는 앱 꾸미기 전용이며 현금으로 바꿀 수 없어요.")
+                    Text("시급은 예상 수익에만 반영돼요. 꾸미기 포인트는 휴식을 뺀 타이머 10분에 100P, 하루 최대 4,800P예요. 현금으로 바꿀 수 없어요.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                    Text("예상 수익에는 세금·수당·사업장별 정산 규칙이 반영되지 않아요.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Button("근무 시작") { if let wage = Int(text), valid { onConfirm(wage) } }
                         .buttonStyle(GameButtonStyle()).disabled(!valid)

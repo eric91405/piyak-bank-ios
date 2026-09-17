@@ -4,7 +4,6 @@ import SwiftData
 struct HistoryView: View {
     @EnvironmentObject private var session: SessionController
     @Query(sort: \WorkSession.startedAt, order: .reverse) private var records: [WorkSession]
-    @Query private var transactions: [PointTransaction]
     @State private var selectedDate = Date()
     @State private var editing: WorkSession?
     @State private var showEditor = false
@@ -17,9 +16,7 @@ struct HistoryView: View {
         return records.filter { $0.startedAt < end && ($0.endedAt ?? .now) > start }
     }
     private var monthTotal: Int {
-        let settled = transactions.filter { $0.kind == .accrual && calendar.isDate($0.date, equalTo: selectedDate, toGranularity: .month) }
-            .reduce(0) { $0 + $1.amount }
-        return settled + records.filter(\.isActive).reduce(0) { result, record in
+        records.reduce(0) { result, record in
             result + EarningsCalculator.daily(record.segments).filter {
                 calendar.isDate($0.day, equalTo: selectedDate, toGranularity: .month)
             }.reduce(0) { $0 + $1.amount }
@@ -69,7 +66,7 @@ struct HistoryView: View {
                             Text("\(record.startedAt.formatted(date: .abbreviated, time: .shortened)) → \(record.endedAt.map { $0.formatted(date: .abbreviated, time: .shortened) } ?? "지금")")
                                 .font(.caption).foregroundStyle(PB.C.secondary)
                             let seconds = Int(EarningsCalculator.workingSeconds(record.segments))
-                            Text("실제 근무 \(seconds / 3600)시간 \(seconds % 3600 / 60)분 · 휴식 제외")
+                            Text("유급 근무 \(seconds / 3600)시간 \(seconds % 3600 / 60)분 · 휴식 제외")
                                 .font(.caption).foregroundStyle(PB.C.secondary)
                         }.gameCard()
                     }
@@ -85,14 +82,14 @@ struct HistoryView: View {
                     WorkRecordEditor(record: editing, wage: session.preferredWage).environmentObject(session)
                 }
                 .confirmationDialog("이 기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
-                    Button("기록과 적립 포인트 삭제", role: .destructive) {
+                    Button("근무 기록 삭제", role: .destructive) {
                         if let record = deleting {
                             session.perform { try session.economy.deleteRecord(record) }
                             session.refreshSnapshot()
                         }
                         deleting = nil
                     }
-                } message: { Text("이 근무로 받은 포인트도 차감돼요. 이미 사용한 경우 잔액이 음수가 될 수 있으며, 삭제는 되돌릴 수 없어요.") }
+                } message: { Text("이 근무의 시간과 예상 수익을 삭제해요. 이미 받은 포인트와 레벨은 유지되며, 기록을 다시 추가해도 포인트는 늘지 않아요. 삭제는 되돌릴 수 없어요.") }
         }
     }
 }
@@ -124,6 +121,8 @@ struct WorkRecordEditor: View {
                 Section {
                     Text("근무와 휴식을 시간 구간으로 나눠 입력해요. 휴식 구간의 시급은 0원이에요. 날짜가 바뀌어도 자동으로 나눠 계산해요.")
                         .font(.footnote).foregroundStyle(.secondary)
+                    Text("직접 추가하거나 수정한 기록은 예상 수익에만 반영돼요. 추가 포인트는 없으며, 타이머로 이미 받은 포인트와 레벨은 유지돼요.")
+                        .font(.footnote).foregroundStyle(.secondary)
                 }
                 ForEach($drafts) { $draft in
                     Section(draft.wage == "0" ? "휴식 구간" : "근무 구간") {
@@ -146,7 +145,7 @@ struct WorkRecordEditor: View {
                         drafts.append(SegmentDraft(start: end, end: max(end, Date()), wage: "0"))
                     }
                 } footer: {
-                    Text("구간은 겹칠 수 없고 한 기록은 최대 7일이에요. 수익을 줄이면 이미 사용한 포인트 때문에 잔액이 음수가 될 수 있어요.")
+                    Text("구간은 겹칠 수 없고 한 기록은 최대 7일이에요. 수동 기록은 꾸미기 포인트를 적립하지 않아요.")
                 }
             }
             .navigationTitle(record == nil ? "놓친 근무 추가" : "근무 기록 수정").navigationBarTitleDisplayMode(.inline)
@@ -154,9 +153,9 @@ struct WorkRecordEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("저장") { confirmSave = true }.bold() }
             }
-            .confirmationDialog("기록에 맞춰 포인트도 다시 계산할까요?", isPresented: $confirmSave, titleVisibility: .visible) {
+            .confirmationDialog("근무 기록을 저장할까요?", isPresented: $confirmSave, titleVisibility: .visible) {
                 Button("기록 저장") { save() }
-            }
+            } message: { Text("근무 시간과 예상 수익에 반영돼요. 적립 포인트와 레벨은 바뀌지 않아요.") }
             .alert("기록을 저장하지 못했어요", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("확인") { error = nil }
             } message: { Text(error ?? "") }

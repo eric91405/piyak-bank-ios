@@ -1,9 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// 월 달력 + 일별 적립 표시
+/// 월 달력 + 근무 기록으로 계산한 일별 예상 수익 표시
 struct EarningsCalendar: View {
-    @Query private var txs: [PointTransaction]
+    @Query private var records: [WorkSession]
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Binding var selectedDate: Date
     private var displayedMonth: Date { selectedDate }
@@ -69,10 +69,11 @@ struct EarningsCalendar: View {
 
     private var dayGrid: some View {
         let days = makeDays()
+        let earnings = dailyEarned
         return LazyVGrid(columns: Array(repeating: .init(.flexible()), count: 7), spacing: 6) {
             ForEach(days.indices, id: \.self) { i in
                 if let day = days[i] {
-                    dayCell(day)
+                    dayCell(day, earned: earnings[cal.startOfDay(for: day)] ?? 0)
                 } else {
                     Color.clear.frame(height: 46)
                 }
@@ -80,8 +81,7 @@ struct EarningsCalendar: View {
         }
     }
 
-    private func dayCell(_ day: Date) -> some View {
-        let earned = dailyEarned[cal.startOfDay(for: day)] ?? 0
+    private func dayCell(_ day: Date, earned: Int) -> some View {
         let isSelected = cal.isDate(day, inSameDayAs: selectedDate)
         let isToday = cal.isDateInToday(day)
 
@@ -111,7 +111,7 @@ struct EarningsCalendar: View {
             )
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), 정산된 예상 수익 \(earned.won)")
+        .accessibilityLabel("\(day.formatted(date: .complete, time: .omitted)), 예상 수익 \(earned.won), 진행 중인 근무 포함")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -127,14 +127,17 @@ struct EarningsCalendar: View {
         return days
     }
 
-    /// 일별 적립 합 (표시 월 한정, 한 번에 계산)
+    /// 일별 예상 수익 합. 포인트 원장과 분리하며 진행 중인 근무도 포함한다.
     private var dailyEarned: [Date: Int] {
         guard let monthStart = cal.date(from: cal.dateComponents([.year, .month], from: displayedMonth)),
               let monthEnd = cal.date(byAdding: .month, value: 1, to: monthStart) else { return [:] }
         var m: [Date: Int] = [:]
-        for tx in txs where tx.kind == .accrual && tx.date >= monthStart && tx.date < monthEnd {
-            let key = cal.startOfDay(for: tx.date)
-            m[key, default: 0] += tx.amount
+        let now = Date()
+        for record in records where record.startedAt < monthEnd && (record.endedAt ?? now) > monthStart {
+            for earning in EarningsCalculator.daily(record.segments, until: now)
+                where earning.day >= monthStart && earning.day < monthEnd {
+                m[cal.startOfDay(for: earning.day), default: 0] += earning.amount
+            }
         }
         return m
     }

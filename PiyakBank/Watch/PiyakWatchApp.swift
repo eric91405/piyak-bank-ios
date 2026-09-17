@@ -68,9 +68,9 @@ struct WatchRootView: View {
             }
         }
         .tabViewStyle(.verticalPage)
-        .confirmationDialog("근무를 마치고 포인트를 받을까요?", isPresented: $confirmStop) {
+        .confirmationDialog("근무를 마치고 기록할까요?", isPresented: $confirmStop) {
             Button("근무 마치기") { sync.sendCommand("stop") }
-        }
+        } message: { Text("시급과 무관하게 휴식을 뺀 타이머 10분에 100P, 하루 최대 4,800P를 받아요.") }
         .alert("연결 확인", isPresented: Binding(get: { sync.errorMessage != nil }, set: { if !$0 { sync.errorMessage = nil } })) {
             Button("확인") { sync.errorMessage = nil }
         } message: { Text(sync.errorMessage ?? "") }

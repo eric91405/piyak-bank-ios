@@ -37,7 +37,7 @@ final class AppPersistence: ObservableObject {
     init() { load() }
     func load() {
         do {
-            let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self])
+            let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self, RewardReceipt.self])
             container = try ModelContainer(for: schema)
             container?.mainContext.autosaveEnabled = false
         } catch { container = nil }
@@ -95,7 +95,10 @@ struct RootView: View {
             } else { ProgressView("삐약이의 방을 여는 중") }
         }
         .task { services.bootstrap(context: context) }
-        .onChange(of: phase) { _, value in if value == .active { services.refresh() } }
+        .onChange(of: phase) { _, value in
+            if value == .active { services.refresh() }
+            else { services.checkpointRewards() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in services.refresh() }
     }
 }
@@ -112,11 +115,8 @@ final class ServiceHolder: ObservableObject {
         guard session == nil else { return }
         do {
             let economy = EconomyStore(context: context)
+            try economy.migrateRewardsIfNeeded()
             try economy.seedIfNeeded()
-            if AppConfig.shared?.integer(forKey: "earnings_revision") != 2 {
-                try economy.reconcileCompletedAccruals()
-                AppConfig.shared?.set(2, forKey: "earnings_revision")
-            }
             let controller = SessionController(context: context, economy: economy, scheduler: NotificationScheduler())
             try controller.recoverIfNeeded()
             let watch = WatchSync()
@@ -142,9 +142,13 @@ final class ServiceHolder: ObservableObject {
         }
     }
     func refresh() {
+        checkpointRewards()
         session?.refreshSnapshot()
         session?.updateReminders()
         refreshEquipment()
+    }
+    func checkpointRewards() {
+        session?.perform { try session?.checkpointRewards() }
     }
     private func refreshEquipment() {
         guard let session else { return }

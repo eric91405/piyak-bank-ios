@@ -9,6 +9,8 @@ final class WorkSession {
     var endedAt: Date?
     var segmentsData: Data
     var isActive: Bool
+    /// Optional for lightweight migration. Historical/manual pay records have no timer proof.
+    var rewardTrackingData: Data?
 
     var segments: [WageSegment] {
         get { (try? decodedSegments()) ?? [] }
@@ -22,6 +24,14 @@ final class WorkSession {
         try JSONDecoder().decode([WageSegment].self, from: segmentsData)
     }
 
+    func rewardTracking() throws -> RewardTracking? {
+        try rewardTrackingData.map { try JSONDecoder().decode(RewardTracking.self, from: $0) }
+    }
+
+    func setRewardTracking(_ tracking: RewardTracking) throws {
+        rewardTrackingData = try JSONEncoder().encode(tracking)
+    }
+
     init(id: String = UUID().uuidString, startedAt: Date = .now, wage: Int) {
         self.id = id
         self.startedAt = startedAt
@@ -32,10 +42,11 @@ final class WorkSession {
 
     /// Keep live SwiftData references consistent after a failed write and rollback.
     func restorePoint() -> () -> Void {
-        let values = (startedAt, endedAt, segmentsData, isActive)
+        let values = (startedAt, endedAt, segmentsData, isActive, rewardTrackingData)
         return { [self] in
             startedAt = values.0; endedAt = values.1
             segmentsData = values.2; isActive = values.3
+            rewardTrackingData = values.4
         }
     }
 

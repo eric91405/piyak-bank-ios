@@ -32,6 +32,10 @@ for target in ('PiyakBank', 'PiyakWatch Watch App', 'PiyakWidget'):
     assert not manifest['NSPrivacyCollectedDataTypes']
     reasons = manifest['NSPrivacyAccessedAPITypes'][0]['NSPrivacyAccessedAPITypeReasons']
     assert set(reasons) == {'CA92.1', '1C8F.1'}
+    if target == 'PiyakBank':
+        APIs = {entry['NSPrivacyAccessedAPIType']: entry['NSPrivacyAccessedAPITypeReasons']
+                for entry in manifest['NSPrivacyAccessedAPITypes']}
+        assert APIs.get('NSPrivacyAccessedAPICategorySystemBootTime') == ['35F9.1'], 'Declare elapsed-time measurement for rewards and interactions.'
 info = plistlib.loads((ROOT / 'PiyakBank/Info.plist').read_bytes())
 assert 'piyakbank' in info['CFBundleURLTypes'][0]['CFBundleURLSchemes']
 assert not (ROOT / 'PiyakBank/Services/Products.storekit').exists()

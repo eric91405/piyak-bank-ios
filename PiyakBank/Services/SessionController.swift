@@ -37,15 +37,21 @@ final class SessionController: ObservableObject {
     private let scheduler: any SessionReminding
     private let defaults: UserDefaults
     private let now: () -> Date
+    private let continuousNow: () -> TimeInterval
+    private let bootSessionID: () -> String
     weak var syncDelegate: SessionSyncing?
 
     init(context: ModelContext, economy: EconomyStore, scheduler: any SessionReminding,
-         defaults: UserDefaults = AppConfig.shared ?? .standard, now: @escaping () -> Date = Date.init) {
+         defaults: UserDefaults = AppConfig.shared ?? .standard, now: @escaping () -> Date = Date.init,
+         continuousNow: @escaping () -> TimeInterval = RewardClock.now,
+         bootSessionID: @escaping () -> String = { RewardClock.bootSessionID }) {
         self.context = context
         self.economy = economy
         self.scheduler = scheduler
         self.defaults = defaults
         self.now = now
+        self.continuousNow = continuousNow
+        self.bootSessionID = bootSessionID
         let wage = defaults.integer(forKey: "hourly_wage")
         self.preferredWage = (1...EarningsCalculator.maximumWage).contains(wage) ? wage : 10_000
         self.interval = ReminderInterval(rawValue: defaults.integer(forKey: "reminder_interval")) ?? .m60
@@ -63,8 +69,15 @@ final class SessionController: ObservableObject {
         guard current == nil else { return }
         let wage = wage ?? preferredWage
         guard (1...EarningsCalculator.maximumWage).contains(wage) else { throw EconomyStore.StoreError.invalidRecord }
-        let session = WorkSession(startedAt: now(), wage: wage)
-        try economy.transaction { context.insert(session) }
+        let date = now()
+        let session = WorkSession(startedAt: date, wage: wage)
+        try economy.transaction {
+            let tick = continuousNow()
+            let boot = bootSessionID()
+            let rewardDate = try economy.rewardDate(now: date, tick: tick, bootSessionID: boot)
+            try session.setRewardTracking(RewardTracking(date: rewardDate, tick: tick, working: true, bootSessionID: boot))
+            context.insert(session)
+        }
         current = session
         defaults.set(session.id, forKey: AppConfig.kActiveSession)
         refreshSnapshot()
@@ -90,27 +103,58 @@ final class SessionController: ObservableObject {
         guard let index = segments.indices.last, segments[index].start <= date else { throw EconomyStore.StoreError.invalidRecord }
         segments[index].end = date
         segments.append(.init(start: date, hourlyWage: wage))
-        try economy.transaction(restoring: session.restorePoint()) { session.segments = segments }
+        try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: date, working: wage > 0)
+            session.segments = segments
+        }
         refreshSnapshot()
         updateReminders()
     }
 
-    func stop() throws {
-        guard let session = current else { return }
+    @discardableResult
+    func stop() throws -> Int {
+        guard let session = current else { return 0 }
+        guard session.isActive else {
+            current = nil
+            refreshSnapshot()
+            updateReminders()
+            return 0
+        }
         let date = now()
         var segments = try session.decodedSegments()
         guard let index = segments.indices.last, segments[index].start <= date else { throw EconomyStore.StoreError.invalidRecord }
         segments[index].end = date
+        var awarded = 0
         try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: date, working: false)
             session.segments = segments
             session.endedAt = date
             session.isActive = false
-            try economy.insertAccruals(for: session, now: date)
+            awarded = try economy.insertAccruals(for: session, now: date)
         }
         current = nil
         defaults.removeObject(forKey: AppConfig.kActiveSession)
         refreshSnapshot()
         updateReminders()
+        return awarded
+    }
+
+    private func checkpoint(_ session: WorkSession, date: Date, working: Bool) throws {
+        let tick = continuousNow()
+        let boot = bootSessionID()
+        let rewardDate = try economy.rewardDate(now: date, tick: tick, bootSessionID: boot)
+        var tracking = try session.rewardTracking() ?? RewardTracking(date: rewardDate, tick: tick, working: working, bootSessionID: boot)
+        tracking.checkpoint(date: rewardDate, tick: tick, working: working, bootSessionID: boot)
+        try session.setRewardTracking(tracking)
+    }
+
+    /// Event-driven persistence retains measured time across app termination without
+    /// running an extra timer, a background task, or keeping the device awake.
+    func checkpointRewards() throws {
+        guard let session = current else { return }
+        try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: now(), working: session.currentWage > 0)
+        }
     }
 
     func recoverIfNeeded() throws {
@@ -122,6 +166,9 @@ final class SessionController: ObservableObject {
             let segments = try session.decodedSegments()
             guard !segments.isEmpty else { throw EconomyStore.StoreError.corruptRecord }
             current = session
+            // An upgraded active session begins earning under the new policy now;
+            // pre-upgrade editable segments cannot be used to manufacture rewards.
+            try checkpointRewards()
             defaults.set(session.id, forKey: AppConfig.kActiveSession)
         } else {
             current = nil
@@ -165,7 +212,7 @@ final class SessionController: ObservableObject {
                 isPaused: current != nil && current?.currentWage == 0, sessionId: current?.id,
                 startedAt: current?.startedAt, accrued: current?.accrued(until: date) ?? 0,
                 wage: current?.currentWage ?? 0, segments: segments, capturedAt: date,
-                completedToday: try economy.dailyAccrued(on: date), preferredWage: preferredWage)
+                completedToday: try economy.dailyAccrued(on: date, now: date), preferredWage: preferredWage)
             defaults.set(try JSONEncoder().encode(snapshot), forKey: AppConfig.kSnapshot)
             syncDelegate?.didUpdateSession(snapshot)
             #if os(iOS)

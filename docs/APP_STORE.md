@@ -21,7 +21,7 @@
 
 ### 준비된 화면
 
-`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈 화면은 삐약이의 인사와 새 ‘놀아주기’ 버튼을 포함한 최신 화면으로 갱신했습니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 이번 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용이므로 제출 전에 교체해야 합니다. 제출 시 최종 서명 빌드와 화면이 같은지 확인하고 Watch 실기기 화면도 추가하세요.
+`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈의 시간 보상 안내와 상점·아이템 미리보기의 새 가격을 반영했습니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용입니다. 제출 전에 최종 서명 빌드와 일치하는 화면으로 교체하고 Watch 실기기 화면도 추가하세요.
 
 ### 설명
 
@@ -30,7 +30,7 @@
 
 • 근무 시작·휴식·종료를 간편하게 기록해요.
 • 홈에서 입력한 시급과 유급 시간으로 계산한 예상 수익과 보유 포인트를 확인해요.
-• 근무를 마치면 꾸미기 포인트를 받아요.
+• 시급과 별개로 타이머 근무 10분당 100P를 모아요. 휴식은 제외하며 하루 최대 4,800P예요.
 • 81개의 옷, 모자, 가구와 소품으로 입체적인 방을 꾸며요.
 • 달력에서 기록을 확인하고 빠뜨린 근무를 추가하거나 수정해요.
 • 근무 기록과 포인트 원장을 CSV로 내보내요.
@@ -38,6 +38,8 @@
 • 삐약이를 누르거나 ‘놀아주기’ 버튼으로 인사하고 장착한 가구와 함께 놀아요.
 
 회원가입과 광고 없이 사용할 수 있습니다. 기록은 기기에 저장되며 개발자 서버로 전송하지 않습니다.
+
+보상은 6초당 1P씩 계산해 근무를 마칠 때 확정합니다. 같은 날의 짧은 근무 시간도 합산하며 하루 한도는 한국 시간(KST) 자정에 새로 시작합니다. 한 근무에서 보상에 반영하는 측정 시간은 최대 24시간입니다. 기록을 직접 추가하거나 완료 기록을 수정해도 추가 포인트가 생기지 않으며, 완료 기록 삭제로 확정 보상이 없어지지 않습니다. 새로 적립한 근무 보상 4,800P마다 레벨이 오르고 아이템 구매로 레벨은 줄어들지 않습니다.
 
 예상 수익은 세금·수당·사업장별 정산 규칙을 반영하지 않습니다. 포인트는 앱 꾸미기 전용 가상 포인트이며 현금 가치, 현금 전환, 송금 또는 인출 기능이 없습니다. 삐약뱅크는 실제 은행이나 급여 지급 서비스가 아닙니다.
 
@@ -47,7 +49,11 @@ iOS 17.0 이상. 워치 앱은 watchOS 10.0 이상 및 연결된 iPhone이 필�
 
 PiyakBank is a local work-time tracker with a virtual pet room. It is not a financial institution or a payroll/payment service. Estimated earnings are calculated solely from user-entered hourly wages and paid time. Virtual points have no monetary value and cannot be purchased, redeemed, transferred, or withdrawn. Version 1.0 is free and contains no in-app purchases, ads, or login.
 
-To review: finish onboarding with an hourly wage, tap the yellow start button, pause/resume, then finish the session. Completed earnings award virtual points. The History tab allows manually adding a past non-overlapping work record (e.g. one hour at KRW 50,000) to try the shop without waiting. The Decorate tab includes item previews and purchase confirmation using virtual points only. On Home, tap the chick or the “놀아주기” (Play) button to greet it or trigger interactions with equipped furniture. Today’s estimated earnings and the point balance are displayed on Home; dated work records are in History. Settings contains CSV export, local data reset, privacy policy, and support contact.
+To review: finish onboarding with an hourly wage, start the work timer, pause/resume, then finish the session. Timer-measured working time earns 1 point per 6 seconds (100 per 10 minutes), excluding pauses, independently of the hourly wage. The daily cap is 4,800 points, with days defined by midnight in Asia/Seoul. A session can contribute at most 24 hours of measured reward time; earnings tracking continues beyond reward limits. Manually added or edited records never generate extra points, and deleting a work record does not remove its already finalized reward. Duplicate or overlapping reward intervals are counted once. Level progression uses newly earned timer rewards, not wages, purchases, or migrated balances.
+
+The Decorate tab allows previewing items without purchasing; default items are already owned. Non-default items cost 450–4,000 virtual points. Please use previews and the default items to review the room without waiting to earn points. On Home, tap the chick or the “놀아주기” (Play) button to greet it or trigger interactions with equipped furniture. Today's estimated earnings and the point balance are displayed on Home; dated work records are in History. Settings contains CSV export, local data reset, privacy policy, and support contact.
+
+On upgrade from the earlier reward policy, existing balances are divided by 20 and rounded down, then limited to 0–4,800 points once. Owned items and work history remain available; old transactions remain in the point-ledger CSV with the legacy kind and are excluded from the current balance. Only time measured after the upgrade earns new rewards for a previously active session. This is an offline personal app: these rules do not verify real employment or prevent direct device-storage tampering.
 
 Watch control requires a reachable paired iPhone and completion of onboarding on the phone. We wait for an acknowledgement from the iPhone. Widget figures are five-minute estimates and update timing is controlled by WidgetKit. No review account is required.
 
