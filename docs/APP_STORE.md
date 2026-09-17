@@ -21,7 +21,7 @@
 
 ### 준비된 화면
 
-`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈 화면은 새 ‘놀아주기’ 동작을 반영한 캡처로 갱신할 예정입니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 이번 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용이므로 제출 전에 교체해야 합니다. 제출 시 최종 서명 빌드와 화면이 같은지 확인하고 Watch 실기기 화면도 추가하세요.
+`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈 화면은 삐약이의 인사와 새 ‘놀아주기’ 버튼을 포함한 최신 화면으로 갱신했습니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 이번 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용이므로 제출 전에 교체해야 합니다. 제출 시 최종 서명 빌드와 화면이 같은지 확인하고 Watch 실기기 화면도 추가하세요.
 
 ### 설명
 

@@ -12,7 +12,7 @@
 
 <img src="docs/screenshots/iphone-home.jpg" width="240" alt="방 안에서 생활하는 입체 병아리와 예상 수익"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점"> <img src="docs/screenshots/iphone-item-preview.jpg" width="240" alt="회전과 확대 버튼으로 살펴보는 입체 의상">
 
-iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. 홈 화면은 새 ‘놀아주기’ 동작을 반영한 캡처로 갱신할 예정입니다. 이전 출시 후보의 레이아웃 검증 자료: [iPad 화면](docs/screenshots/ipad-home.jpg) · [다크 모드와 큰 글씨](docs/screenshots/iphone-accessibility-dark.jpg). 두 참고 화면은 이번 모델 개선 이전 모습입니다.
+iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. 홈 화면은 삐약이의 인사와 새 ‘놀아주기’ 버튼을 포함한 최신 화면입니다. 이전 출시 후보의 레이아웃 검증 자료: [iPad 화면](docs/screenshots/ipad-home.jpg) · [다크 모드와 큰 글씨](docs/screenshots/iphone-accessibility-dark.jpg). 두 참고 화면은 이번 모델 개선 이전 모습입니다.
 
 ## 주요 기능
 
