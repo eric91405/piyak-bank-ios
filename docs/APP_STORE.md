@@ -14,10 +14,14 @@
 - 키워드: 근무,시급,알바,출퇴근,시간기록,급여계산,병아리,꾸미기,포인트,타이머
 - 지원 이메일: eric91405@gmail.com
 - 운영자: 김민서
-- 개인정보 URL: [공개 개인정보처리방침](https://github.com/eric91405/piyak-bank-ios/blob/codex/app-store-launch/docs/PRIVACY.md)
-- 지원 URL: [공개 지원 안내](https://github.com/eric91405/piyak-bank-ios/blob/codex/app-store-launch/docs/SUPPORT.md)
+- 개인정보 URL: `https://eric91405.github.io/piyak-bank-ios/privacy/`
+- 지원 URL: `https://eric91405.github.io/piyak-bank-ios/support/`
 
-위 URL은 출시 후보 브랜치에서 접속 확인한 주소입니다. PR을 병합한 뒤 제출할 때는 `blob/main/docs/PRIVACY.md`, `blob/main/docs/SUPPORT.md` 주소로 바꾸고 최종 접속을 확인하세요.
+두 주소는 `docs/` 폴더를 GitHub Pages로 게시해 얻는 고정 주소입니다. 브랜치 이름이나 파일 경로가 바뀌어도 깨지지 않으므로, 심사 도중 링크가 사라질 위험이 없습니다. 제출 전에 다음을 확인하세요.
+
+1. 저장소 Settings → Pages → Source를 `Deploy from a branch`, 브랜치 `main`, 폴더 `/docs`로 설정
+2. 첫 배포 후 위 두 주소가 실제로 열리는지 확인 (반영까지 몇 분 걸립니다)
+3. `docs/_config.yml`이 `APP_STORE.md`와 `RELEASE_VALIDATION.md`를 제외하므로 심사 메모와 내부 검증 기록은 공개되지 않습니다
 
 ### 준비된 화면
 
@@ -65,6 +69,8 @@ App Store Connect의 최종 개인정보 응답은 실제 배포 버전·운영 
 
 ## 제출 직전 운영자 확인
 
+- **Apple Watch 스크린샷 (필수).** watchOS 앱을 포함해 제출하면 App Store Connect가 워치 스크린샷을 별도로 요구합니다. 현재 `docs/screenshots/`에는 iPhone·iPad 캡처만 있습니다. 워치 시뮬레이터(또는 실기기)에서 적산 화면과 캐릭터 화면을 최소 1장씩 캡처해 추가하세요.
+- **GitHub Pages 게시 확인.** Settings → Pages에서 `main` 브랜치 `/docs` 폴더로 게시하고, 개인정보·지원 URL이 실제로 열리는지 확인
 - Apple Developer 멤버십, 실제 번들 ID 3개, App Group 및 서명 프로파일
 - App Store Connect 앱 생성/연결, 가격 무료, 판매 지역, 연령 등급 설문
 - 개인정보·지원 문서의 공개 URL 접속 및 지원 이메일 수신 가능 여부

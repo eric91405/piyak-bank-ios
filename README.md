@@ -112,6 +112,8 @@ GitHub Actions에서 계산·저장 회귀 테스트와 iOS/Watch/위젯 Release
 
 기록은 기기에 저장하며 개발자 서버로 전송하지 않습니다. CSV는 열람·보관용이고 가져오기 및 클라우드 동기화는 지원하지 않습니다. 위젯은 시스템의 갱신 정책을 따르는 예상치이며 watchOS 컴플리케이션은 포함하지 않습니다.
 
-[개인정보 처리방침](docs/PRIVACY.md) · [지원 안내](docs/SUPPORT.md) · [App Store 제출 자료](docs/APP_STORE.md)
+공개 페이지: [개인정보 처리방침](https://eric91405.github.io/piyak-bank-ios/privacy/) · [지원 안내](https://eric91405.github.io/piyak-bank-ios/support/)
+
+저장소 문서: [개인정보 처리방침](docs/PRIVACY.md) · [지원 안내](docs/SUPPORT.md) · [App Store 제출 자료](docs/APP_STORE.md)
 
 개발: **김민서** · [eric91405@gmail.com](mailto:eric91405@gmail.com)

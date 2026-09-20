@@ -1,3 +1,9 @@
+---
+layout: default
+title: 개인정보 처리방침
+permalink: /privacy/
+---
+
 # 삐약뱅크 개인정보 처리방침
 
 ## 개인정보 처리방침

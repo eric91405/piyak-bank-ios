@@ -1,0 +1,11 @@
+title: 삐약뱅크
+description: 근무 시간을 기록하고 병아리의 방을 꾸미는 iOS · Apple Watch 앱
+lang: ko-KR
+theme: jekyll-theme-minimal
+
+# 심사 자료와 내부 검증 기록은 공개 사이트에서 제외한다.
+exclude:
+  - APP_STORE.md
+  - RELEASE_VALIDATION.md
+  - quality
+  - screenshots
