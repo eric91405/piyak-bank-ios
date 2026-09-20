@@ -169,7 +169,7 @@ Button { router.tab = .decorate } label: {
                 Spacer()
                 if running {
                     Label(paused ? "쉬는 중" : "근무 중", systemImage: paused ? "pause.circle.fill" : "record.circle")
-                        .font(.caption.bold()).foregroundStyle(PB.C.coral)
+                        .font(.caption.bold()).foregroundStyle(PB.C.accent)
                 }
             }
             Text(session.snapshot.today(at: date).won)
@@ -184,7 +184,7 @@ Button { router.tab = .decorate } label: {
                 }.font(.caption).foregroundStyle(PB.C.secondary)
                 if let start = session.snapshot.startedAt, date.timeIntervalSince(start) > 12 * 3600 {
                     Label("근무를 마쳤나요? 한 타이머의 보상은 누적 유급 24시간까지만 계산돼요. 그 뒤에는 근무를 마치고 새로 시작해 주세요. 예상 수익은 계속 기록돼요.", systemImage: "clock.badge.exclamationmark")
-                        .font(.caption).foregroundStyle(PB.C.coral)
+                        .font(.caption).foregroundStyle(PB.C.accent)
                 }
             }
             Text("세전 단순 추정치 · 실제 급여와 다를 수 있어요")
@@ -203,10 +203,27 @@ Button { router.tab = .decorate } label: {
             }.font(.caption).foregroundStyle(PB.C.textBrown)
             Text("시급과 무관하게 타이머 10분에 100P · 근무를 마치면 적립돼요")
                 .font(.caption2).foregroundStyle(PB.C.secondary)
-            Text("하루 한도는 한국 시간 00시에 새로 시작해요")
-                .font(.caption2).foregroundStyle(PB.C.secondary)
+            if let notice = Self.rewardDayNotice(at: date) {
+                Label(notice, systemImage: "globe.asia.australia")
+                    .font(.caption2).foregroundStyle(PB.C.accent)
+            } else {
+                Text("하루 한도는 한국 시간 00시에 새로 시작해요")
+                    .font(.caption2).foregroundStyle(PB.C.secondary)
+            }
         }.gameCard()
     }
+    /// Earnings and the calendar follow the device's day; the point cap follows a
+    /// fixed KST day. Outside KST those are different "todays", so say when the cap
+    /// actually resets on the clock the person is looking at.
+    static func rewardDayNotice(at date: Date) -> String? {
+        let rewardZone = RewardPolicy.calendar.timeZone
+        guard TimeZone.current.secondsFromGMT(for: date) != rewardZone.secondsFromGMT(for: date) else { return nil }
+        let start = RewardPolicy.calendar.startOfDay(for: date)
+        guard let reset = RewardPolicy.calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+        let clock = reset.formatted(.dateTime.month().day().hour().minute().locale(Locale(identifier: "ko_KR")))
+        return "포인트 하루 한도는 한국 시간 00시, 내 기기 시각으로 \(clock)에 새로 시작해요. 예상 수익과 달력은 기기 시간대를 따라요."
+    }
+
     private func details(seconds: TimeInterval) -> some View {
         Label("\(Int(seconds) / 3600)시간 \(Int(seconds) % 3600 / 60)분 · 휴식 제외", systemImage: "clock")
     }
@@ -218,7 +235,7 @@ Button { router.tab = .decorate } label: {
                 Text("\(max(0, earnedPoints % RewardPolicy.pointsPerLevel).points) / \(RewardPolicy.pointsPerLevel.points)")
                     .font(.caption).foregroundStyle(PB.C.secondary)
             }
-            ProgressView(value: Double(max(0, earnedPoints % RewardPolicy.pointsPerLevel)), total: Double(RewardPolicy.pointsPerLevel)).tint(PB.C.coral)
+            ProgressView(value: Double(max(0, earnedPoints % RewardPolicy.pointsPerLevel)), total: Double(RewardPolicy.pointsPerLevel)).tint(PB.C.accent)
             Text("타이머 보상 4,800P를 모을 때마다 한 레벨씩 자라요. 하루 한도 안에서 인정된 근무 8시간에 해당해요. 포인트를 써도 레벨은 유지돼요.")
                 .font(.caption).foregroundStyle(PB.C.secondary)
         }.foregroundStyle(PB.C.textBrown).gameCard()

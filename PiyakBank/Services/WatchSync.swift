@@ -25,11 +25,13 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     private var lastSnapshot: SessionSnapshot?
     private var lastEquipped: [String: String] = [:]
     private var lastPortrait: Data?
+    private var receivedPortrait: Data?
     private var portraitTask: Task<Void, Never>?
 
     func activate() {
         if let data = UserDefaults.standard.data(forKey: "watch_cached_state") {
             lastReceived = try? JSONDecoder().decode(SessionStatePayload.self, from: data)
+            receivedPortrait = lastReceived?.portrait
         }
         session?.delegate = self
         session?.activate()
@@ -68,6 +70,7 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
                 guard !Task.isCancelled, let self, self.lastEquipped == equipped else { return }
                 self.lastPortrait = data
                 self.portraitTask = nil
+                self.sendPortrait()
                 if let snapshot = self.lastSnapshot { self.send(snapshot: snapshot) }
             }
         }
@@ -75,10 +78,24 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
         if let snapshot = lastSnapshot { send(snapshot: snapshot) }
     }
 
+    /// Status changes are frequent; the rendered portrait only changes when the
+    /// person re-equips something. Shipping the PNG with every state update wastes
+    /// the message budget, so state stays small and the portrait moves separately.
     private var stateData: Data? {
         guard let snapshot = lastSnapshot else { return nil }
-        return try? JSONEncoder().encode(SessionStatePayload(snapshot: snapshot, equipped: lastEquipped, portrait: lastPortrait))
+        return try? JSONEncoder().encode(SessionStatePayload(snapshot: snapshot, equipped: lastEquipped, portrait: nil))
     }
+
+    #if os(iOS)
+    private func sendPortrait() {
+        guard let session, session.activationState == .activated,
+              session.isPaired, session.isWatchAppInstalled, let data = lastPortrait else { return }
+        // A queued transfer survives the app going to the background, but a stale
+        // portrait in the queue is worthless once a newer one exists.
+        session.outstandingUserInfoTransfers.forEach { $0.cancel() }
+        session.transferUserInfo(["portrait": data])
+    }
+    #endif
 
     func requestState() {
         guard let session, session.activationState == .activated else { return }
@@ -119,10 +136,27 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func receive(_ data: Data) {
-        guard let payload = try? JSONDecoder().decode(SessionStatePayload.self, from: data) else { return }
+        guard var payload = try? JSONDecoder().decode(SessionStatePayload.self, from: data) else { return }
         if let current = lastReceived?.snapshot.capturedAt, let incoming = payload.snapshot.capturedAt, incoming < current { return }
+        // State updates no longer carry the portrait. Keep the one we already have
+        // so the character does not blank out between equipment changes.
+        if payload.portrait == nil { payload.portrait = lastReceived?.portrait ?? receivedPortrait }
+        store(payload)
+    }
+
+    private func receive(portrait: Data) {
+        // A portrait can arrive before the first state on a fresh install.
+        receivedPortrait = portrait
+        guard var payload = lastReceived else { return }
+        payload.portrait = portrait
+        store(payload)
+    }
+
+    private func store(_ payload: SessionStatePayload) {
         lastReceived = payload
-        UserDefaults.standard.set(data, forKey: "watch_cached_state")
+        if let data = try? JSONEncoder().encode(payload) {
+            UserDefaults.standard.set(data, forKey: "watch_cached_state")
+        }
     }
 
     nonisolated func session(_ session: WCSession, activationDidCompleteWith state: WCSessionActivationState, error: Error?) {
@@ -130,6 +164,7 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
             self.isReachable = session.isReachable
             #if os(iOS)
             self.send(equipped: self.lastEquipped)
+            self.sendPortrait()
             self.onRequestSnapshot?()
             #else
             self.requestState()
@@ -145,6 +180,10 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
             self.onRequestSnapshot?()
             #endif
         }
+    }
+    nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
+        guard let data = userInfo["portrait"] as? Data else { return }
+        Task { @MainActor in self.receive(portrait: data) }
     }
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext context: [String: Any]) {
         guard let data = context["state"] as? Data else { return }

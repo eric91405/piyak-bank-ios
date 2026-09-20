@@ -15,11 +15,16 @@ struct HistoryView: View {
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
         return records.filter { $0.startedAt < end && ($0.endedAt ?? .now) > start }
     }
+    /// Walking every record on each render makes the list stutter once a few
+    /// hundred sessions exist. Only records overlapping the month can contribute.
     private var monthTotal: Int {
-        records.reduce(0) { result, record in
-            result + EarningsCalculator.daily(record.segments).filter {
-                calendar.isDate($0.day, equalTo: selectedDate, toGranularity: .month)
-            }.reduce(0) { $0 + $1.amount }
+        guard let month = calendar.dateInterval(of: .month, for: selectedDate) else { return 0 }
+        let now = Date()
+        return records.reduce(0) { result, record in
+            guard record.startedAt < month.end, (record.endedAt ?? now) > month.start else { return result }
+            return result + EarningsCalculator.daily(record.segments, until: now)
+                .filter { $0.day >= month.start && $0.day < month.end }
+                .reduce(0) { $0 + $1.amount }
         }
     }
     var body: some View {
@@ -49,7 +54,7 @@ struct HistoryView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Label(record.isActive ? "진행 중인 근무" : "마친 근무", systemImage: record.isActive ? "clock.fill" : "checkmark.seal.fill")
-                                    .font(.subheadline.bold()).foregroundStyle(PB.C.coral)
+                                    .font(.subheadline.bold()).foregroundStyle(PB.C.accent)
                                 Spacer()
                                 if !record.isActive {
                                     Menu {

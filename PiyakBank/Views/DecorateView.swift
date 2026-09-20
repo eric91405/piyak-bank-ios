@@ -65,7 +65,7 @@ struct DecorateView: View {
                                             .background(PB.C.bg.opacity(0.65), in: RoundedRectangle(cornerRadius: 18))
                                             .overlay(alignment: .topTrailing) {
                                                 if equipped[item.slotRaw] == item.id {
-                                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(PB.C.coral)
+                                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(PB.C.accent)
                                                         .font(.title3).padding(8)
                                                 }
                                             }

@@ -49,7 +49,7 @@ struct OnboardingView: View {
     }
     private func feature(_ icon: String, _ title: String, _ detail: String) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon).foregroundStyle(PB.C.coral).frame(width: 24).font(.title3)
+            Image(systemName: icon).foregroundStyle(PB.C.accent).frame(width: 24).font(.title3)
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).font(.subheadline.bold())
                 Text(detail).font(.caption).foregroundStyle(PB.C.secondary)

@@ -12,16 +12,31 @@ final class WorkSession {
     /// Optional for lightweight migration. Historical/manual pay records have no timer proof.
     var rewardTrackingData: Data?
 
+    // Decoding is not free and list views read `segments` many times per frame.
+    // The cache is keyed by the stored blob, so any write — including a rollback
+    // that restores an older blob — invalidates it without extra bookkeeping.
+    @Transient private var cachedSegmentsData: Data?
+    @Transient private var cachedSegments: [WageSegment]?
+
     var segments: [WageSegment] {
         get { (try? decodedSegments()) ?? [] }
         set {
             // Never replace valid data with an empty blob if encoding fails.
-            if let data = try? JSONEncoder().encode(newValue) { segmentsData = data }
+            if let data = try? JSONEncoder().encode(newValue) {
+                segmentsData = data
+                cachedSegmentsData = data
+                cachedSegments = newValue
+            }
         }
     }
 
     func decodedSegments() throws -> [WageSegment] {
-        try JSONDecoder().decode([WageSegment].self, from: segmentsData)
+        let data = segmentsData
+        if let cachedSegments, cachedSegmentsData == data { return cachedSegments }
+        let decoded = try JSONDecoder().decode([WageSegment].self, from: data)
+        cachedSegmentsData = data
+        cachedSegments = decoded
+        return decoded
     }
 
     func rewardTracking() throws -> RewardTracking? {

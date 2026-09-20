@@ -96,7 +96,7 @@ struct EarningsCalendar: View {
                 if earned > 0 {
                     Text(shortWon(earned))
                         .font(.system(.caption2, design: .rounded, weight: .semibold))
-                        .foregroundStyle(PB.C.coral)
+                        .foregroundStyle(PB.C.accent)
                         .lineLimit(1).minimumScaleFactor(0.7)
                 } else {
                     Text(" ").font(.system(size: 8))

@@ -5,6 +5,7 @@ import simd
 
 struct CharacterComposite: View {
     @Query private var owned: [OwnedItem]
+    @Query private var catalog: [CatalogItem]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var phase
     var showRoom = true
@@ -30,6 +31,13 @@ struct CharacterComposite: View {
         var result: [String: String] = [:]
         for item in owned { if let slot = item.equippedSlotRaw { result[slot] = item.catalogId } }
         return result
+    }
+    private var accessibilityDescription: String {
+        let names = DecorSlot.allCases.compactMap { slot in
+            equipped[slot.rawValue].flatMap { id in catalog.first { $0.id == id }?.displayName }
+        }
+        let wearing = names.isEmpty ? "기본 차림이에요" : "\(names.joined(separator: ", "))을 착용했어요"
+        return showRoom ? "삐약이의 방. \(wearing)" : "삐약이. \(wearing)"
     }
     private var shouldAnimate: Bool {
         animateLife && visible && intersectsScreen && phase == .active && !reduceMotion && !powerLimited
@@ -58,7 +66,13 @@ struct CharacterComposite: View {
                        interactionID: interactionID, onInteract: onInteract,
                        onActivity: onActivity,
                        debugPlaybackGate: debugPlaybackGate, playbackPauseReason: playbackPauseReason)
-            .accessibilityHidden(true)
+            // A SceneKit view exposes nothing useful to VoiceOver on its own, so the
+            // room is described as a single element instead of being skipped entirely.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityDescription)
+            .accessibilityAddTraits(onInteract == nil ? [] : .isButton)
+            .accessibilityHint(onInteract == nil ? "" : "두 번 탭하면 삐약이와 놀아요")
+            .accessibilityAction { onInteract?() }
             .onGeometryChange(for: CGRect.self) { geometry in
                 geometry.frame(in: .global)
             } action: { frame in

@@ -6,7 +6,8 @@ enum PB {
         static let surface = adaptive(0xFFFFFF, 0x303140)
         static let textBrown = adaptive(0x34354C, 0xF4F0E6)
         static let secondary = adaptive(0x737185, 0xBAB6CC)
-        static let coral = adaptive(0x6653BE, 0xB9A8FF)
+        /// 브랜드 강조색. 이름과 달리 실제 값은 보라 계열이라 accent로 부른다.
+        static let accent = adaptive(0x6653BE, 0xB9A8FF)
         static let brandYellow = Color(hex: 0xFFDB63)
         static let mint = Color(hex: 0xC4EACF)
         static let lilac = Color(hex: 0xE4DCF7)

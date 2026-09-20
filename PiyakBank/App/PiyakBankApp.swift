@@ -24,7 +24,7 @@ struct PiyakBankApp: App {
                 }
             }
             .modifier(DevelopmentDisplayOptions())
-            .tint(PB.C.coral)
+            .tint(PB.C.accent)
             .environment(\.locale, Locale(identifier: "ko_KR"))
             .onOpenURL { router.handle(url: $0) }
         }
@@ -36,11 +36,46 @@ final class AppPersistence: ObservableObject {
     @Published var container: ModelContainer?
     init() { load() }
     func load() {
+        let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self, RewardReceipt.self])
+        // Relocating a populated store is the risky part of adding a widget or
+        // CloudKit later, so the store lives in the shared App Group from the start.
+        if let shared = Self.sharedStoreURL() {
+            Self.copyLegacyStoreIfNeeded(to: shared)
+            do {
+                container = try ModelContainer(for: schema, configurations: ModelConfiguration(url: shared))
+                container?.mainContext.autosaveEnabled = false
+                return
+            } catch {
+                // The original store was copied, not moved, so falling back here
+                // still opens the person's existing records.
+                container = nil
+            }
+        }
         do {
-            let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self, RewardReceipt.self])
             container = try ModelContainer(for: schema)
             container?.mainContext.autosaveEnabled = false
         } catch { container = nil }
+    }
+
+    private static func sharedStoreURL() -> URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: AppConfig.appGroup)?
+            .appending(path: "PiyakBank.store")
+    }
+
+    /// One-time copy of the pre-App-Group store. Copying rather than moving means a
+    /// failure at any point leaves the original records untouched.
+    private static func copyLegacyStoreIfNeeded(to destination: URL) {
+        let manager = FileManager.default
+        guard !manager.fileExists(atPath: destination.path()) else { return }
+        let legacy = URL.applicationSupportDirectory.appending(path: "default.store")
+        guard manager.fileExists(atPath: legacy.path()) else { return }
+        // SQLite keeps its write-ahead log beside the database; all three must move
+        // together or recent writes are lost.
+        for suffix in ["", "-shm", "-wal"] {
+            let source = URL(fileURLWithPath: legacy.path() + suffix)
+            guard manager.fileExists(atPath: source.path()) else { continue }
+            try? manager.copyItem(at: source, to: URL(fileURLWithPath: destination.path() + suffix))
+        }
     }
 }
 
@@ -94,7 +129,10 @@ struct RootView: View {
                 }
             } else { ProgressView("삐약이의 방을 여는 중") }
         }
-        .task { services.bootstrap(context: context) }
+        .task {
+            NotificationRouting.open = { [weak router] url in router?.handle(url: url) }
+            services.bootstrap(context: context)
+        }
         .onChange(of: phase) { _, value in
             if value == .active { services.refresh() }
             else { services.checkpointRewards() }
@@ -168,16 +206,22 @@ final class WatchBridge: SessionSyncing {
     func didUpdateSession(_ snapshot: SessionSnapshot) { watch.send(snapshot: snapshot) }
 }
 
+/// Set by the root view once the router exists. Routing in-process beats asking
+/// the system to re-open our own URL scheme just to switch tabs.
+@MainActor
+enum NotificationRouting {
+    static var open: ((URL) -> Void)?
+}
+
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationDelegate()
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification) async -> UNNotificationPresentationOptions {
         [.banner, .sound]
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        if let link = response.notification.request.content.userInfo["deeplink"] as? String,
-           let url = URL(string: link), url.scheme == "piyakbank" {
-            await MainActor.run { UIApplication.shared.open(url) }
-        }
+        guard let link = response.notification.request.content.userInfo["deeplink"] as? String,
+              let url = URL(string: link), url.scheme == "piyakbank" else { return }
+        await MainActor.run { NotificationRouting.open?(url) }
     }
 }
 
