@@ -8,6 +8,21 @@
 
 첫 출시 방향은 **무료·광고 없음·회원가입 없음**입니다. 포인트는 앱 꾸미기 전용이며 현금 가치나 송금·인출 기능은 없습니다. 표시 수익은 세금과 수당을 제외한 단순 추정치입니다.
 
+## 현재 진행 상황 · 2026-09-21
+
+출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)까지 `main`에 반영했습니다. **핵심 로직과 주요 iPhone 사용 흐름은 검증했으며, 전체 출시 검증과 TestFlight 배포는 아직 완료하지 않았습니다.**
+
+| 범위 | 상태 |
+|---|---|
+| 자동 검증 | 테스트 115개, 초기 SwiftData 스키마 이전, 리소스·개인정보 매니페스트 검사 통과 |
+| 통합 빌드 | iPhone·Watch·위젯 Release 빌드 통과 — [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569409466) |
+| iPhone 시뮬레이터 | 온보딩, 근무·휴식·정산, 기록 수정, 포인트 분리, 설정·재실행 보존 확인 |
+| 남은 화면·호환성 검증 | iPad 다중 창 실제 조작, VoiceOver·최대 글씨·가로 화면 전체 흐름, 최소 지원 OS 실행 |
+| 남은 실기기 검증 | Watch 통신, 알림·위젯 갱신, 배터리·발열, 배포 빌드의 데이터 업그레이드 |
+| 배포 | Apple Developer Program 미가입으로 배포 서명 Archive·TestFlight 업로드·심사 제출 미진행 |
+
+재현 방법과 후속 체크리스트는 [출시 검증 기록](docs/RELEASE_VALIDATION.md)에 정리했습니다.
+
 ## 실제 앱 화면
 
 <img src="docs/screenshots/iphone-home.jpg" width="240" alt="방 안에서 생활하는 입체 병아리와 예상 수익"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점"> <img src="docs/screenshots/iphone-item-preview.jpg" width="240" alt="회전과 확대 버튼으로 살펴보는 입체 의상">
@@ -94,6 +109,7 @@ docs/          지원·개인정보·심사 자료·검증 기록
 ```sh
 swift test --jobs 1
 python3 scripts/check_release_assets.py
+python3 scripts/verify_legacy_schema_migration.py
 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank \
   -configuration Release -jobs 1 -destination 'generic/platform=iOS' \
   -derivedDataPath /tmp/PiyakBank CODE_SIGNING_ALLOWED=NO build
@@ -106,7 +122,7 @@ xcrun swiftc PiyakBank/Views/PiyakScene.swift scripts/GenerateAssets.swift -o /t
 /tmp/piyak-assets "$PWD"
 ```
 
-GitHub Actions에서 계산·저장 회귀 테스트와 iOS/Watch/위젯 Release 빌드를 수행합니다. 상세 결과와 아직 실기기에서 확인해야 할 항목은 [검증 기록](docs/RELEASE_VALIDATION.md)을 참고하세요.
+GitHub Actions에서 계산·저장 회귀 테스트, 초기 SwiftData 스키마의 업그레이드·재실행 검증, iOS/Watch/위젯 Release 빌드를 수행합니다. 상세 결과와 남은 화면·호환성·실기기 검증은 [검증 기록](docs/RELEASE_VALIDATION.md)을 참고하세요.
 
 ## 데이터와 배포
 
