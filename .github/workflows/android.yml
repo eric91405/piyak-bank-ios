@@ -7,8 +7,12 @@ on:
     paths: ['android/**', '.github/workflows/android.yml', 'PiyakBank/Views/PiyakScene.swift', 'PiyakBank/Shared/PiyakActivityPlan.swift', 'PiyakBank/Views/PiyakBehavior.swift']
 permissions:
   contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test-and-build:
+    name: Android tests, lint, and release bundles
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -20,6 +24,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '21'
+          cache: gradle
+          cache-dependency-path: |
+            android/**/*.gradle.kts
+            android/gradle/wrapper/gradle-wrapper.properties
       - uses: android-actions/setup-android@v4
       - name: Android SDK
         run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
@@ -29,6 +37,8 @@ jobs:
           python3 scripts/check_scene_assets.py
       - name: Tests, lint, phone and watch release bundles
         run: ./gradlew --no-daemon --max-workers=2 :core:test :app:testDebugUnitTest :wear:testDebugUnitTest :app:lintRelease :wear:lintRelease :app:assembleDebug :wear:assembleDebug :app:bundleRelease :wear:bundleRelease
+      - name: Compile isolated device UI tests
+        run: ./gradlew --no-daemon --max-workers=2 -PpiyakUiTest=true :app:assembleUiTest :app:assembleUiTestAndroidTest
       - name: Verify 16 KB native library alignment
         run: python3 scripts/check_native_alignment.py app/build/outputs/apk/debug/app-debug.apk wear/build/outputs/apk/debug/wear-debug.apk app/build/outputs/bundle/release/app-release.aab wear/build/outputs/bundle/release/wear-release.aab
       - name: Save test reports and installable debug builds
@@ -42,6 +52,8 @@ jobs:
             android/app/build/reports/
             android/wear/build/reports/
             android/app/build/outputs/apk/debug/*.apk
+            android/app/build/outputs/apk/uiTest/*.apk
+            android/app/build/outputs/apk/androidTest/uiTest/*.apk
             android/wear/build/outputs/apk/debug/*.apk
             android/app/build/outputs/bundle/release/*.aab
             android/wear/build/outputs/bundle/release/*.aab

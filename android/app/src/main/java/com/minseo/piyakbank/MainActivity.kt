@@ -23,7 +23,7 @@ class MainActivity : ComponentActivity() {
     private val vm: PiyakViewModel by viewModels()
     private var exportKind = "records"
     private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        vm.updateSettings(vm.ui.value.settings.copy(notificationsEnabled = granted))
+        vm.updateNotifications(granted)
         if (!granted) Toast.makeText(this, "알림 없이도 모든 기능을 사용할 수 있어요.", Toast.LENGTH_LONG).show()
     }
     private val exportFile = registerForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
@@ -50,7 +50,7 @@ class MainActivity : ComponentActivity() {
             if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
             else {
                 val permitted = getSystemService(NotificationManager::class.java).areNotificationsEnabled()
-                vm.updateSettings(vm.ui.value.settings.copy(notificationsEnabled = permitted))
+                vm.updateNotifications(permitted)
                 if (!permitted) Toast.makeText(this, "Android 설정에서 삐약뱅크 알림을 허용해 주세요.", Toast.LENGTH_LONG).show()
             }
         }) }

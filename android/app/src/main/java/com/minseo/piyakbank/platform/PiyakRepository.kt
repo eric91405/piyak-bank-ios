@@ -25,6 +25,7 @@ data class UiState(
     val error: String? = null,
     val message: String? = null,
     val actionRevision: Long = 0,
+    val timerStage: String = "",
 )
 
 class PiyakApplication : Application() {
@@ -68,7 +69,8 @@ class PiyakRepository(private val app: Application) {
         if (refreshed) synchronizeSystem()
     }
     private fun publish(state: PersistentState) {
-        mutable.update { it.copy(data = state.data, settings = state.settings, now = clock().wallMillis) }
+        val stage = WatchCommandPolicy.stageToken(state.instanceId, state.data)
+        mutable.update { it.copy(data = state.data, settings = state.settings, now = clock().wallMillis, timerStage = stage) }
     }
     fun tick() {
         scope.launch {
@@ -98,6 +100,10 @@ class PiyakRepository(private val app: Application) {
         }
         if (committed) synchronizeSystem()
     }
+    suspend fun updateWage(value: Int) = mutate("시급을 저장했어요.") { state, _ -> SettingsPolicy.wage(state, value) }
+    suspend fun updateNotifications(enabled: Boolean) = mutate("알림 설정을 저장했어요.") { state, _ -> SettingsPolicy.notifications(state, enabled) }
+    suspend fun updateAnimation(enabled: Boolean) = mutate("움직임 설정을 저장했어요.") { state, _ -> SettingsPolicy.animation(state, enabled) }
+    suspend fun updateReminderMinutes(value: Int) = mutate("알림 간격을 저장했어요.") { state, _ -> SettingsPolicy.reminderMinutes(state, value) }
     private fun showError(e: Exception) {
         val message = when (e) {
             is DomainException -> e.code.messageKorean
@@ -184,14 +190,21 @@ class PiyakViewModel(application: Application) : AndroidViewModel(application) {
     }
     private fun act(message: String, block: (PersistentState, ClockSample) -> PersistentState) { viewModelScope.launch { repository.mutate(message, block) } }
     fun onboard(wage: Int) = act("삐약이의 방에 오신 걸 환영해요!") { s, _ -> s.copy(settings = s.settings.copy(wage = wage, onboarded = true).also { it.validate() }) }
-    fun start() = act("근무를 시작했어요.") { s, t -> check(s.settings.onboarded); s.copy(data = DomainEngine.start(s.data, s.settings.wage, t)) }
-    fun pause() = act("잠시 쉬어요.") { s, t -> s.copy(data = DomainEngine.pause(s.data, t)) }
-    fun resume() = act("다시 함께 일해요.") { s, t -> s.copy(data = DomainEngine.resume(s.data, s.settings.wage, t)) }
-    fun finish() = act("근무를 마치고 포인트를 정산했어요.") { s, t -> s.copy(data = DomainEngine.finish(s.data, t)) }
+    private fun timerAction(message: String, action: WatchAction, expectedSession: String, expectedStage: String) = act(message) { s, t ->
+        s.copy(data = PhoneCommandPolicy.apply(s.data, s.instanceId, s.settings.onboarded, s.settings.wage,
+            action, expectedSession, expectedStage, t))
+    }
+    fun start(expectedStage: String) = timerAction("근무를 시작했어요.", WatchAction.START, "", expectedStage)
+    fun pause(expectedSession: String, expectedStage: String) = timerAction("잠시 쉬어요.", WatchAction.PAUSE, expectedSession, expectedStage)
+    fun resume(expectedSession: String, expectedStage: String) = timerAction("다시 함께 일해요.", WatchAction.RESUME, expectedSession, expectedStage)
+    fun finish(expectedSession: String, expectedStage: String) = timerAction("근무를 마치고 포인트를 정산했어요.", WatchAction.FINISH, expectedSession, expectedStage)
     fun purchase(id: String) = act("새 아이템을 구매하고 꾸몄어요.") { s, t -> s.copy(data = DomainEngine.purchase(s.data, id, t)) }
     fun equip(id: String) = act("꾸미기를 적용했어요.") { s, _ -> s.copy(data = DomainEngine.equip(s.data, id)) }
     fun unequip(slot: DecorSlot) = act("보관함에 넣었어요.") { s, _ -> s.copy(data = DomainEngine.unequip(s.data, slot)) }
-    fun updateSettings(settings: UserSettings) = act("설정을 저장했어요.") { s, _ -> settings.validate(); s.copy(settings = settings) }
+    fun updateWage(value: Int) { viewModelScope.launch { repository.updateWage(value) } }
+    fun updateNotifications(enabled: Boolean) { viewModelScope.launch { repository.updateNotifications(enabled) } }
+    fun updateAnimation(enabled: Boolean) { viewModelScope.launch { repository.updateAnimation(enabled) } }
+    fun updateReminderMinutes(value: Int) { viewModelScope.launch { repository.updateReminderMinutes(value) } }
     fun addRecord(segments: List<Segment>) = act("기록을 추가했어요. 꾸미기 포인트는 변하지 않아요.") { s, t -> s.copy(data = DomainEngine.addRecord(s.data, segments, t)) }
     fun editRecord(id: String, revision: Long, segments: List<Segment>) = act("기록을 수정했어요. 꾸미기 포인트는 유지돼요.") { s, t -> s.copy(data = DomainEngine.editRecord(s.data, id, revision, segments, t)) }
     fun deleteRecord(id: String, revision: Long) = act("기록을 삭제했어요. 꾸미기 포인트는 유지돼요.") { s, _ -> s.copy(data = DomainEngine.deleteRecord(s.data, id, revision)) }

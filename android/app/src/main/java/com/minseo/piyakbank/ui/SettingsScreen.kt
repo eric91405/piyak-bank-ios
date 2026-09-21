@@ -67,7 +67,7 @@ internal fun SettingsScreen(ui: UiState, viewModel: PiyakViewModel, onExport: (S
                 SettingLink(Icons.Rounded.Payments, "기본 시급", ui.settings.wage.toLong().won(), enabled = !ui.busy && data.active == null) { wage = true }
                 InfoText(if (data.active == null) "다음 근무의 예상 수익에 적용돼요. 시급은 꾸미기 포인트에 영향을 주지 않아요." else "진행 중인 근무는 시급을 바꿀 수 없어요. 종료 후 기록에서 수정할 수 있어요.")
                 HorizontalDivider()
-                SettingToggle(Icons.Rounded.Animation, "삐약이 움직임", "움직임을 줄이면 배터리 사용도 줄어들어요", ui.settings.animationEnabled, !ui.busy) { viewModel.updateSettings(ui.settings.copy(animationEnabled = it)) }
+                SettingToggle(Icons.Rounded.Animation, "삐약이 움직임", "움직임을 줄이면 배터리 사용도 줄어들어요", ui.settings.animationEnabled, !ui.busy) { viewModel.updateAnimation(it) }
             }
             SettingsGroup("꾸미기 보상") {
                 SettingValue("타이머 근무", "10분에 100P")
@@ -78,12 +78,12 @@ internal fun SettingsScreen(ui: UiState, viewModel: PiyakViewModel, onExport: (S
             }
             SettingsGroup("알림") {
                 SettingToggle(Icons.Rounded.NotificationsActive, "근무 중 알림", "근무를 잊지 않도록 가끔 알려 드려요", ui.settings.notificationsEnabled, !ui.busy) {
-                    if (it) onRequestNotifications() else viewModel.updateSettings(ui.settings.copy(notificationsEnabled = false))
+                    if (it) onRequestNotifications() else viewModel.updateNotifications(false)
                 }
                 Box {
                     SettingLink(Icons.Rounded.Timer, "알림 간격", "${ui.settings.reminderMinutes}분", enabled = ui.settings.notificationsEnabled && !ui.busy) { intervalMenu = true }
                     DropdownMenu(expanded = intervalMenu, onDismissRequest = { intervalMenu = false }) {
-                        listOf(15, 30, 60, 120).forEach { minutes -> DropdownMenuItem(text = { Text("${minutes}분") }, onClick = { intervalMenu = false; viewModel.updateSettings(ui.settings.copy(reminderMinutes = minutes)) }, trailingIcon = if (ui.settings.reminderMinutes == minutes) ({ Icon(Icons.Rounded.Check, null) }) else null) }
+                        listOf(15, 30, 60, 120).forEach { minutes -> DropdownMenuItem(text = { Text("${minutes}분") }, onClick = { intervalMenu = false; viewModel.updateReminderMinutes(minutes) }, trailingIcon = if (ui.settings.reminderMinutes == minutes) ({ Icon(Icons.Rounded.Check, null) }) else null) }
                     }
                 }
                 SettingValue("시스템 알림 권한", if (systemNotifications) "허용됨" else "꺼져 있음")
@@ -168,7 +168,7 @@ private fun WageDialog(ui: UiState, viewModel: PiyakViewModel, onDismiss: () -> 
             Text("1~1,000,000원 · 다음 근무부터 적용돼요. 꾸미기 포인트에는 영향을 주지 않아요.", style = MaterialTheme.typography.bodySmall)
             ErrorText(ui.error)
         }
-    }, confirmButton = { Button(onClick = { submittedAt = ui.actionRevision; viewModel.updateSettings(ui.settings.copy(wage = value.toInt())) }, enabled = valid && !ui.busy && ui.data?.active == null) { Text("저장") } }, dismissButton = { TextButton(onClick = onDismiss, enabled = !ui.busy) { Text("취소") } })
+    }, confirmButton = { Button(onClick = { submittedAt = ui.actionRevision; viewModel.updateWage(value.toInt()) }, enabled = valid && !ui.busy && ui.data?.active == null) { Text("저장") } }, dismissButton = { TextButton(onClick = onDismiss, enabled = !ui.busy) { Text("취소") } })
 }
 
 @Composable

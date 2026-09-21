@@ -87,9 +87,26 @@ class PiyakUserFlowsTest {
 
     private fun data(): AppState = repository.ui.value.data!!
     private fun waitForState(condition: (AppState) -> Boolean) {
-        compose.waitUntil(timeoutMillis = 10_000) { repository.ui.value.data?.let(condition) == true && !repository.ui.value.busy }
+        try {
+            compose.waitUntil(timeoutMillis = 10_000) {
+                repository.ui.value.error != null ||
+                    (repository.ui.value.data?.let(condition) == true && !repository.ui.value.busy)
+            }
+        } catch (e: ComposeTimeoutException) {
+            val ui = repository.ui.value
+            throw AssertionError("UI action did not reach its expected state: busy=${ui.busy}, error=${ui.error}, " +
+                "actionRevision=${ui.actionRevision}, active=${ui.data?.active?.id}, " +
+                "working=${ui.data?.active?.tracking?.working}, records=${ui.data?.records?.size}", e)
+        }
         assertNull("Action must not report an error", repository.ui.value.error)
         compose.waitForIdle()
+    }
+    /** Real touch delivery matters: semantically enabled buttons can still be covered by a banner. */
+    private fun assertFeedbackDoesNotCoverControl(message: String, button: String) {
+        val feedback = compose.onAllNodesWithText(message).fetchSemanticsNodes().singleOrNull() ?: return
+        val control = compose.onNodeWithText(button).assertIsEnabled().fetchSemanticsNode()
+        assertFalse("Transient feedback covers the $button touch target",
+            feedback.boundsInRoot.overlaps(control.boundsInRoot))
     }
     private fun dialogButton(label: String) = compose.onNode(hasText(label) and hasClickAction() and hasAnyAncestor(isDialog()))
     private fun snapshot(): PersistentState = runBlocking { repository.snapshot() }
@@ -124,14 +141,17 @@ class PiyakUserFlowsTest {
         dialogButton("근무 시작").performClick()
         waitForState { it.active?.tracking?.working == true }
         val sessionId = data().active!!.id
+        assertFeedbackDoesNotCoverControl("근무를 시작했어요.", "잠깐 쉬기")
         compose.onNodeWithText("잠깐 쉬기").assertIsDisplayed().performClick()
         waitForState { it.active?.tracking?.working == false }
         compose.onNodeWithText("다시 근무").assertIsDisplayed()
         assertEquals(0, snapshot().data.active!!.segments.last().hourlyWage)
 
+        assertFeedbackDoesNotCoverControl("잠시 쉬어요.", "다시 근무")
         compose.onNodeWithText("다시 근무").performClick()
         waitForState { it.active?.tracking?.working == true }
         assertEquals(sessionId, snapshot().data.active!!.id)
+        assertFeedbackDoesNotCoverControl("다시 함께 일해요.", "근무 마치기")
         compose.onNodeWithText("근무 마치기").performClick()
         dialogButton("취소").performClick()
         assertNotNull(snapshot().data.active)

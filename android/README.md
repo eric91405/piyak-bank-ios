@@ -17,20 +17,27 @@
 
 ## 현재 검증 상태
 
-2026-09-21 개발 검증 중간 상태입니다. 다음 결과는 전체 출시 검증 완료를 의미하지 않습니다.
+2026-09-21 기준 JVM 76개와 최종 기기 instrumentation 15개, **서로 다른 자동 테스트 91개를 통과했습니다.** 전체 출시 검증과 Play 배포는 아직 완료되지 않았습니다. 자세한 범위·증거·미실행 항목은 [검증 결과 기록](docs/VALIDATION.md)에 구분했습니다.
 
 | 항목 | 확인된 결과 |
 | --- | --- |
-| 순수 Kotlin 코어 테스트 | 45개 통과 |
-| Android 앱의 JVM 테스트 | 15개 통과 |
+| JVM 테스트 | 코어 50개 + 앱 19개 + Wear 7개, 총 76개 통과 |
+| 실제 SQLite instrumentation | API 35 Android 에뮬레이터에서 8개 통과 |
 | 휴대폰·Wear OS Debug APK | 빌드 성공 |
-| 휴대폰 instrumentation 테스트 APK | 빌드 성공, 기기 실행은 아직 미확인 |
-| Release 빌드·Release Lint | 아직 미확인 |
-| 실제 GPU 화면·전체 UI 흐름 | 아직 미확인 |
-| 실기기 휴대폰–Wear OS 연결·알림·위젯·배터리 | 아직 미확인 |
+| Release Lint | 양쪽 오류 0개; 휴대폰 경고 18개, Wear 경고 13개 및 각 hint 1개 |
+| 최종 R8 축소 Release APK·AAB | 최신 수정으로 양쪽 재생성 성공; AAB unsigned, 휴대폰 약 9.3 MiB·Wear 약 7.9 MiB |
+| 16 KB 네이티브 정렬 검사 | 최종 5개 산출물·4 ABI 검사 통과; APK ELF/무압축 ZIP·AAB ELF |
+| 꾸미기·3D 파일 검사 | 카탈로그 81개 일치; 메시 362개·삼각형 245,728개, 원본 크기 검증 통과 |
+| API 36·16 KB 페이지 R8 앱 | 로컬 개발용 서명으로 설치·실행; 방·삐약이·배회·화분 상호작용과 주요 근무 흐름 확인 |
+| 수동 데이터 보존 | 정산 101원·6P를 프로세스 재시작과 최종 R8 QA APK 덮어쓰기 설치 후에도 보존 |
+| 최종 API 36 instrumentation | 실제 16 KB 페이지 환경에서 SQLite 8개·설정 저장소 2개·Compose UI 5개, 총 15개 통과 |
+| 가로 화면 | 환경 차단: 자동 회전이 켜져 있어도 현재 AVD가 앱을 세로 상태로 유지; 다른 환경 재검증 필요 |
+| Wear API 35 작은 원형 화면 | R8 앱 설치·실행, 오프라인 조작 비활성화와 스크롤·새로고침 접근 확인 |
+| 원격 CI | `f060db8` 대상 실행 통과; 후속 변경의 최종 실행은 확인 대기 |
+| 실물 휴대폰–Wear OS 연결·알림·위젯·배터리 | 미실행 |
 | Play 내부/비공개 테스트·출시 심사 | 미진행 |
 
-테스트 APK를 만들었다는 것은 테스트를 기기에서 실행했다는 뜻이 아닙니다. 실행할 시나리오와 기기별 증거 기록 방법은 [UI 테스트 계획](docs/UI_TEST_PLAN.md)에 정리했습니다. 최종 실행 결과가 추가되면 이 표도 함께 갱신합니다.
+Wear 최근 앱 화면·백업 규칙을 수정한 뒤 Lint를 재실행했습니다. 남은 경고가 0개라는 뜻은 아닙니다. 16 KB 페이지는 API 36 에뮬레이터에서 `getconf PAGESIZE`의 16384 값을 확인했으며 물리 기기 검증은 남아 있습니다. 81종 전체 착용 조합, 접근성, 실제 시계 연결과 Play 설치 검증은 [UI 테스트 계획](docs/UI_TEST_PLAN.md)을 따릅니다. 소유자는 기존 개인 Google Play 개발자 계정을 보유한다고 확인했으며, 계정 생성일과 적용 테스트 조건은 Console에서 확인해야 합니다.
 
 ## 개발 환경
 
@@ -54,7 +61,7 @@ Android Studio에서 이 `android/` 폴더를 열고 SDK Manager로 Android SDK 
 아래 명령의 작업 디렉터리는 `android/`입니다. macOS 예시이며 Windows에서는 `nice`를 빼고 `gradlew.bat`를 사용합니다.
 
 ```sh
-nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest :wear:testDebugUnitTest
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebug :wear:assembleDebug
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebugAndroidTest
 ```
@@ -65,7 +72,7 @@ QA 전용 휴대폰 또는 에뮬레이터를 하나 연결한 뒤 instrumentati
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
 ```
 
-Release 코드 축소와 Lint, 배포 번들은 별도 확인합니다. 아래는 실행 방법이며 이 문서의 중간 결과 표에 없는 작업의 통과를 주장하지 않습니다.
+Release 코드 축소와 Lint, 배포 번들을 다시 검증하는 명령입니다. 실제 업로드에는 소유자가 준비한 서명이 필요합니다.
 
 ```sh
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:lintRelease :wear:lintRelease
@@ -79,7 +86,7 @@ nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:bundleRelease :wear:bundle
 - 휴대폰 테스트 APK: `app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk`
 - 휴대폰 AAB: `app/build/outputs/bundle/release/app-release.aab`
 - 시계 AAB: `wear/build/outputs/bundle/release/wear-release.aab`
-- 테스트 결과: `core/build/reports/tests/test/`, `app/build/reports/tests/testDebugUnitTest/`
+- 테스트 결과: `core/build/reports/tests/test/`, `app/build/reports/tests/testDebugUnitTest/`, `wear/build/reports/tests/testDebugUnitTest/`
 - Lint 결과: 각 앱 모듈의 `build/reports/`
 
 서명 환경 변수가 없으면 Release에 업로드 서명을 적용하지 않습니다. unsigned 번들을 Play 업로드 준비 완료로 취급하지 않습니다. 키 준비와 실제 배포 검증은 [Play Store 출시 체크리스트](docs/PLAY_STORE.md)를 따릅니다.
@@ -106,7 +113,7 @@ android/
 │       └── androidTest/    # 기기 저장소 instrumentation 테스트
 ├── wear/                   # 연결된 Wear OS 앱, 공용 scene/assets 사용
 ├── scripts/                # iOS 원본 기하의 Android 모델 변환·검사
-└── docs/                   # UI 검증 계획, Play 출시 체크리스트
+└── docs/                   # 실제 검증 기록, UI 계획, Play 출시 체크리스트
 ```
 
 3D 모델을 바꿀 때는 [모델 변환 절차](scripts/SCENE.md)를 따릅니다. 일반 Android 빌드는 커밋된 모델을 사용하므로 SceneKit나 macOS 모델 변환이 필요하지 않습니다.

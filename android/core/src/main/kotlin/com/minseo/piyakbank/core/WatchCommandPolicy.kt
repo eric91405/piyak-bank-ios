@@ -44,19 +44,23 @@ object WatchCommandPolicy {
         require(Bounds.date(nowWallMillis) && Bounds.date(command.createdMillis)) { "명령 시간을 확인할 수 없어요." }
         val age = nowWallMillis - command.createdMillis
         require(age in -30_000L..120_000L) { "명령이 만료됐어요. 다시 눌러 주세요." }
-        require(command.sessionId == (context.data.active?.id ?: "") &&
-            command.stageToken == stageToken(context.instanceId, context.data)) {
+        requireCurrentStage(context.instanceId, context.data, command.sessionId, command.stageToken, command.action)
+        return CommandDecision.APPLY
+    }
+
+    /** Used by local controls too: an old confirmation must not operate on a newer shift. */
+    fun requireCurrentStage(instanceId: String, data: AppState, sessionId: String, token: String, action: WatchAction) {
+        require(sessionId == (data.active?.id ?: "") && token == stageToken(instanceId, data)) {
             "근무 상태가 달라졌어요. 새로고침해 주세요."
         }
-        val active = context.data.active
-        val allowed = when (command.action) {
+        val active = data.active
+        val allowed = when (action) {
             WatchAction.START -> active == null
             WatchAction.PAUSE -> active?.tracking?.working == true
             WatchAction.RESUME -> active != null && !active.tracking.working
             WatchAction.FINISH -> active != null
         }
         require(allowed) { "현재 근무 상태에서 실행할 수 없어요. 새로고침해 주세요." }
-        return CommandDecision.APPLY
     }
 
     private fun validId(value: String): Boolean = value.length in 1..100 && value.isNotBlank() &&

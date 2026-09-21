@@ -27,17 +27,19 @@ iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-i
 
 ### Android · Wear OS
 
-`android/`에 별도 Gradle 프로젝트를 추가해 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현하고 있습니다. **개발 빌드와 일부 자동 테스트를 통과한 상태이며 Play 출시 준비 완료 상태는 아닙니다.**
+`android/`에 별도 Gradle 프로젝트로 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현했습니다. **최신 코드의 로컬 자동 검사와 빌드는 통과했으며, 추가 화면 점검과 Play 배포 전 검증을 진행 중입니다.**
 
 | 범위 | 확인된 상태 |
 |---|---|
-| JVM 테스트 | 코어 45개 + 앱 15개 통과 |
-| Android 기기 저장소 테스트 | API 35에서 SQLite instrumentation 8개 통과 |
-| 개발 빌드 | 휴대폰·Wear OS Debug APK 및 휴대폰 테스트 APK 빌드 성공 |
-| 남은 검증 | Release·Lint 최종 결과, 3D GPU 화면, 전체 UI·접근성, 최소 OS, 실제 시계 연결·알림·위젯·발열 |
-| 배포 | Play 업로드·실제 배포 설치·심사 미진행, 개발자 계정 상태 미확인 |
+| 자동 검사·빌드 | 최신 코드의 JVM·SQLite·설정·Compose 사용 흐름 회귀 테스트와 Debug·R8 Release 빌드 통과. 기기 테스트는 API 36의 실제 16,384바이트 페이지 환경에서 실행 |
+| Android 휴대폰 수동 QA | API 36 에뮬레이터의 16,384바이트 페이지 환경에서 R8 Release의 삐약이·방·화분 렌더링, 근무 시작·휴식·재개·종료, 화분 미리보기와 프로세스 재시작 후 101원·6P 보존 확인. 같은 QA 인증서로 최신 R8 설치본을 덮어 설치한 뒤에도 데이터·GPU 장면 유지 확인 |
+| Wear OS 수동 QA | API 35 작은 원형 화면에서 연결 전 안내·비활성 근무 버튼·스크롤 확인. 실제 휴대폰 연결 검증과 구분 |
+| 추가 수정 | 오래된 근무 조작 거부, 설정 필드 간 덮어쓰기 방지, 하단 조작 버튼을 가리던 안내 배너 수정 및 로컬 회귀 검증 통과 |
+| 원격 CI | [이전 커밋의 Android CI 통과](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162). 최신 수정의 결과는 별도 확인 |
+| 남은 검증 | 81개 전체 모델·조합, 전체 UI·접근성·최소 OS, 가로 화면(에뮬레이터 회전이 Android 화면에 적용되지 않아 미확인), 물리 기기의 시계 연결·알림·위젯·장시간 전력, 최종 배포 서명과 Play 설치 |
+| 배포 | 기존 개인 Google Play 개발자 계정 보유 확인. 앱 업로드·실제 Play 설치·심사 미진행이며 계정별 배포 조건과 최종 서명 확인 필요 |
 
-설정과 모듈 구조는 [Android README](android/README.md), 시나리오는 [Android UI 테스트 계획](android/docs/UI_TEST_PLAN.md), 외부 배포 절차는 [Play Store 체크리스트](android/docs/PLAY_STORE.md)를 참고하세요. Android의 결과는 iOS 테스트 115개와 별개입니다.
+실행별 정확한 테스트 개수·결과·남은 항목은 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 예정된 테스트 수를 통과 수로 세지 않습니다. 설정과 모듈 구조는 [Android README](android/README.md), 시나리오는 [Android UI 테스트 계획](android/docs/UI_TEST_PLAN.md), 외부 배포 절차는 [Play Store 체크리스트](android/docs/PLAY_STORE.md)를 참고하세요. Android의 결과는 iOS 테스트 115개와 별개입니다.
 
 ## 실제 iOS 앱 화면
 
@@ -158,12 +160,14 @@ Android Studio에서 `android/` 폴더를 엽니다. JDK 17 이상과 Android SD
 다음 명령은 **`android/` 폴더 안에서** 실행합니다. Gradle은 worker 1개·병렬 빌드 끄기·JVM 최대 2GB를 기본으로 사용합니다.
 
 ```sh
-nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest :wear:testDebugUnitTest
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebug :wear:assembleDebug
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
 ```
 
 마지막 명령은 합성 데이터용 QA 기기 또는 에뮬레이터를 연결한 뒤 실행합니다. 빌드와 에뮬레이터 부하를 겹치지 않고 사용하지 않는 기기를 종료합니다. Release 검증과 서명 환경 변수는 [Android 개발 문서](android/README.md)에 정리했으며, unsigned 산출물을 스토어 업로드 준비 완료로 취급하지 않습니다.
+
+실제 Compose 사용 흐름과 설정 경쟁 테스트는 `-PpiyakUiTest=true`로 선택하는 별도 `com.minseo.piyakbank.uitest` 설치본에서 실행합니다. 일반 Debug에서는 이 테스트들을 건너뛰며, 건너뛴 항목을 통과로 세지 않습니다. 세부 명령과 결과는 [Android 검증 기록](android/docs/VALIDATION.md)을 따릅니다.
 
 ## 데이터와 배포
 

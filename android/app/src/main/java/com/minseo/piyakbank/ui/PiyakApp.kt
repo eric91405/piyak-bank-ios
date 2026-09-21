@@ -29,6 +29,7 @@ private enum class AppTab(val title: String, val icon: ImageVector) {
 fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNotifications: () -> Unit) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     var selected by rememberSaveable { mutableIntStateOf(0) }
+    var homeControlsHeight by remember { mutableStateOf(0.dp) }
     val tabState = rememberSaveableStateHolder()
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(ui.settings.onboarded) { if (!ui.settings.onboarded) selected = 0 }
@@ -64,7 +65,9 @@ fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNot
                     val wide = maxWidth >= 840.dp
                     Scaffold(
                         containerColor = MaterialTheme.colorScheme.background,
-                        snackbarHost = { SnackbarHost(snackbar) },
+                        // The Home controls sit inside the scaffold content. Lift feedback above
+                        // their measured height so a quick pause/finish tap never hits the snackbar.
+                        snackbarHost = { SnackbarHost(snackbar, Modifier.padding(bottom = if (selected == 0) homeControlsHeight else 0.dp)) },
                         bottomBar = {
                             if (!wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                                 AppTab.entries.forEachIndexed { index, tab ->
@@ -86,7 +89,7 @@ fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNot
                             Box(Modifier.weight(1f).fillMaxHeight()) {
                                 tabState.SaveableStateProvider(selected) {
                                     when (selected) {
-                                        0 -> HomeScreen(ui, viewModel, onShop = { selected = 1 })
+                                        0 -> HomeScreen(ui, viewModel, onShop = { selected = 1 }, onControlsHeightChanged = { homeControlsHeight = it })
                                         1 -> ShopScreen(ui, viewModel)
                                         2 -> HistoryScreen(ui, viewModel)
                                         else -> SettingsScreen(ui, viewModel, onExport, onRequestNotifications)

@@ -15,9 +15,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -30,9 +33,12 @@ import java.time.Instant
 import java.time.ZoneId
 
 @Composable
-internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Unit) {
+internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Unit, onControlsHeightChanged: (Dp) -> Unit = {}) {
     val data = ui.data ?: return
+    val density = LocalDensity.current
     var confirm by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmSession by rememberSaveable { mutableStateOf("") }
+    var confirmStage by rememberSaveable { mutableStateOf("") }
     var submittedAt by rememberSaveable { mutableStateOf<Long?>(null) }
     val active = data.active
     val running = active?.segments?.lastOrNull()?.hourlyWage?.let { it > 0 } == true
@@ -53,7 +59,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
                     if (wide) {
                         Row(horizontalArrangement = Arrangement.spacedBy(22.dp), verticalAlignment = Alignment.Top) {
                             Column(Modifier.weight(1.15f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                                Room(ui, animationChanged = { viewModel.updateSettings(ui.settings.copy(animationEnabled = it)) })
+                                Room(ui, animationChanged = { viewModel.updateAnimation(it) })
                                 GrowthCard(data)
                             }
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -62,7 +68,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
                             }
                         }
                     } else {
-                        Room(ui, animationChanged = { viewModel.updateSettings(ui.settings.copy(animationEnabled = it)) })
+                        Room(ui, animationChanged = { viewModel.updateAnimation(it) })
                         EarningsCard(ui, todayPay, running)
                         GrowthCard(data)
                         ShopLink(onShop)
@@ -70,19 +76,19 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
                 }
             }
         }
-        Surface(shadowElevation = 4.dp, color = MaterialTheme.colorScheme.surface) {
+        Surface(modifier = Modifier.onSizeChanged { size -> onControlsHeightChanged(with(density) { size.height.toDp() }) }, shadowElevation = 4.dp, color = MaterialTheme.colorScheme.surface) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (active == null) {
-                    Button(onClick = { confirm = "start" }, enabled = !ui.busy, modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
+                    Button(onClick = { confirmSession = ""; confirmStage = ui.timerStage; confirm = "start" }, enabled = !ui.busy, modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
                         Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("삐약이와 근무 시작")
                     }
                 } else {
                     Row(Modifier.widthIn(max = 740.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FilledTonalButton(onClick = { if (running) viewModel.pause() else viewModel.resume() }, enabled = !ui.busy, modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
+                        FilledTonalButton(onClick = { if (running) viewModel.pause(active.id, ui.timerStage) else viewModel.resume(active.id, ui.timerStage) }, enabled = !ui.busy, modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
                             Icon(if (running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, null)
                             Spacer(Modifier.width(5.dp)); Text(if (running) "잠깐 쉬기" else "다시 근무")
                         }
-                        Button(onClick = { confirm = "finish" }, enabled = !ui.busy, modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
+                        Button(onClick = { confirmSession = active.id; confirmStage = ui.timerStage; confirm = "finish" }, enabled = !ui.busy, modifier = Modifier.weight(1f).heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
                             Icon(Icons.Rounded.Check, null); Spacer(Modifier.width(5.dp)); Text("근무 마치기")
                         }
                     }
@@ -100,9 +106,10 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
                 Text("시급은 설정에서 바꿀 수 있어요. 근무 중에는 잠깐 쉬기를 눌러 휴식을 기록해 주세요.")
             } else Text("근무 기록을 저장하고 꾸미기 포인트를 받아요. 휴식을 제외한 타이머 근무 시간으로 계산해요.")
             InfoText("10분에 100P · 한국 시간 하루 최대 4,800P\n같은 날의 짧은 근무 시간도 합산해요.")
+            if (confirmStage != ui.timerStage) ErrorText("다른 화면에서 근무 상태가 변경됐어요. 닫은 뒤 다시 확인해 주세요.")
             ErrorText(ui.error)
         } },
-        confirmButton = { Button(onClick = { submittedAt = ui.actionRevision; if (confirm == "start") viewModel.start() else viewModel.finish() }, enabled = !ui.busy) { Text(if (confirm == "start") "근무 시작" else "근무 마치기") } },
+        confirmButton = { Button(onClick = { submittedAt = ui.actionRevision; if (confirm == "start") viewModel.start(confirmStage) else viewModel.finish(confirmSession, confirmStage) }, enabled = !ui.busy && confirmStage == ui.timerStage) { Text(if (confirm == "start") "근무 시작" else "근무 마치기") } },
         dismissButton = { TextButton(onClick = { confirm = null; submittedAt = null }, enabled = !ui.busy) { Text("취소") } },
     )
 }
