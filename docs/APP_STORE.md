@@ -17,15 +17,15 @@
 - 개인정보 URL: `https://eric91405.github.io/piyak-bank-ios/privacy/`
 - 지원 URL: `https://eric91405.github.io/piyak-bank-ios/support/`
 
-두 주소는 `docs/` 폴더를 GitHub Pages로 게시해 얻는 고정 주소입니다. 브랜치 이름이나 파일 경로가 바뀌어도 깨지지 않으므로, 심사 도중 링크가 사라질 위험이 없습니다. 제출 전에 다음을 확인하세요.
+두 주소는 `docs/` 폴더를 GitHub Pages로 게시하는 고정 주소입니다. 공개 경로를 유지하려면 게시 소스 브랜치와 permalink를 관리해야 합니다. 제출 전에 다음을 확인하세요.
 
-1. 저장소 Settings → Pages → Source를 `Deploy from a branch`, 브랜치 `main`, 폴더 `/docs`로 설정
+1. 저장소 Settings → Pages → Source를 `Deploy from a branch`, 브랜치 `codex/app-store-launch`, 폴더 `/docs`로 설정([게시 절차](PUBLISHING.md))
 2. 첫 배포 후 위 두 주소가 실제로 열리는지 확인 (반영까지 몇 분 걸립니다)
-3. `docs/_config.yml`이 `APP_STORE.md`와 `RELEASE_VALIDATION.md`를 제외하므로 심사 메모와 내부 검증 기록은 공개되지 않습니다
+3. `docs/_config.yml`은 심사 메모·검증 기록을 Pages 웹사이트에서 제외합니다. 공개 GitHub 저장소에서는 해당 원본 파일을 볼 수 있습니다.
 
 ### 준비된 화면
 
-`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈의 시간 보상 안내와 상점·아이템 미리보기의 새 가격을 반영했습니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용입니다. 제출 전에 최종 서명 빌드와 일치하는 화면으로 교체하고 Watch 실기기 화면도 추가하세요.
+`docs/screenshots/`에 실제 시뮬레이터 캡처가 있습니다. iPhone 6.9인치용 `iphone-home.jpg`, `iphone-decorate.jpg`는 1320×2868입니다. 홈의 시간 보상 안내와 상점·아이템 미리보기의 새 가격을 반영했습니다. Watch Series 11 46mm의 `watch-summary.png`, `watch-character.png`는 416×496이며 연결 대기 상태의 실제 화면입니다. iPad 13인치용 `ipad-home.jpg`(2064×2752)와 `iphone-accessibility-dark.jpg`는 모델 개선 이전의 레이아웃·큰 글씨 검증 참고용입니다. 제출 전에 최종 서명 빌드와 일치하는 iPad 화면을 갱신하고 Watch 연결 상태의 화면을 확인하세요.
 
 ### 설명
 
@@ -69,8 +69,8 @@ App Store Connect의 최종 개인정보 응답은 실제 배포 버전·운영 
 
 ## 제출 직전 운영자 확인
 
-- **Apple Watch 스크린샷 (필수).** watchOS 앱을 포함해 제출하면 App Store Connect가 워치 스크린샷을 별도로 요구합니다. 현재 `docs/screenshots/`에는 iPhone·iPad 캡처만 있습니다. 워치 시뮬레이터(또는 실기기)에서 적산 화면과 캐릭터 화면을 최소 1장씩 캡처해 추가하세요.
-- **GitHub Pages 게시 확인.** Settings → Pages에서 `main` 브랜치 `/docs` 폴더로 게시하고, 개인정보·지원 URL이 실제로 열리는지 확인
+- **Apple Watch 스크린샷.** 416×496 수익·캐릭터 화면 2장을 준비했습니다. 제출 대상과 최종 서명 빌드의 화면·규격이 일치하는지 확인하세요. 실제 통신 시험은 별도로 필요합니다.
+- **GitHub Pages 게시 확인.** 현재 출시 브랜치 `/docs`를 게시 소스로 유지하고, 개인정보·지원 URL이 실제로 열리는지 확인. `main` 병합 후 소스 전환은 [게시 절차](PUBLISHING.md) 참고
 - Apple Developer 멤버십, 실제 번들 ID 3개, App Group 및 서명 프로파일
 - App Store Connect 앱 생성/연결, 가격 무료, 판매 지역, 연령 등급 설문
 - 개인정보·지원 문서의 공개 URL 접속 및 지원 이메일 수신 가능 여부

@@ -4,52 +4,61 @@ import UserNotifications
 @MainActor
 final class NotificationScheduler: SessionReminding {
     private let center = UNUserNotificationCenter.current()
-    private var pendingUpdate: Task<Void, Never>?
-    private var scheduledPlan: String?
-    private let identifiers = (0..<48).map { "piyak.reminder.\($0)" }
+    private lazy var reconciler = ReminderReconciler(client: SystemReminderClient(center: center))
 
     func requestAuth() async -> Bool {
         (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
     }
 
     func update(snapshot: SessionSnapshot, interval: ReminderInterval, enabled: Bool) {
-        // Every foreground triggers a refresh. Rescheduling an unchanged plan would
-        // restart the cadence from the moment the app was opened, so a run that has
-        // not actually changed keeps the schedule it already has.
-        let plan = "\(enabled)|\(snapshot.isRunning)|\(snapshot.isPaused)|\(snapshot.sessionId ?? "-")|\(interval.rawValue)"
-        guard plan != scheduledPlan else { return }
-        scheduledPlan = plan
-        // Serialize cancellation and addition so an older asynchronous cancellation
-        // cannot delete newly scheduled notifications after a quick pause/resume.
-        let previous = pendingUpdate
-        previous?.cancel()
-        pendingUpdate = Task {
-            await previous?.value
-            guard !Task.isCancelled else { return }
-            let old = await center.pendingNotificationRequests()
-            center.removePendingNotificationRequests(withIdentifiers:
-                old.map(\.identifier).filter { $0.hasPrefix("piyak.") })
-            guard enabled, snapshot.isRunning, !snapshot.isPaused, !Task.isCancelled else { return }
-            let settings = await center.notificationSettings()
-            guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else { return }
-            let now = Date()
-            for index in 0..<48 {
-                guard !Task.isCancelled else { return }
-                let offset = Double((index + 1) * interval.rawValue * 60)
-                guard offset <= 24 * 3600 else { break }
-                let fire = now.addingTimeInterval(offset)
-                let content = UNMutableNotificationContent()
-                content.title = "삐약, 잠깐 쉬어 갈까요?"
-                // The app may be closed when this fires, so the projection cannot be
-                // stated as fact — the person may have stopped working hours ago.
-                content.body = "계속 근무 중이라면 이번 근무는 약 \(snapshot.amount(at: fire).won)이에요. 이미 마쳤다면 앱에서 종료해 주세요."
-                content.sound = .default
-                content.userInfo = ["deeplink": "piyakbank://home"]
-                let request = UNNotificationRequest(identifier: identifiers[index], content: content,
-                    trigger: UNTimeIntervalNotificationTrigger(timeInterval: offset, repeats: false))
-                do { try await center.add(request) }
-                catch { return } // Permission and delivery status are shown in Settings.
+        reconciler.update(plan: ReminderPlan(snapshot: snapshot, intervalMinutes: interval.rawValue, enabled: enabled))
+    }
+}
+
+@MainActor
+private final class SystemReminderClient: ReminderNotificationClient {
+    private let center: UNUserNotificationCenter
+    init(center: UNUserNotificationCenter) { self.center = center }
+
+    func pendingReminders() async -> [ReminderNotification] {
+        let requests = await center.pendingNotificationRequests()
+        return requests.map { request in
+            let fireDate: Date?
+            if let trigger = request.trigger as? UNCalendarNotificationTrigger {
+                fireDate = trigger.nextTriggerDate()
+            } else if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+                fireDate = trigger.nextTriggerDate()
+            } else {
+                fireDate = nil
             }
+            return ReminderNotification(identifier: request.identifier,
+                fireDate: fireDate ?? .distantPast,
+                title: request.content.title, body: request.content.body,
+                deepLink: request.content.userInfo["deeplink"] as? String ?? "")
         }
+    }
+
+    func canSchedule() async -> Bool {
+        let settings = await center.notificationSettings()
+        return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+    }
+
+    func removeReminders(withIdentifiers identifiers: [String]) {
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    func addReminder(_ reminder: ReminderNotification) async throws {
+        guard reminder.fireDate > Date() else { return }
+        let content = UNMutableNotificationContent()
+        content.title = reminder.title
+        content.body = reminder.body
+        content.sound = .default
+        content.userInfo = ["deeplink": reminder.deepLink]
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = calendar.dateComponents([.calendar, .timeZone, .year, .month, .day, .hour, .minute, .second], from: reminder.fireDate)
+        let request = UNNotificationRequest(identifier: reminder.identifier, content: content,
+            trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
+        try await center.add(request)
     }
 }

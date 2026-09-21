@@ -10,7 +10,7 @@ permalink: /support/
 
 - 운영자: 김민서
 - 이메일: [eric91405@gmail.com](mailto:eric91405@gmail.com)
-- [개인정보 처리방침](PRIVACY.md)
+- [개인정보 처리방침](https://eric91405.github.io/piyak-bank-ios/privacy/)
 
 ## 문제가 생겼나요?
 

@@ -7,6 +7,7 @@ import Combine
 struct PiyakBankApp: App {
     @StateObject private var persistence = AppPersistence()
     @StateObject private var router = AppRouter()
+    init() { UNUserNotificationCenter.current().delegate = NotificationDelegate.shared }
     var body: some Scene {
         WindowGroup {
             Group {
@@ -37,22 +38,12 @@ final class AppPersistence: ObservableObject {
     init() { load() }
     func load() {
         let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self, RewardReceipt.self])
-        // Relocating a populated store is the risky part of adding a widget or
-        // CloudKit later, so the store lives in the shared App Group from the start.
-        if let shared = Self.sharedStoreURL() {
-            Self.copyLegacyStoreIfNeeded(to: shared)
-            do {
-                container = try ModelContainer(for: schema, configurations: ModelConfiguration(url: shared))
-                container?.mainContext.autosaveEnabled = false
-                return
-            } catch {
-                // The original store was copied, not moved, so falling back here
-                // still opens the person's existing records.
-                container = nil
-            }
-        }
         do {
-            container = try ModelContainer(for: schema)
+            // An unavailable group or failed migration must show the recovery UI,
+            // never open a blank database or resume writes to an obsolete copy.
+            guard let shared = Self.sharedStoreURL() else { throw StoreMigration.Failure.incompleteStore }
+            try StoreMigration.prepare(legacyCandidates: Self.legacyStoreURLs(schema: schema, destination: shared), destination: shared)
+            container = try ModelContainer(for: schema, configurations: ModelConfiguration(url: shared))
             container?.mainContext.autosaveEnabled = false
         } catch { container = nil }
     }
@@ -62,21 +53,12 @@ final class AppPersistence: ObservableObject {
             .appending(path: "PiyakBank.store")
     }
 
-    /// One-time copy of the pre-App-Group store. Copying rather than moving means a
-    /// failure at any point leaves the original records untouched.
-    private static func copyLegacyStoreIfNeeded(to destination: URL) {
-        let manager = FileManager.default
-        guard !manager.fileExists(atPath: destination.path()) else { return }
-        let legacy = URL.applicationSupportDirectory.appending(path: "default.store")
-        guard manager.fileExists(atPath: legacy.path()) else { return }
-        // SQLite keeps its write-ahead log beside the database; all three must move
-        // together or recent writes are lost.
-        for suffix in ["", "-shm", "-wal"] {
-            let source = URL(fileURLWithPath: legacy.path() + suffix)
-            guard manager.fileExists(atPath: source.path()) else { continue }
-            try? manager.copyItem(at: source, to: URL(fileURLWithPath: destination.path() + suffix))
-        }
+    static func legacyStoreURLs(schema: Schema, destination: URL) -> [URL] {
+        [ModelConfiguration(schema: schema).url,
+         URL.applicationSupportDirectory.appending(path: "default.store"),
+         destination.deletingLastPathComponent().appending(path: "default.store")]
     }
+
 }
 
 @MainActor
@@ -130,7 +112,7 @@ struct RootView: View {
             } else { ProgressView("삐약이의 방을 여는 중") }
         }
         .task {
-            NotificationRouting.open = { [weak router] url in router?.handle(url: url) }
+            NotificationRouting.install { [weak router] url in router?.handle(url: url) }
             services.bootstrap(context: context)
         }
         .onChange(of: phase) { _, value in
@@ -155,7 +137,12 @@ final class ServiceHolder: ObservableObject {
             let economy = EconomyStore(context: context)
             try economy.migrateRewardsIfNeeded()
             try economy.seedIfNeeded()
-            let controller = SessionController(context: context, economy: economy, scheduler: NotificationScheduler())
+            let controller = SessionController(context: context, economy: economy, scheduler: NotificationScheduler(), beforeReset: {
+                guard let storeURL = context.container.configurations.first?.url else { throw StoreMigration.Failure.incompleteStore }
+                try StoreMigration.removeLegacyCopies(
+                    legacyCandidates: AppPersistence.legacyStoreURLs(schema: context.container.schema, destination: storeURL),
+                    destination: storeURL)
+            })
             try controller.recoverIfNeeded()
             let watch = WatchSync()
             self.watch = watch
@@ -174,7 +161,6 @@ final class ServiceHolder: ObservableObject {
             try watch.send(equipped: economy.equippedMap())
             watch.activate()
             controller.refreshSnapshot()
-            UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
         } catch {
             self.error = "기존 기록을 보존했어요. \(error.localizedDescription)"
         }
@@ -210,7 +196,15 @@ final class WatchBridge: SessionSyncing {
 /// the system to re-open our own URL scheme just to switch tabs.
 @MainActor
 enum NotificationRouting {
-    static var open: ((URL) -> Void)?
+    private static var open: ((URL) -> Void)?
+    private static var pendingURL: URL?
+    static func install(_ handler: @escaping (URL) -> Void) {
+        open = handler
+        if let pendingURL { handler(pendingURL); self.pendingURL = nil }
+    }
+    static func route(_ url: URL) {
+        if let open { open(url) } else { pendingURL = url }
+    }
 }
 
 final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
@@ -221,7 +215,7 @@ final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         guard let link = response.notification.request.content.userInfo["deeplink"] as? String,
               let url = URL(string: link), url.scheme == "piyakbank" else { return }
-        await MainActor.run { NotificationRouting.open?(url) }
+        await MainActor.run { NotificationRouting.route(url) }
     }
 }
 

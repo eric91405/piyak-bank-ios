@@ -79,6 +79,7 @@
 			membershipExceptions = (
 				Services/WatchSync.swift,
 				Shared/AppConfig.swift,
+				Shared/WatchState.swift,
 				Shared/EarningsCalculator.swift,
 				Shared/DesignTokens.swift,
 				Watch/PiyakWatchApp.swift,

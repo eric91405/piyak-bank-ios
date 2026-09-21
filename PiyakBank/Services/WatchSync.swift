@@ -6,12 +6,6 @@ import SceneKit
 import UIKit
 #endif
 
-struct SessionStatePayload: Codable, Sendable {
-    var snapshot: SessionSnapshot
-    var equipped: [String: String]
-    var portrait: Data?
-}
-
 @MainActor
 final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     @Published private(set) var lastReceived: SessionStatePayload?
@@ -24,14 +18,37 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     private let session: WCSession? = WCSession.isSupported() ? .default : nil
     private var lastSnapshot: SessionSnapshot?
     private var lastEquipped: [String: String] = [:]
-    private var lastPortrait: Data?
-    private var receivedPortrait: Data?
+    private var lastPortrait: WatchPortrait?
+    private var receivedCache = WatchStateCache()
+    private var outgoingState = WatchStateOutbox()
     private var portraitTask: Task<Void, Never>?
+    private var lastQueuedPortraitIdentity: String?
+    private var legacyWatchRequestedPortrait = false
+    private var restoredCache = false
+    private static let cacheKey = "watch_cached_state_v2"
+    private static let sentPortraitKey = "watch_sent_portrait_v1"
+    private static let issuedAtKey = "watch_state_last_issued_at"
+    private nonisolated static let portraitTransferKey = "piyakPortraitV1"
 
     func activate() {
-        if let data = UserDefaults.standard.data(forKey: "watch_cached_state") {
-            lastReceived = try? JSONDecoder().decode(SessionStatePayload.self, from: data)
-            receivedPortrait = lastReceived?.portrait
+        if !restoredCache {
+            restoredCache = true
+            let defaults = UserDefaults.standard
+            outgoingState = WatchStateOutbox(lastIssuedAt: defaults.object(forKey: Self.issuedAtKey) as? Date)
+            if let data = defaults.data(forKey: Self.cacheKey),
+               let cache = try? JSONDecoder().decode(WatchStateCache.self, from: data) {
+                receivedCache = cache
+            } else if let data = defaults.data(forKey: "watch_cached_state"),
+                      let state = try? JSONDecoder().decode(SessionStatePayload.self, from: data) {
+                receivedCache = WatchStateCache(legacyState: state)
+            }
+            lastReceived = receivedCache.state
+            #if os(iOS)
+            if let data = defaults.data(forKey: Self.sentPortraitKey),
+               let portrait = try? JSONDecoder().decode(WatchPortrait.self, from: data), portrait.isValid {
+                lastPortrait = portrait
+            }
+            #endif
         }
         session?.delegate = self
         session?.activate()
@@ -51,29 +68,10 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func send(equipped: [String: String]) {
-        #if os(iOS)
-        let changed = equipped != lastEquipped
-        #endif
         lastEquipped = equipped
         #if os(iOS)
-        if let session, session.activationState == .activated, session.isPaired,
-           session.isWatchAppInstalled, changed || (lastPortrait == nil && portraitTask == nil) {
-            portraitTask?.cancel()
-            portraitTask = Task { [weak self] in
-                let data = await Task.detached(priority: .utility) {
-                    let scene = PiyakScene.make(equipped: equipped, animated: false, icon: true)
-                    let renderer = SCNRenderer(device: nil, options: nil)
-                    renderer.scene = scene
-                    renderer.pointOfView = scene.rootNode.childNodes.first { $0.camera != nil }
-                    return renderer.snapshot(atTime: 0, with: CGSize(width: 144, height: 144), antialiasingMode: .multisampling2X).pngData()
-                }.value
-                guard !Task.isCancelled, let self, self.lastEquipped == equipped else { return }
-                self.lastPortrait = data
-                self.portraitTask = nil
-                self.sendPortrait()
-                if let snapshot = self.lastSnapshot { self.send(snapshot: snapshot) }
-            }
-        }
+        preparePortraitIfNeeded()
+        sendPortrait()
         #endif
         if let snapshot = lastSnapshot { send(snapshot: snapshot) }
     }
@@ -83,17 +81,68 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     /// the message budget, so state stays small and the portrait moves separately.
     private var stateData: Data? {
         guard let snapshot = lastSnapshot else { return nil }
-        return try? JSONEncoder().encode(SessionStatePayload(snapshot: snapshot, equipped: lastEquipped, portrait: nil))
+        let previous = outgoingState.lastIssuedAt
+        let payload = outgoingState.payload(snapshot: snapshot, equipped: lastEquipped, now: .now)
+        if payload.stateIssuedAt != previous {
+            UserDefaults.standard.set(payload.stateIssuedAt, forKey: Self.issuedAtKey)
+        }
+        return try? JSONEncoder().encode(payload)
     }
 
+    private var expectedPortraitIdentity: String { WatchPortrait.identity(for: lastEquipped) }
+
     #if os(iOS)
-    private func sendPortrait() {
+    private func preparePortraitIfNeeded() {
         guard let session, session.activationState == .activated,
-              session.isPaired, session.isWatchAppInstalled, let data = lastPortrait else { return }
-        // A queued transfer survives the app going to the background, but a stale
-        // portrait in the queue is worthless once a newer one exists.
-        session.outstandingUserInfoTransfers.forEach { $0.cancel() }
-        session.transferUserInfo(["portrait": data])
+              session.isPaired, session.isWatchAppInstalled,
+              lastPortrait?.identity != expectedPortraitIdentity, portraitTask == nil else { return }
+        let equipped = lastEquipped
+        // Do not launch overlapping SceneKit renders during rapid outfit changes.
+        // Finish the current render, discard a stale result, then render the latest.
+        portraitTask = Task { [weak self] in
+            let data = await Task.detached(priority: .utility) {
+                let scene = PiyakScene.make(equipped: equipped, animated: false, icon: true)
+                let renderer = SCNRenderer(device: nil, options: nil)
+                renderer.scene = scene
+                renderer.pointOfView = scene.rootNode.childNodes.first { $0.camera != nil }
+                return renderer.snapshot(atTime: 0, with: CGSize(width: 144, height: 144), antialiasingMode: .multisampling2X).pngData()
+            }.value
+            guard let self else { return }
+            self.portraitTask = nil
+            guard self.lastEquipped == equipped else {
+                self.preparePortraitIfNeeded()
+                return
+            }
+            guard let data else { return }
+            let portrait = WatchPortrait(equipped: equipped, data: data)
+            guard portrait.isValid else { return }
+            self.lastPortrait = portrait
+            if let encoded = try? JSONEncoder().encode(portrait) {
+                UserDefaults.standard.set(encoded, forKey: Self.sentPortraitKey)
+            }
+            self.sendPortrait()
+        }
+    }
+
+    private var portraitData: Data? {
+        guard let portrait = lastPortrait, portrait.identity == expectedPortraitIdentity else { return nil }
+        return try? JSONEncoder().encode(portrait)
+    }
+
+    private func sendPortrait(force: Bool = false) {
+        guard let session, session.activationState == .activated,
+              session.isPaired, session.isWatchAppInstalled, let data = portraitData else { return }
+        let identity = expectedPortraitIdentity
+        let pending = session.outstandingUserInfoTransfers.filter { $0.userInfo[Self.portraitTransferKey] is Data }
+        for transfer in pending where transfer.userInfo["portraitIdentity"] as? String != identity {
+            transfer.cancel()
+        }
+        guard !pending.contains(where: { $0.userInfo["portraitIdentity"] as? String == identity }),
+              force || lastQueuedPortraitIdentity != identity else { return }
+        var message: [String: Any] = [Self.portraitTransferKey: data, "portraitIdentity": identity]
+        if legacyWatchRequestedPortrait { message["portrait"] = lastPortrait?.data }
+        session.transferUserInfo(message)
+        lastQueuedPortraitIdentity = identity
     }
     #endif
 
@@ -102,9 +151,12 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
         isReachable = session.isReachable
         if let data = session.receivedApplicationContext["state"] as? Data { receive(data) }
         guard session.isReachable else { return }
-        session.sendMessage(["requestState": true], replyHandler: { [weak self] reply in
-            if let data = reply["state"] as? Data {
-                Task { @MainActor in self?.receive(data) }
+        session.sendMessage(["requestState": true, "portraitIdentity": receivedCache.displayedPortraitIdentity ?? ""], replyHandler: { [weak self] reply in
+            let state = reply["state"] as? Data
+            let portrait = reply[Self.portraitTransferKey] as? Data
+            Task { @MainActor in
+                if let portrait { self?.receivePortrait(portrait) }
+                if let state { self?.receive(state) }
             }
         }, errorHandler: { _ in })
     }
@@ -136,26 +188,21 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     private func receive(_ data: Data) {
-        guard var payload = try? JSONDecoder().decode(SessionStatePayload.self, from: data) else { return }
-        if let current = lastReceived?.snapshot.capturedAt, let incoming = payload.snapshot.capturedAt, incoming < current { return }
-        // State updates no longer carry the portrait. Keep the one we already have
-        // so the character does not blank out between equipment changes.
-        if payload.portrait == nil { payload.portrait = lastReceived?.portrait ?? receivedPortrait }
-        store(payload)
+        guard let payload = try? JSONDecoder().decode(SessionStatePayload.self, from: data),
+              receivedCache.receive(payload) else { return }
+        persistReceivedCache()
     }
 
-    private func receive(portrait: Data) {
-        // A portrait can arrive before the first state on a fresh install.
-        receivedPortrait = portrait
-        guard var payload = lastReceived else { return }
-        payload.portrait = portrait
-        store(payload)
+    private func receivePortrait(_ data: Data) {
+        guard let portrait = try? JSONDecoder().decode(WatchPortrait.self, from: data),
+              receivedCache.receive(portrait) else { return }
+        persistReceivedCache()
     }
 
-    private func store(_ payload: SessionStatePayload) {
-        lastReceived = payload
-        if let data = try? JSONEncoder().encode(payload) {
-            UserDefaults.standard.set(data, forKey: "watch_cached_state")
+    private func persistReceivedCache() {
+        lastReceived = receivedCache.state
+        if let data = try? JSONEncoder().encode(receivedCache) {
+            UserDefaults.standard.set(data, forKey: Self.cacheKey)
         }
     }
 
@@ -177,13 +224,20 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
             #if os(watchOS)
             self.requestState()
             #else
+            self.preparePortraitIfNeeded()
+            self.sendPortrait()
             self.onRequestSnapshot?()
             #endif
         }
     }
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
-        guard let data = userInfo["portrait"] as? Data else { return }
-        Task { @MainActor in self.receive(portrait: data) }
+        if let data = userInfo[Self.portraitTransferKey] as? Data {
+            Task { @MainActor in self.receivePortrait(data) }
+        } else if let data = userInfo["portrait"] as? Data {
+            Task { @MainActor in
+                if self.receivedCache.receiveLegacyPortrait(data) { self.persistReceivedCache() }
+            }
+        }
     }
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext context: [String: Any]) {
         guard let data = context["state"] as? Data else { return }
@@ -196,6 +250,8 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any],
                              replyHandler: @escaping ([String: Any]) -> Void) {
         let commandData = message["command"] as? Data
+        let requestsState = message["requestState"] as? Bool == true
+        let knownPortraitIdentity = message["portraitIdentity"] as? String
         Task { @MainActor in
             var reply: [String: Any] = [:]
             do {
@@ -206,10 +262,45 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
             } catch { reply["error"] = error.localizedDescription }
             self.onRequestSnapshot?()
             if let data = self.stateData { reply["state"] = data }
+            #if os(iOS)
+            if requestsState { self.legacyWatchRequestedPortrait = knownPortraitIdentity == nil }
+            if requestsState, knownPortraitIdentity != self.expectedPortraitIdentity {
+                self.preparePortraitIfNeeded()
+                // Recover a fresh Watch installation immediately when the small
+                // portrait fits the interactive reply; larger images use the queue.
+                if let data = self.portraitData, data.count <= 48 * 1_024 {
+                    if knownPortraitIdentity == nil, var payload = self.outgoingState.state {
+                        // Older Watch versions only read the original combined
+                        // state reply. Send that format only for their explicit request.
+                        payload.portrait = self.lastPortrait?.data
+                        payload.portraitIdentity = nil
+                        reply["state"] = try? JSONEncoder().encode(payload)
+                    } else {
+                        reply[Self.portraitTransferKey] = data
+                    }
+                } else {
+                    self.sendPortrait(force: true)
+                }
+            }
+            #endif
             replyHandler(reply)
         }
     }
     #if os(iOS)
+    nonisolated func session(_ session: WCSession, didFinish userInfoTransfer: WCSessionUserInfoTransfer, error: Error?) {
+        guard error != nil, userInfoTransfer.userInfo[Self.portraitTransferKey] is Data,
+              let identity = userInfoTransfer.userInfo["portraitIdentity"] as? String else { return }
+        Task { @MainActor in
+            if self.lastQueuedPortraitIdentity == identity { self.lastQueuedPortraitIdentity = nil }
+        }
+    }
+    nonisolated func sessionWatchStateDidChange(_ session: WCSession) {
+        Task { @MainActor in
+            self.lastQueuedPortraitIdentity = nil
+            self.send(equipped: self.lastEquipped)
+            self.onRequestSnapshot?()
+        }
+    }
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) { session.activate() }
     #endif

@@ -17,7 +17,7 @@ import Testing
     var continuousTime: TimeInterval?
     var bootID = "test-boot-1"
     var controller: SessionController!
-    init(migrateRewards: Bool = true) throws {
+    init(migrateRewards: Bool = true, beforeReset: @escaping () throws -> Void = {}) throws {
         let schema = Schema([CatalogItem.self, OwnedItem.self, PointTransaction.self, WorkSession.self, RewardReceipt.self])
         container = try ModelContainer(for: schema, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         container.mainContext.autosaveEnabled = false
@@ -27,11 +27,28 @@ import Testing
         controller = SessionController(context: container.mainContext, economy: store, scheduler: Reminders(),
                                        defaults: defaults, now: { [unowned self] in self.now },
                                        continuousNow: { [unowned self] in self.continuousTime ?? self.now.timeIntervalSince1970 },
-                                       bootSessionID: { [unowned self] in self.bootID })
+                                       bootSessionID: { [unowned self] in self.bootID }, beforeReset: beforeReset)
     }
     func clean() { defaults.removePersistentDomain(forName: suite) }
 }
 private struct DiskFailure: Error {}
+
+@Test @MainActor func failedLegacyCleanupLeavesActiveRecordsAndRewardsIntact() throws {
+    let f = try Fixture(beforeReset: { throw DiskFailure() }); defer { f.clean() }
+    try f.store.seedIfNeeded()
+    try f.controller.start(wage: 10_000)
+    f.now += 60
+    try f.controller.stop()
+    let balance = try f.store.balance()
+    try f.controller.start()
+    let currentID = f.controller.current?.id
+    #expect(throws: DiskFailure.self) { try f.controller.resetAll() }
+    #expect(f.controller.current?.id == currentID)
+    #expect(f.defaults.string(forKey: AppConfig.kActiveSession) == currentID)
+    #expect(try f.store.balance() == balance)
+    #expect(try f.store.ownedAll().count == 4)
+    #expect(try f.container.mainContext.fetch(FetchDescriptor<WorkSession>()).count == 2)
+}
 
 @Test @MainActor func startPauseResumeStopIsIdempotent() throws {
     let f = try Fixture(); defer { f.clean() }

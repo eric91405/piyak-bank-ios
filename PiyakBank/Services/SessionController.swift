@@ -39,12 +39,14 @@ final class SessionController: ObservableObject {
     private let now: () -> Date
     private let continuousNow: () -> TimeInterval
     private let bootSessionID: () -> String
+    private let beforeReset: () throws -> Void
     weak var syncDelegate: SessionSyncing?
 
     init(context: ModelContext, economy: EconomyStore, scheduler: any SessionReminding,
          defaults: UserDefaults = AppConfig.shared ?? .standard, now: @escaping () -> Date = Date.init,
          continuousNow: @escaping () -> TimeInterval = RewardClock.now,
-         bootSessionID: @escaping () -> String = { RewardClock.bootSessionID }) {
+         bootSessionID: @escaping () -> String = { RewardClock.bootSessionID },
+         beforeReset: @escaping () throws -> Void = {}) {
         self.context = context
         self.economy = economy
         self.scheduler = scheduler
@@ -52,6 +54,7 @@ final class SessionController: ObservableObject {
         self.now = now
         self.continuousNow = continuousNow
         self.bootSessionID = bootSessionID
+        self.beforeReset = beforeReset
         let wage = defaults.integer(forKey: "hourly_wage")
         self.preferredWage = (1...EarningsCalculator.maximumWage).contains(wage) ? wage : 10_000
         self.interval = ReminderInterval(rawValue: defaults.integer(forKey: "reminder_interval")) ?? .m60
@@ -222,6 +225,9 @@ final class SessionController: ObservableObject {
     }
 
     func resetAll() throws {
+        // Do not report a complete reset while a pre-migration copy still holds
+        // the person's records. A cleanup failure leaves the active store intact.
+        try beforeReset()
         try economy.resetAll()
         current = nil
         defaults.removeObject(forKey: AppConfig.kActiveSession)

@@ -49,10 +49,11 @@ struct WatchRootView: View {
                     if state.isRunning {
                         Button(state.isPaused ? "계속 일하기" : "잠깐 쉬기") {
                             sync.sendCommand(state.isPaused ? "resume" : "pause")
-                        }.tint(.yellow)
+                        }.tint(PB.C.brandYellow).foregroundStyle(PB.C.ink)
                         Button("근무 마치기", role: .destructive) { confirmStop = true }
                     } else {
-                        Button("근무 시작") { sync.sendCommand("start") }.tint(.yellow)
+                        Button("근무 시작") { sync.sendCommand("start") }
+                            .tint(PB.C.brandYellow).foregroundStyle(PB.C.ink)
                     }
                     Button("상태 새로고침", systemImage: "arrow.clockwise") { sync.requestState() }
                         .buttonStyle(.bordered)
@@ -61,10 +62,12 @@ struct WatchRootView: View {
                 }.buttonStyle(.borderedProminent).disabled(sync.isSending)
             }
             VStack(spacing: 8) {
-                mascot.resizable().scaledToFit().frame(height: 125).accessibilityHidden(true)
+                mascot.resizable().scaledToFit().frame(height: 112).accessibilityHidden(true)
                 Text("너의 작은 친구, 삐약이").font(.headline)
                 Text(sync.lastReceived?.portrait == nil ? "iPhone 앱을 열면 꾸민 모습이 도착해요." : "iPhone에서 꾸민 모습이에요.")
                     .font(.caption2).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
             }
         }
         .tabViewStyle(.verticalPage)
