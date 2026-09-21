@@ -5,9 +5,8 @@ struct HistoryView: View {
     @EnvironmentObject private var session: SessionController
     @Query(sort: \WorkSession.startedAt, order: .reverse) private var records: [WorkSession]
     @State private var selectedDate = Date()
-    @State private var editing: WorkSession?
-    @State private var showEditor = false
-    @State private var deleting: WorkSession?
+    @State private var editor: WorkRecordPresentation?
+    @State private var deleting: EconomyStore.RecordRevision?
     private let calendar = Calendar.current
 
     private var dayRecords: [WorkSession] {
@@ -58,8 +57,14 @@ struct HistoryView: View {
                                 Spacer()
                                 if !record.isActive {
                                     Menu {
-                                        Button("기록 수정", systemImage: "pencil") { editing = record; showEditor = true }
-                                        Button("기록 삭제", systemImage: "trash", role: .destructive) { deleting = record }
+                                        Button("기록 수정", systemImage: "pencil") {
+                                            session.perform {
+                                                editor = WorkRecordPresentation(revision: try session.economy.revision(for: record))
+                                            }
+                                        }
+                                        Button("기록 삭제", systemImage: "trash", role: .destructive) {
+                                            session.perform { deleting = try session.economy.revision(for: record) }
+                                        }
                                     } label: {
                                         Image(systemName: "ellipsis").padding(12).contentShape(Rectangle())
                                     }.accessibilityLabel("근무 기록 수정 또는 삭제")
@@ -80,16 +85,18 @@ struct HistoryView: View {
                 .navigationTitle("차곡차곡 기록").navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("근무 추가", systemImage: "plus") { editing = nil; showEditor = true }
+                        Button("근무 추가", systemImage: "plus") { editor = WorkRecordPresentation(revision: nil) }
                     }
                 }
-                .sheet(isPresented: $showEditor) {
-                    WorkRecordEditor(record: editing, wage: session.preferredWage).environmentObject(session)
+                .sheet(item: $editor) { presentation in
+                    WorkRecordEditor(revision: presentation.revision, wage: session.preferredWage)
+                        .id(presentation.id)
+                        .environmentObject(session)
                 }
                 .confirmationDialog("이 기록을 삭제할까요?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
                     Button("근무 기록 삭제", role: .destructive) {
                         if let record = deleting {
-                            session.perform { try session.economy.deleteRecord(record) }
+                            session.perform { try session.economy.deleteRecord(revision: record) }
                             session.refreshSnapshot()
                         }
                         deleting = nil
@@ -97,6 +104,13 @@ struct HistoryView: View {
                 } message: { Text("이 근무의 시간과 예상 수익을 삭제해요. 이미 받은 포인트와 레벨은 유지되며, 기록을 다시 추가해도 포인트는 늘지 않아요. 삭제는 되돌릴 수 없어요.") }
         }
     }
+}
+
+/// The presentation and its payload change together. Separate Boolean/record
+/// state can open a new-record editor before SwiftUI observes the selected record.
+private struct WorkRecordPresentation: Identifiable {
+    let id = UUID()
+    let revision: EconomyStore.RecordRevision?
 }
 
 private struct SegmentDraft: Identifiable {
@@ -109,14 +123,14 @@ private struct SegmentDraft: Identifiable {
 struct WorkRecordEditor: View {
     @EnvironmentObject private var session: SessionController
     @Environment(\.dismiss) private var dismiss
-    let record: WorkSession?
+    let revision: EconomyStore.RecordRevision?
     @State private var drafts: [SegmentDraft]
     @State private var error: String?
     @State private var confirmSave = false
-    init(record: WorkSession?, wage: Int) {
-        self.record = record
+    init(revision: EconomyStore.RecordRevision?, wage: Int) {
+        self.revision = revision
         let now = Date()
-        _drafts = State(initialValue: record?.segments.map {
+        _drafts = State(initialValue: revision?.segments.map {
             SegmentDraft(start: $0.start, end: $0.end ?? now, wage: String($0.hourlyWage))
         } ?? [SegmentDraft(start: now.addingTimeInterval(-3600), end: now, wage: String(wage))])
     }
@@ -153,7 +167,7 @@ struct WorkRecordEditor: View {
                     Text("구간은 겹칠 수 없고 한 기록은 최대 7일이에요. 수동 기록은 꾸미기 포인트를 적립하지 않아요.")
                 }
             }
-            .navigationTitle(record == nil ? "놓친 근무 추가" : "근무 기록 수정").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(revision == nil ? "놓친 근무 추가" : "근무 기록 수정").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("취소") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) { Button("저장") { confirmSave = true }.bold() }
@@ -172,7 +186,11 @@ struct WorkRecordEditor: View {
                 guard let wage = Int(draft.wage) else { throw EconomyStore.StoreError.invalidRecord }
                 return WageSegment(start: draft.start, end: draft.end, hourlyWage: wage)
             }
-            try session.economy.replaceRecord(record, segments: segments)
+            if let revision {
+                try session.economy.replaceRecord(revision: revision, segments: segments)
+            } else {
+                try session.economy.replaceRecord(nil, segments: segments)
+            }
             session.refreshSnapshot()
             dismiss()
         } catch { self.error = error.localizedDescription }
