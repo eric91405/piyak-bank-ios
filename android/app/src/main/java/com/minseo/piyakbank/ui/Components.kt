@@ -18,8 +18,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.minseo.piyakbank.core.*
 import com.minseo.piyakbank.platform.UiState
 import java.text.NumberFormat
@@ -76,13 +81,13 @@ internal fun ScreenHeading(title: String, subtitle: String? = null, trailing: (@
         if (maxWidth < 380.dp && fontScale > 1.2f) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(title, style = MaterialTheme.typography.headlineMedium)
+                Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
                 trailing?.invoke()
             }
         } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(title, style = MaterialTheme.typography.headlineMedium)
+                Text(title, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
             }
             trailing?.invoke()
         }
@@ -109,7 +114,40 @@ internal fun InfoText(text: String, icon: ImageVector = Icons.Rounded.Info) {
 
 @Composable
 internal fun ErrorText(text: String?) {
-    if (text != null) Text(text, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "오류: $text" })
+    if (text != null) Text(text, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.fillMaxWidth().semantics { contentDescription = "오류: $text"; liveRegion = LiveRegionMode.Polite })
+}
+
+/**
+ * Compose 1.9.4 remembers DialogWrapper by (view, density), but shows it in LaunchedEffect(Unit).
+ * A live density/font change otherwise dismisses the old window without showing its replacement.
+ * Key only the window: callers keep editable drafts and confirmation state outside this scope.
+ */
+@Composable
+internal fun DensityAwareDialog(
+    onDismissRequest: () -> Unit,
+    properties: DialogProperties = DialogProperties(),
+    content: @Composable () -> Unit,
+) {
+    val density = LocalDensity.current
+    key(density.density, density.fontScale) {
+        Dialog(onDismissRequest = onDismissRequest, properties = properties, content = content)
+    }
+}
+
+@Composable
+internal fun DensityAwareAlertDialog(
+    onDismissRequest: () -> Unit,
+    confirmButton: @Composable () -> Unit,
+    dismissButton: (@Composable () -> Unit)? = null,
+    icon: (@Composable () -> Unit)? = null,
+    title: (@Composable () -> Unit)? = null,
+    text: (@Composable () -> Unit)? = null,
+) {
+    val density = LocalDensity.current
+    key(density.density, density.fontScale) {
+        AlertDialog(onDismissRequest = onDismissRequest, confirmButton = confirmButton,
+            dismissButton = dismissButton, icon = icon, title = title, text = text)
+    }
 }
 
 @Composable

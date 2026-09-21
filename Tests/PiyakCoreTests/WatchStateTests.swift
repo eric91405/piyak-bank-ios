@@ -101,7 +101,7 @@ private func watchPayload(equipped: [String: String] = watchOutfitA,
 @Test func rendererVersionAndEquipmentMustBothMatchTheState() {
     var cache = WatchStateCache()
     var newer = WatchPortrait(equipped: watchOutfitA, data: Data([2]))
-    newer.version = 2
+    newer.version = WatchPortrait.rendererVersion + 1
     cache.receive(newer)
     cache.receive(watchPayload())
     #expect(cache.state?.portrait == nil)

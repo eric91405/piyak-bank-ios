@@ -62,7 +62,8 @@ fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNot
             } else {
                 BackHandler(selected != 0) { selected = 0 }
                 BoxWithConstraints(Modifier.fillMaxSize()) {
-                    val wide = maxWidth >= 840.dp
+                    // A short landscape window needs its height for content and timer controls.
+                    val wide = maxWidth >= 840.dp || (maxWidth >= 600.dp && maxHeight < 480.dp)
                     Scaffold(
                         containerColor = MaterialTheme.colorScheme.background,
                         // The Home controls sit inside the scaffold content. Lift feedback above
@@ -77,7 +78,7 @@ fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNot
                         },
                     ) { insets ->
                         Row(Modifier.fillMaxSize().padding(insets)) {
-                            if (wide) NavigationRail(containerColor = MaterialTheme.colorScheme.background) {
+                            if (wide) NavigationRail(modifier = Modifier.verticalScroll(rememberScrollState()), containerColor = MaterialTheme.colorScheme.background) {
                                 Spacer(Modifier.height(28.dp))
                                 Icon(Icons.Rounded.EggAlt, "삐약뱅크", Modifier.size(36.dp), tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.height(34.dp))
@@ -102,7 +103,7 @@ fun PiyakApp(viewModel: PiyakViewModel, onExport: (String) -> Unit, onRequestNot
                 }
             }
             if (ui.error != null && ui.data != null) {
-                AlertDialog(
+                DensityAwareAlertDialog(
                     onDismissRequest = viewModel::clearError,
                     title = { Text("다시 확인해 주세요") },
                     text = { Text(ui.error!!) },
@@ -133,7 +134,8 @@ private fun Onboarding(ui: UiState, onStart: (Int) -> Unit) {
             )
             InfoText("예상 수익은 세전 단순 추정치예요. 시급과 관계없이 타이머 근무 10분에 100P, 하루 최대 4,800P를 받아요.")
             Button(onClick = { wage.toIntOrNull()?.let(onStart) }, enabled = valid && !ui.busy, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)) {
-                Text(if (ui.busy) "방을 준비하고 있어요" else "삐약이의 방으로")
+                // Reserve the arrow before measuring a large-font, wrapping label.
+                Text(if (ui.busy) "방을 준비하고 있어요" else "삐약이의 방으로", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 Spacer(Modifier.width(10.dp)); Icon(Icons.Rounded.ArrowForward, null)
             }
             Text("근무 기록은 기기에 저장돼요. 앱을 삭제하면 복구할 수 없으니 설정에서 CSV로 보관해 주세요.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

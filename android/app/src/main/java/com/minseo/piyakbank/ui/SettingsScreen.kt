@@ -22,14 +22,13 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.minseo.piyakbank.core.DomainEngine
 import com.minseo.piyakbank.platform.PiyakViewModel
+import com.minseo.piyakbank.platform.ReminderScheduler
 import com.minseo.piyakbank.platform.UiState
 
 @Composable
@@ -42,13 +41,13 @@ internal fun SettingsScreen(ui: UiState, viewModel: PiyakViewModel, onExport: (S
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     var linkError by rememberSaveable { mutableStateOf<String?>(null) }
     var intervalMenu by remember { mutableStateOf(false) }
-    var systemNotifications by remember { mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled()) }
+    var systemNotifications by remember { mutableStateOf(ReminderScheduler.notificationsAvailable(context)) }
     DisposableEffect(owner, context) {
-        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) systemNotifications = NotificationManagerCompat.from(context).areNotificationsEnabled() }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) systemNotifications = ReminderScheduler.notificationsAvailable(context) }
         owner.lifecycle.addObserver(observer)
         onDispose { owner.lifecycle.removeObserver(observer) }
     }
-    LaunchedEffect(ui.settings.notificationsEnabled) { systemNotifications = NotificationManagerCompat.from(context).areNotificationsEnabled() }
+    LaunchedEffect(ui.settings.notificationsEnabled) { systemNotifications = ReminderScheduler.notificationsAvailable(context) }
     fun open(intent: Intent) { runCatching { context.startActivity(intent) }.onFailure { linkError = "이 링크를 열 수 있는 앱이 없어요. 지원 이메일은 eric91405@gmail.com이에요." } }
     val version = remember(context) { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "1.0" }.getOrDefault("1.0") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -113,7 +112,7 @@ internal fun SettingsScreen(ui: UiState, viewModel: PiyakViewModel, onExport: (S
     if (wage) WageDialog(ui, viewModel, onDismiss = { wage = false })
     if (reset) ResetDialog(ui, viewModel, onDismiss = { reset = false })
     if (page != null) HelpPage(page!!, onDismiss = { page = null }, openPrivacy = { open(Intent(Intent.ACTION_VIEW, Uri.parse("https://eric91405.github.io/piyak-bank-ios/privacy-android/"))) })
-    if (linkError != null) AlertDialog(onDismissRequest = { linkError = null }, title = { Text("연결 앱을 확인해 주세요") }, text = { Text(linkError!!) }, confirmButton = { TextButton(onClick = { linkError = null }) { Text("확인") } })
+    if (linkError != null) DensityAwareAlertDialog(onDismissRequest = { linkError = null }, title = { Text("연결 앱을 확인해 주세요") }, text = { Text(linkError!!) }, confirmButton = { TextButton(onClick = { linkError = null }) { Text("확인") } })
 }
 
 @Composable
@@ -162,7 +161,7 @@ private fun WageDialog(ui: UiState, viewModel: PiyakViewModel, onDismiss: () -> 
     var submittedAt by rememberSaveable { mutableStateOf<Long?>(null) }
     val valid = value.toIntOrNull()?.let { it in 1..1_000_000 } == true
     ActionCompletion(ui, submittedAt, onDismiss)
-    AlertDialog(onDismissRequest = { if (!ui.busy) onDismiss() }, title = { Text("기본 시급") }, text = {
+    DensityAwareAlertDialog(onDismissRequest = { if (!ui.busy) onDismiss() }, title = { Text("기본 시급") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             OutlinedTextField(value, { value = it.filter(Char::isDigit).take(8) }, label = { Text("시급") }, suffix = { Text("원") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, enabled = !ui.busy, isError = !valid, modifier = Modifier.fillMaxWidth())
             Text("1~1,000,000원 · 다음 근무부터 적용돼요. 꾸미기 포인트에는 영향을 주지 않아요.", style = MaterialTheme.typography.bodySmall)
@@ -176,7 +175,7 @@ private fun ResetDialog(ui: UiState, viewModel: PiyakViewModel, onDismiss: () ->
     var confirm by rememberSaveable { mutableStateOf("") }
     var submittedAt by rememberSaveable { mutableStateOf<Long?>(null) }
     ActionCompletion(ui, submittedAt, onDismiss)
-    AlertDialog(onDismissRequest = { if (!ui.busy) onDismiss() }, icon = { Icon(Icons.Rounded.DeleteForever, null, tint = MaterialTheme.colorScheme.error) }, title = { Text("모든 데이터를 지울까요?") }, text = {
+    DensityAwareAlertDialog(onDismissRequest = { if (!ui.busy) onDismiss() }, icon = { Icon(Icons.Rounded.DeleteForever, null, tint = MaterialTheme.colorScheme.error) }, title = { Text("모든 데이터를 지울까요?") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text("진행 중인 근무, 저장한 기록, 포인트, 구매한 아이템을 지우고 기본 방으로 돌아가요. 되돌릴 수 없으니 필요한 기록은 먼저 CSV로 내보내 주세요.")
             Text("확인하려면 아래에 ‘초기화’를 입력해 주세요.", style = MaterialTheme.typography.bodyMedium)
@@ -218,7 +217,7 @@ private fun HelpPage(page: String, onDismiss: () -> Unit, openPrivacy: () -> Uni
             "내 기록 보관" to "설정에서 근무와 포인트 내역을 CSV로 내보낼 수 있어요. 자동 계정 동기화와 CSV 복원 기능은 없어요. 앱 삭제나 초기화 전에 필요한 파일을 보관해 주세요.",
         )
     }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    DensityAwareDialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.padding(12.dp).widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(.94f), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.background) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(start = 22.dp, end = 8.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {

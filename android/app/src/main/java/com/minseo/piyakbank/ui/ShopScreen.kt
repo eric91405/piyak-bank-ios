@@ -21,7 +21,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.minseo.piyakbank.core.*
 import com.minseo.piyakbank.platform.PiyakViewModel
@@ -108,7 +107,7 @@ private fun ItemDetail(item: CatalogItem, ui: UiState, viewModel: PiyakViewModel
     var confirmPurchase by rememberSaveable(item.id) { mutableStateOf(false) }
     var submittedAt by rememberSaveable(item.id) { mutableStateOf<Long?>(null) }
     ActionCompletion(ui, submittedAt) { confirmPurchase = false; submittedAt = null }
-    Dialog(onDismissRequest = { if (!ui.busy) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    DensityAwareDialog(onDismissRequest = { if (!ui.busy) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.padding(14.dp).widthIn(max = 650.dp).fillMaxWidth().fillMaxHeight(.94f), shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.background) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(start = 22.dp, top = 10.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -144,7 +143,7 @@ private fun ItemDetail(item: CatalogItem, ui: UiState, viewModel: PiyakViewModel
             }
         }
     }
-    if (confirmPurchase) AlertDialog(
+    if (confirmPurchase) DensityAwareAlertDialog(
         onDismissRequest = { if (!ui.busy) confirmPurchase = false },
         title = { Text("${item.name}을 구매할까요?") },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {

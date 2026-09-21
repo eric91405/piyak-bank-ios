@@ -80,7 +80,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (active == null) {
                     Button(onClick = { confirmSession = ""; confirmStage = ui.timerStage; confirm = "start" }, enabled = !ui.busy, modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("삐약이와 근무 시작")
+                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("삐약이와 근무 시작", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 } else {
                     Row(Modifier.widthIn(max = 740.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -96,7 +96,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
             }
         }
     }
-    if (confirm != null) AlertDialog(
+    if (confirm != null) DensityAwareAlertDialog(
         onDismissRequest = { if (!ui.busy) { confirm = null; submittedAt = null } },
         icon = { Icon(if (confirm == "start") Icons.Rounded.WbSunny else Icons.Rounded.Celebration, null) },
         title = { Text(if (confirm == "start") "오늘도 함께 일해요" else "근무를 마치고 기록할까요?") },
@@ -173,7 +173,7 @@ internal fun Room(
                     Icon(Icons.Rounded.TouchApp, null, Modifier.size(19.dp)); Spacer(Modifier.width(5.dp)); Text("놀아주기")
                 }
             }
-            if (controls) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            if (controls) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 IconButton(onClick = { room?.rotateBy(-15f) }) { Icon(Icons.Rounded.RotateLeft, "왼쪽으로 회전", tint = WarmInk) }
                 IconButton(onClick = { room?.rotateBy(15f) }) { Icon(Icons.Rounded.RotateRight, "오른쪽으로 회전", tint = WarmInk) }
                 IconButton(onClick = { room?.zoomBy(1.15f) }) { Icon(Icons.Rounded.ZoomIn, "방 확대", tint = WarmInk) }

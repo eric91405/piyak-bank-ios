@@ -583,6 +583,8 @@ enum PiyakScene {
                 add(capsule(0.12, 0.72, 0x7AAD87), to: root, at: (0, 0.71, 0))
                 for side: Float in [-1, 1] {
                     root.addChildNode(tube([V(0, 0.60, 0), V(side * 0.22, 0.60, 0), V(side * 0.22, 0.84 + side * 0.06, 0)], radius: 0.074, tint: 0x81B88E))
+                    // Close the open sweep with a rounded cactus tip.
+                    add(sphere(0.074, 0x81B88E), to: root, at: (side * 0.22, 0.84 + side * 0.06, 0))
                 }
                 for y: Float in [0.5, 0.65, 0.8, 0.95] { for x: Float in [-0.045, 0.045] { add(sphere(0.011, 0xE5E9BE), to: root, at: (x, y, 0.113)) } }
                 for i in 0..<5 { let a = Float(i) * .pi * 2 / 5; add(sphere(0.045, 0xE998B4), to: root, at: (cos(a) * 0.05, 1.07, sin(a) * 0.05)) }
@@ -892,12 +894,42 @@ enum PiyakScene {
     private static func tube(_ points: [V], radius: CGFloat, tint: UInt) -> SCNNode {
         guard points.count >= 2 else { return SCNNode() }
         let sides = 8; var vertices: [V] = []; var normals: [V] = []; var indices: [Int32] = []
-        for i in points.indices {
-            let previous = points[max(i - 1, 0)]; let next = points[min(i + 1, points.count - 1)]
+        let closed = points.count > 3 && simd_length_squared(points[0] - points[points.count - 1]) < 0.00000001
+        let tangents = points.indices.map { i -> V in
+            let endpoint = closed && (i == 0 || i == points.count - 1)
+            let previous = endpoint ? points[points.count - 2] : points[max(i - 1, 0)]
+            let next = endpoint ? points[1] : points[min(i + 1, points.count - 1)]
             let delta = next - previous
-            let tangent = simd_length_squared(delta) > 0.0000001 ? simd_normalize(delta) : V(0, 1, 0)
+            return simd_length_squared(delta) > 0.0000001 ? simd_normalize(delta) : V(0, 1, 0)
+        }
+        var axes: [V] = []
+        for tangent in tangents {
             let reference = abs(tangent.y) > 0.94 ? V(1, 0, 0) : V(0, 1, 0)
-            let axis = simd_normalize(simd_cross(tangent, reference)); let other = simd_cross(tangent, axis)
+            var axis = simd_normalize(simd_cross(tangent, reference))
+            if let previous = axes.last {
+                // Carry the previous cross-section axis into the next tangent's
+                // plane. Choosing a fresh world reference per point flipped
+                // cactus-arm rings by 180° when a bend became vertical.
+                let transported = previous - tangent * simd_dot(previous, tangent)
+                if simd_length_squared(transported) > 0.0000001 {
+                    axis = simd_normalize(transported)
+                } else if simd_dot(axis, previous) < 0 {
+                    axis = -axis
+                }
+            }
+            axes.append(axis)
+        }
+        if closed, let last = axes.last, let first = axes.first {
+            // Distribute any transport twist around a closed curve so the
+            // duplicate end ring joins the first one without a visible seam.
+            let correction = atan2(simd_dot(simd_cross(last, first), tangents[0]), simd_dot(last, first))
+            for i in axes.indices {
+                let angle = correction * Float(i) / Float(axes.count - 1)
+                axes[i] = axes[i] * cos(angle) + simd_cross(tangents[i], axes[i]) * sin(angle)
+            }
+        }
+        for i in points.indices {
+            let axis = axes[i]; let other = simd_cross(tangents[i], axis)
             for side in 0..<sides {
                 let a = Float(side) / Float(sides) * .pi * 2
                 let normal = axis * cos(a) + other * sin(a)

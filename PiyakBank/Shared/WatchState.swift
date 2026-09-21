@@ -38,7 +38,7 @@ struct WatchStateOutbox {
 
 struct WatchPortrait: Codable, Equatable, Sendable {
     // Bump when the portrait renderer changes so a cached older rendering is refreshed.
-    static let rendererVersion = 1
+    static let rendererVersion = 2
     let equipped: [String: String]
     let data: Data
     var version = rendererVersion

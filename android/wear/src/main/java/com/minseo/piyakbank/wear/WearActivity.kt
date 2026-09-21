@@ -39,16 +39,22 @@ class WearActivity : ComponentActivity() {
     private val connection get() = (application as WearApplication).connection
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { WearHome(connection) }
+        setContent {
+            val ui by connection.ui.collectAsStateWithLifecycle()
+            WearHome(ui, connection::command) { connection.clearError(); connection.refresh() }
+        }
     }
     override fun onStart() { super.onStart(); connection.visible(true) }
     override fun onStop() { connection.visible(false); super.onStop() }
 }
 
-@Composable private fun WearHome(connection: WearConnection) {
-    val ui by connection.ui.collectAsStateWithLifecycle()
+@Composable internal fun WearHome(ui: WearUiState, onCommand: (String, WearCommandTarget) -> Unit, onRefresh: () -> Unit) {
     val phone = ui.phone
-    var confirmFinish by rememberSaveable { mutableStateOf(false) }
+    var finishInstance by rememberSaveable { mutableStateOf<String?>(null) }
+    var finishSession by rememberSaveable { mutableStateOf("") }
+    var finishStage by rememberSaveable { mutableStateOf("") }
+    var finishWorking by rememberSaveable { mutableStateOf(false) }
+    val finishTarget = finishInstance?.let { WearCommandTarget(it, finishSession, finishStage, finishWorking) }
     val scrolling = rememberScrollState()
     val scope = rememberCoroutineScope()
     val focus = remember { FocusRequester() }
@@ -69,17 +75,20 @@ class WearActivity : ComponentActivity() {
             ui.error?.let { Text(it, color = Color(0xFFFFB9B9), fontSize = 12.sp, textAlign = TextAlign.Center) }
             if (ui.busy) { CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp); Text("휴대폰 저장 확인 중", fontSize = 11.sp, color = Color.White) }
             val enabled = ui.connected && phone?.onboarded == true && !ui.busy
-            if (confirmFinish) {
-                Text("근무를 마치고 정산할까요?", color = Color.White, textAlign = TextAlign.Center, fontSize = 13.sp)
-                Button(onClick = { connection.command("finish"); confirmFinish = false }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("마치기") }
-                OutlinedButton(onClick = { confirmFinish = false }, modifier = Modifier.fillMaxWidth()) { Text("취소") }
+            if (finishTarget != null) {
+                val stillCurrent = phone != null && finishTarget.matches(phone)
+                Text(if (stillCurrent) "근무를 마치고 정산할까요?" else "근무 상태가 바뀌었어요. 취소한 뒤 현재 상태를 확인해 주세요.", color = Color.White, textAlign = TextAlign.Center, fontSize = 13.sp)
+                Button(onClick = { onCommand("finish", finishTarget); finishInstance = null }, enabled = enabled && stillCurrent, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("마치기") }
+                OutlinedButton(onClick = { finishInstance = null }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("취소") }
             } else {
                 val action = when { phone?.session.isNullOrEmpty() -> "start"; phone?.working == true -> "pause"; else -> "resume" }
                 val label = when (action) { "start" -> "근무 시작"; "pause" -> "잠깐 쉬기"; else -> "다시 일하기" }
-                Button(onClick = { connection.command(action) }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(24.dp)) { Text(label) }
-                if (!phone?.session.isNullOrEmpty()) OutlinedButton(onClick = { confirmFinish = true }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("근무 마치기") }
+                Button(onClick = { phone?.let { onCommand(action, it.commandTarget()) } }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(24.dp)) { Text(label) }
+                if (phone != null && phone.session.isNotEmpty()) OutlinedButton(onClick = {
+                    finishInstance = phone.instance; finishSession = phone.session; finishStage = phone.stage; finishWorking = phone.working
+                }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("근무 마치기") }
             }
-            TextButton(onClick = { connection.clearError(); connection.refresh() }, modifier = Modifier.heightIn(min = 48.dp)) { Text("새로고침") }
+            TextButton(onClick = onRefresh, modifier = Modifier.heightIn(min = 48.dp)) { Text("새로고침") }
             Text("연결 중에만 제어할 수 있어요.\n포인트는 휴대폰에서 정산돼요.", color = Color(0xFFBBB7AE), fontSize = 10.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(12.dp))
         }

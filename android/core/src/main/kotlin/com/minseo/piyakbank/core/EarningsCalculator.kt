@@ -15,7 +15,7 @@ object EarningsCalculator {
     fun total(segments: List<Segment>, untilMillis: Long): Long =
         segments.fold(BigInteger.ZERO) { sum, segment ->
             sum + numerator(segment, segment.startMillis, minOf(segment.endMillis ?: untilMillis, untilMillis))
-        }.divide(hourlyDivisor).longValueExact()
+        }.divide(hourlyDivisor).toLongExactCompat()
 
     fun daily(segments: List<Segment>, untilMillis: Long, zoneId: ZoneId): List<DayAmount> {
         val result = sortedMapOf<LocalDate, Long>()
@@ -30,7 +30,7 @@ object EarningsCalculator {
                 requireDomain(next > cursor)
                 val stop = minOf(end, next)
                 cumulativeNumerator += numerator(segment, cursor, stop)
-                val rounded = cumulativeNumerator.divide(hourlyDivisor).longValueExact()
+                val rounded = cumulativeNumerator.divide(hourlyDivisor).toLongExactCompat()
                 result[day] = Math.addExact(result[day] ?: 0, rounded - allocated)
                 allocated = rounded
                 cursor = stop
@@ -57,7 +57,7 @@ object EarningsCalculator {
             before += numerator(segment, segment.startMillis, minOf(stop, start))
             through += numerator(segment, segment.startMillis, minOf(stop, end))
         }
-        return through.divide(hourlyDivisor).subtract(before.divide(hourlyDivisor)).longValueExact()
+        return through.divide(hourlyDivisor).subtract(before.divide(hourlyDivisor)).toLongExactCompat()
     }
 
     private fun numerator(segment: Segment, from: Long, to: Long): BigInteger {
@@ -65,4 +65,10 @@ object EarningsCalculator {
         if (to <= from || segment.hourlyWage == 0) return BigInteger.ZERO
         return BigInteger.valueOf(to - from).multiply(BigInteger.valueOf(segment.hourlyWage.toLong()))
     }
+}
+
+/** BigInteger.longValueExact is unavailable on Android 8.0; keep the same overflow contract. */
+internal fun BigInteger.toLongExactCompat(): Long {
+    if (bitLength() > 63) throw ArithmeticException("BigInteger out of long range")
+    return toLong()
 }
