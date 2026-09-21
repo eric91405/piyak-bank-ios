@@ -223,15 +223,16 @@ final class EconomyStore {
     }
 
     enum StoreError: LocalizedError {
-        case alreadyOwned, insufficient, notFound, invalidRecord, corruptRecord, activeRecord
+        case alreadyOwned, insufficient, notFound, invalidRecord, corruptRecord, activeRecord, recordChanged
         var errorDescription: String? {
             switch self {
             case .alreadyOwned: "이미 보유한 아이템이에요."
             case .insufficient: "포인트가 부족해요. 근무를 마치면 포인트를 받을 수 있어요."
-            case .notFound: "아이템을 찾지 못했어요. 다시 열어 주세요."
+            case .notFound: "항목을 찾지 못했어요. 다른 창에서 삭제되었을 수 있으니 닫은 뒤 다시 열어 주세요."
             case .invalidRecord: "시간과 시급을 확인해 주세요. 구간은 겹칠 수 없고, 시급은 0~1,000,000원까지 입력할 수 있어요."
             case .corruptRecord: "근무 기록을 읽지 못했어요. 원본을 보존했으니 지원팀에 문의해 주세요."
             case .activeRecord: "진행 중인 근무를 먼저 마쳐 주세요."
+            case .recordChanged: "다른 창에서 이 근무 기록이 변경됐어요. 닫은 뒤 다시 열어 최신 기록을 확인해 주세요."
             }
         }
     }
@@ -319,7 +320,46 @@ final class EconomyStore {
         return awarded
     }
 
+    /// Sheets retain values, never a SwiftData model that another window can delete.
+    struct RecordRevision: Identifiable, Equatable, Sendable {
+        let id: String
+        let segments: [WageSegment]
+    }
+
+    func revision(for record: WorkSession) throws -> RecordRevision {
+        try validateRecord(record)
+        guard !record.isActive else { throw StoreError.activeRecord }
+        return RecordRevision(id: record.id, segments: try record.decodedSegments())
+    }
+
+    func replaceRecord(revision: RecordRevision, segments: [WageSegment], now: Date = .now) throws {
+        try replaceRecord(currentRecord(matching: revision), segments: segments, now: now)
+    }
+
+    func deleteRecord(revision: RecordRevision) throws {
+        try deleteRecord(currentRecord(matching: revision))
+    }
+
+    private func currentRecord(matching revision: RecordRevision) throws -> WorkSession {
+        let id = revision.id
+        guard let record = try context.fetch(FetchDescriptor<WorkSession>(predicate: #Predicate { $0.id == id })).first else {
+            throw StoreError.notFound
+        }
+        guard try record.decodedSegments() == revision.segments else { throw StoreError.recordChanged }
+        return record
+    }
+
+    private func validateRecord(_ record: WorkSession) throws {
+        // These are lifecycle metadata, safe to inspect before touching stored
+        // properties. A deleted/detached model can otherwise fault or save nothing.
+        guard record.modelContext === context, !record.isDeleted,
+              try context.fetch(FetchDescriptor<WorkSession>()).contains(where: { $0 === record }) else {
+            throw StoreError.notFound
+        }
+    }
+
     func replaceRecord(_ record: WorkSession?, segments: [WageSegment], now: Date = .now) throws {
+        if let record { try validateRecord(record) }
         guard record?.isActive != true else { throw StoreError.activeRecord }
         let sorted = segments.sorted { $0.start < $1.start }
         guard !sorted.isEmpty, let first = sorted.first, let end = sorted.last?.end,
@@ -346,6 +386,7 @@ final class EconomyStore {
     }
 
     func deleteRecord(_ record: WorkSession) throws {
+        try validateRecord(record)
         guard !record.isActive else { throw StoreError.activeRecord }
         try transaction {
             context.delete(record)

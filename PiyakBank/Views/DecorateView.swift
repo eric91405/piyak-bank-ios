@@ -8,7 +8,7 @@ struct DecorateView: View {
     @Query private var owned: [OwnedItem]
     @State private var slot: DecorSlot = .bodyFront
     @State private var onlyOwned = false
-    @State private var selected: CatalogItem?
+    @State private var selected: ItemPreview?
     private var balance: Int { transactions.filter { $0.kind != .legacy }.reduce(0) { $0 + $1.amount } }
     private var equipped: [String: String] {
         var map: [String: String] = [:]
@@ -58,7 +58,7 @@ struct DecorateView: View {
                     } else {
                         LazyVGrid(columns: [.init(.adaptive(minimum: 145), spacing: 14)], spacing: 14) {
                             ForEach(items) { item in
-                                Button { selected = item } label: {
+                                Button { selected = ItemPreview(item) } label: {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Image("thumb_" + assetName(item.id)).resizable().scaledToFit()
                                             .frame(maxWidth: .infinity).frame(height: 122)
@@ -93,10 +93,27 @@ struct DecorateView: View {
     }
 }
 
+/// Reset recreates catalog models. Keep display values alive safely while a sheet
+/// is open; purchase/equip still resolve the current item and ownership by ID.
+private struct ItemPreview: Identifiable {
+    let id: String
+    let slot: DecorSlot
+    let displayName: String
+    let price: Int
+    var slotRaw: String { slot.rawValue }
+
+    init(_ item: CatalogItem) {
+        id = item.id
+        slot = item.slot
+        displayName = item.displayName
+        price = item.price
+    }
+}
+
 private struct ItemDetailSheet: View {
     @EnvironmentObject private var session: SessionController
     @Environment(\.dismiss) private var dismiss
-    let item: CatalogItem
+    let item: ItemPreview
     let equipped: [String: String]
     let balance: Int
     let isOwned: Bool
