@@ -4,6 +4,7 @@
 
 ## 코드와 테스트의 현재 위치
 
+- [x] PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)·[iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 통과, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합(병합 커밋 `4786cdd`).
 - [x] 순수 Kotlin 코어 테스트 50개, 앱 JVM 테스트 19개, Wear JVM 테스트 7개 통과.
 - [x] 휴대폰 및 Wear OS Debug APK 빌드.
 - [x] API 35 에뮬레이터에서 실제 SQLite instrumentation 테스트 8개 통과.
@@ -89,7 +90,7 @@ nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:bundleRelease :wear:bundle
 
 ## 개인정보와 데이터 보안
 
-공개 정책 예정 주소는 [Android 개인정보처리방침](https://eric91405.github.io/piyak-bank-ios/privacy-android/)이다. 제출 전에 실제 공개 상태, 로그인 없이 접근 가능 여부, 앱 내 정책과의 일치를 확인한다.
+공개 정책 주소는 [Android 개인정보처리방침](https://eric91405.github.io/piyak-bank-ios/privacy-android/)이다. Pages 소스는 `main`의 `/docs`이며 2026-09-21 로그인 없이 HTTP 200 응답과 정책 내용을 확인했다. 제출 전에 실제 공개 상태, 로그인 없이 접근 가능 여부, 앱 내 정책과의 일치를 확인한다.
 
 - [ ] 시급·근무·포인트·아이템의 원본이 휴대폰 앱 저장소에 있고 개발자 서버로 전송하지 않는다는 설명을 확인한다.
 - [ ] 연결된 시계에 근무 상태·오늘 예상 수익·잔액·장착 정보를 전달한다고 고지한다.

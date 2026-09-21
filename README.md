@@ -27,7 +27,7 @@ iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-i
 
 ### Android · Wear OS
 
-`android/`에 별도 Gradle 프로젝트로 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현했습니다. **최신 코드의 로컬 자동 검사와 빌드는 통과했으며, 추가 화면 점검과 Play 배포 전 검증을 진행 중입니다.**
+`android/`에 별도 Gradle 프로젝트로 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현했습니다. **로컬 자동 검사·빌드와 PR 최종 코드의 Android·iOS CI가 통과했으며, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합했습니다(`4786cdd`).** 실기기와 Play 배포 전 검증은 남아 있습니다.
 
 | 범위 | 확인된 상태 |
 |---|---|
@@ -35,7 +35,7 @@ iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-i
 | Android 휴대폰 수동 QA | API 36 에뮬레이터의 16,384바이트 페이지 환경에서 R8 Release의 삐약이·방·화분 렌더링, 근무 시작·휴식·재개·종료, 화분 미리보기와 프로세스 재시작 후 101원·6P 보존 확인. 같은 QA 인증서로 최신 R8 설치본을 덮어 설치한 뒤에도 데이터·GPU 장면 유지 확인 |
 | Wear OS 수동 QA | API 35 작은 원형 화면에서 연결 전 안내·비활성 근무 버튼·스크롤 확인. 실제 휴대폰 연결 검증과 구분 |
 | 추가 수정 | 오래된 근무 조작 거부, 설정 필드 간 덮어쓰기 방지, 하단 조작 버튼을 가리던 안내 배너 수정 및 로컬 회귀 검증 통과 |
-| 원격 CI | [이전 커밋의 Android CI 통과](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162). 최신 수정의 결과는 별도 확인 |
+| 원격 CI | PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 모두 통과 |
 | 남은 검증 | 81개 전체 모델·조합, 전체 UI·접근성·최소 OS, 가로 화면(에뮬레이터 회전이 Android 화면에 적용되지 않아 미확인), 물리 기기의 시계 연결·알림·위젯·장시간 전력, 최종 배포 서명과 Play 설치 |
 | 배포 | 기존 개인 Google Play 개발자 계정 보유 확인. 앱 업로드·실제 Play 설치·심사 미진행이며 계정별 배포 조건과 최종 서명 확인 필요 |
 
@@ -179,6 +179,6 @@ Android의 연결된 Wear OS에는 근무 상태·오늘 예상 수익·잔액·
 
 저장소 문서: [개인정보 처리방침](docs/PRIVACY.md) · [지원 안내](docs/SUPPORT.md) · [App Store 제출 자료](docs/APP_STORE.md)
 
-Android 전용: [개발·검증 안내](android/README.md) · [Play Store 체크리스트](android/docs/PLAY_STORE.md) · [공개 개인정보처리방침 예정 주소](https://eric91405.github.io/piyak-bank-ios/privacy-android/) — 제출 전에 실제 게시 상태를 확인합니다.
+Android 전용: [개발·검증 안내](android/README.md) · [Play Store 체크리스트](android/docs/PLAY_STORE.md) · [공개 개인정보처리방침](https://eric91405.github.io/piyak-bank-ios/privacy-android/) — Pages 소스는 `main`의 `/docs`이며, 2026-09-21 공개 페이지의 HTTP 200 응답과 내용을 확인했습니다.
 
 개발: **김민서** · [eric91405@gmail.com](mailto:eric91405@gmail.com)

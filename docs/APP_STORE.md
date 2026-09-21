@@ -19,7 +19,7 @@
 
 두 주소는 `docs/` 폴더를 GitHub Pages로 게시하는 고정 주소입니다. 공개 경로를 유지하려면 게시 소스 브랜치와 permalink를 관리해야 합니다. 제출 전에 다음을 확인하세요.
 
-1. 저장소 Settings → Pages → Source를 `Deploy from a branch`, 브랜치 `codex/app-store-launch`, 폴더 `/docs`로 설정([게시 절차](PUBLISHING.md))
+1. 저장소 Settings → Pages → Source를 `Deploy from a branch`, 브랜치 `main`, 폴더 `/docs`로 유지([게시 절차](PUBLISHING.md))
 2. 첫 배포 후 위 두 주소가 실제로 열리는지 확인 (반영까지 몇 분 걸립니다)
 3. `docs/_config.yml`은 심사 메모·검증 기록을 Pages 웹사이트에서 제외합니다. 공개 GitHub 저장소에서는 해당 원본 파일을 볼 수 있습니다.
 
@@ -72,7 +72,7 @@ App Store Connect의 최종 개인정보 응답은 실제 배포 버전·운영 
 2026-09-21 현재 Apple Developer Program 미가입이며 Xcode에는 무료 Personal Team만 확인됐습니다. 배포 서명 Archive·TestFlight 업로드·심사 제출은 진행하지 않았습니다. 완료한 테스트와 남은 화면·호환성·실기기 시험은 [출시 검증 기록](RELEASE_VALIDATION.md#현재-상태)을 기준으로 확인하세요.
 
 - **Apple Watch 스크린샷.** 416×496 수익·캐릭터 화면 2장을 준비했습니다. 제출 대상과 최종 서명 빌드의 화면·규격이 일치하는지 확인하세요. 실제 통신 시험은 별도로 필요합니다.
-- **GitHub Pages 게시 확인.** 현재 출시 브랜치 `/docs`를 게시 소스로 유지하고, 개인정보·지원 URL이 실제로 열리는지 확인. `main` 병합 후 소스 전환은 [게시 절차](PUBLISHING.md) 참고
+- **GitHub Pages 게시 확인.** `main`의 `/docs`를 게시 소스로 유지하고, iOS 개인정보·지원 URL이 실제로 열리는지 확인. Android 전용 정책과 구분하며 [게시 절차](PUBLISHING.md)를 참고
 - Apple Developer 멤버십, 실제 번들 ID 3개, App Group 및 서명 프로파일
 - App Store Connect 앱 생성/연결, 가격 무료, 판매 지역, 연령 등급 설문
 - 개인정보·지원 문서의 공개 URL 접속 및 지원 이메일 수신 가능 여부

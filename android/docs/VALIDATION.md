@@ -1,6 +1,6 @@
 # Android 검증 결과 기록
 
-기준일: 2026-09-21. `codex/android-launch` 작업에서 직접 실행한 결과와 남은 검증을 구분한다. 이 문서는 **Play 출시 승인, 실기기 전체 호환성, 결함 없음의 보증이 아니다.** 작업 중 후속 수정이 있으므로 해당 코드에 영향을 받는 검사는 최종 커밋과 Release 산출물에서 다시 확인한다.
+기준일: 2026-09-21. [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)로 `main`에 병합한 Android 작업에서 직접 실행한 결과와 남은 검증을 구분한다(병합 커밋 `4786cdd`). 이 문서는 **Play 출시 승인, 실기기 전체 호환성, 결함 없음의 보증이 아니다.** 후속 코드 변경 시 영향을 받는 검사는 해당 커밋과 Release 산출물에서 다시 확인한다.
 
 ## 실행을 확인한 검사
 
@@ -23,7 +23,8 @@
 | API 36 GPU 관찰 | **방·삐약이·창문·러그·화분 및 동작 확인** | 수정된 메시의 올바른 크기·배회·화분 상호작용을 관찰; 81종 전체 조합을 뜻하지 않음 |
 | API 36 최종 instrumentation | **15개 모두 통과**, 실행 10.627초 | 실제 16 KB 페이지 환경, `OK (15 tests)`; SQLite 8개·설정 저장소 2개·Compose UI 5개. 최초 실행의 Snackbar 가림 결함 수정 후 재검증 |
 | Wear API 35 R8 앱 수동 실행 | **작은 원형 화면의 오프라인 흐름 확인** | 설치·실행, 조작 버튼 비활성화, 스크롤·새로고침 접근. 실제 휴대폰과 연결하지 않음 |
-| 이전 커밋 원격 CI | **`f060db8` 통과** | [실행 35573374162](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162); 후속 변경의 CI와 구분 |
+| PR 최종 커밋 원격 CI | **`009fb1f`의 Android·iOS 모두 통과** | [Android 실행 35574930705](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705) · [iOS 실행 35574930707](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) |
+| 공개 정책·지원 페이지 | **4개 주소 HTTP 200 및 내용 확인** | `main`의 `/docs`를 Pages 소스로 설정. [홈](https://eric91405.github.io/piyak-bank-ios/)·[iOS 정책](https://eric91405.github.io/piyak-bank-ios/privacy/)·[Android 정책](https://eric91405.github.io/piyak-bank-ios/privacy-android/)·[지원](https://eric91405.github.io/piyak-bank-ios/support/)을 인증 없이 확인 |
 
 **서로 다른 자동 테스트는 총 91개(JVM 76 + 최종 instrumentation 15)다.** API 35 SQLite 8개는 API 36에서도 실행한 같은 테스트이므로 별도로 중복 합산하지 않는다.
 
@@ -52,7 +53,7 @@ Wear API 35 작은 원형 에뮬레이터에도 R8 QA APK를 설치해 실행했
 - Wear의 최근 앱 화면(`WearRecents`)과 백업 규칙(`DataExtractionRules`)을 수정하고 Release Lint를 다시 실행했다. Wear 결과는 **오류 0개·경고 13개·hint 1개**다. 남은 경고는 별도 검토 대상이며 경고 0개로 표현하지 않는다.
 - 최초 Wear 응답 전 push가 도착할 때의 요청 반복, UI 상태 갱신 경쟁, 이전 알림과 휴식·설정 변경의 경쟁을 보완했다. 순수 정책 검사는 통과했지만 실제 휴대폰–시계 전송과 시스템 알림의 종합 검증은 남아 있다.
 
-작업은 [Android 초안 PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)에서 진행한다. `f060db8` 대상 [원격 CI 실행](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162)은 통과했다. **그 이후 수정의 최종 원격 CI는 확인 대기**이며 이전 커밋의 성공으로 대체하지 않는다. 로컬 최종 instrumentation 15개는 통과했다. `f060db8` 이후 작업 트리 수정까지 반영한 최종 R8 APK·AAB 빌드와 5개 산출물의 16 KB 정렬 재검사는 통과했다.
+[PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)는 `main`에 병합했다(병합 커밋 `4786cdd`). 원격 CI 성공을 확인한 대상은 PR 최종 커밋 `009fb1f`이며, [Android 실행](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)과 [iOS 실행](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707)이 모두 통과했다. 로컬 최종 instrumentation 15개, 최종 R8 APK·AAB 빌드와 5개 산출물의 16 KB 정렬 재검사도 통과했다. 이 기록은 병합 커밋에서 별도 CI를 실행했다는 의미가 아니다.
 
 ## 아직 완료되지 않은 검증
 

@@ -6,7 +6,7 @@
 
 출시 안정화 코드는 PR #3까지 `main`에 병합했습니다(앱 코드 기준 `8ea2a10`). 테스트 115개·초기 SwiftData 스키마 이전·iPhone/Watch/위젯 Release 빌드는 [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569409466)에서 통과했습니다. iPhone 시뮬레이터 주요 흐름은 확인했지만 전체 출시 검증 완료 상태는 아닙니다. 다음 작업은 [남은 검증 체크리스트](docs/RELEASE_VALIDATION.md#제출-전-남은-검증)의 iPad 다중 창·접근성·최소 OS 실행과 실기기 시험입니다. Apple Developer Program 미가입으로 배포 서명 Archive·TestFlight·심사 제출은 진행하지 않았습니다.
 
-GitHub Pages는 `main` 병합 전에도 `codex/app-store-launch`의 `/docs`를 소스로 게시할 수 있습니다. [게시 절차](docs/PUBLISHING.md)를 따릅니다. 네이티브 Xcode 테스트 타깃 추가는 개발 편의 개선이며 App Store 제출 필수 조건은 아닙니다. 기존 Swift Package 테스트와 CI를 유지합니다. 아래 기능 추가 목록은 별도 로드맵이며 이번 안정화 범위에 포함되지 않습니다.
+GitHub Pages의 현재 소스는 `main`의 `/docs`입니다. 2026-09-21 홈·iOS 정책·Android 정책·지원 페이지 모두 로그인 없이 HTTP 200 응답과 실제 내용을 확인했습니다. [게시 절차](docs/PUBLISHING.md)를 따릅니다. 네이티브 Xcode 테스트 타깃 추가는 개발 편의 개선이며 App Store 제출 필수 조건은 아닙니다. 기존 Swift Package 테스트와 CI를 유지합니다. 아래 기능 추가 목록은 별도 로드맵이며 이번 안정화 범위에 포함되지 않습니다.
 
 ## Android · Wear OS 병행 개발 (2026-09-21)
 
@@ -14,7 +14,7 @@ GitHub Pages는 `main` 병합 전에도 `codex/app-store-launch`의 `/docs`를 �
 
 현재 구현은 Compose 온보딩·4개 탭·큰 화면 배치, 시간 기록·급여·보상, 81종 아이템·OpenGL 방, SQLite 저장·revision 충돌 방지, 알림·위젯·CSV·설정, Android 휴대폰 원본을 제어하는 Wear OS 앱입니다. AI·광고·인앱 결제·앱 계정은 추가하지 않았습니다.
 
-정확한 실행 개수·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 최신 코드의 JVM 회귀 테스트, API 36의 실제 16,384바이트 페이지 환경에서 실행한 SQLite·설정·Compose 기기 테스트, Debug·R8 Release 빌드가 통과했습니다. 예정되거나 건너뛴 테스트를 통과 수로 기록하지 않습니다. [이전 커밋의 Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162)는 통과했으며 최신 수정의 원격 CI는 별도 확인 중입니다.
+정확한 실행 개수·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 최신 코드의 JVM 회귀 테스트, API 36의 실제 16,384바이트 페이지 환경에서 실행한 SQLite·설정·Compose 기기 테스트, Debug·R8 Release 빌드가 통과했습니다. 예정되거나 건너뛴 테스트를 통과 수로 기록하지 않습니다. PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707)가 모두 통과했으며, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)는 `main`에 병합했습니다(병합 커밋 `4786cdd`).
 
 직접 확인한 사용 흐름:
 
@@ -60,7 +60,7 @@ MacBook Air M4 16GB의 발열 관리 요청을 유지합니다. Gradle worker 1�
 
 Wear OS 동기화는 Google Play services Data Layer를 사용해 연결된 기기 사이에 근무 상태·오늘 수익·잔액·장착 정보를 전달합니다. Google 클라우드의 종단 간 암호화 중계 가능성을 Android 앱 내 안내에 명시했습니다. 개발자 서버가 없거나 `INTERNET` 권한이 없다는 이유로 모든 데이터가 기기 밖으로 나가지 않는다고 설명하지 마세요.
 
-Android 공개 정책 주소는 `/privacy-android/`로 준비하며 실제 Pages 게시와 앱 링크 접근을 제출 전에 확인합니다. 기존 iOS 공개 정책·지원 문서를 Android에 무조건 적용하지 않고, 위젯 주기·시계 연결·권한·구버전 포인트 이전 설명을 플랫폼별로 구분해야 합니다.
+Android 공개 정책 `/privacy-android/`의 Pages 게시와 HTTP 200 응답을 확인했습니다. 제출 때도 앱 링크와 최종 정책 내용이 일치하는지 다시 확인합니다. 기존 iOS 공개 정책·지원 문서를 Android에 무조건 적용하지 않고, 위젯 주기·시계 연결·권한·구버전 포인트 이전 설명을 플랫폼별로 구분해야 합니다.
 
 ---
 

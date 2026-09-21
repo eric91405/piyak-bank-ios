@@ -33,7 +33,8 @@
 | 최종 API 36 instrumentation | 실제 16 KB 페이지 환경에서 SQLite 8개·설정 저장소 2개·Compose UI 5개, 총 15개 통과 |
 | 가로 화면 | 환경 차단: 자동 회전이 켜져 있어도 현재 AVD가 앱을 세로 상태로 유지; 다른 환경 재검증 필요 |
 | Wear API 35 작은 원형 화면 | R8 앱 설치·실행, 오프라인 조작 비활성화와 스크롤·새로고침 접근 확인 |
-| 원격 CI | `f060db8` 대상 실행 통과; 후속 변경의 최종 실행은 확인 대기 |
+| 원격 CI | PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)·[iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 모두 통과 |
+| GitHub 반영 | [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합, 병합 커밋 `4786cdd` |
 | 실물 휴대폰–Wear OS 연결·알림·위젯·배터리 | 미실행 |
 | Play 내부/비공개 테스트·출시 심사 | 미진행 |
 
@@ -124,4 +125,4 @@ android/
 
 연결된 Wear OS에는 근무 상태·오늘 예상 수익·잔액·장착 정보가 전달됩니다. Google Play services의 Wear Data Layer는 Bluetooth를 사용할 수 없으면 Google 클라우드를 통한 종단 간 암호화 중계를 사용할 수 있습니다. 앱의 `INTERNET` 권한 부재가 이러한 중계를 막는다는 의미는 아닙니다. 같은 패키지 이름과 서명으로 설치된 Android 휴대폰·시계 간에 통신합니다. [Google의 통신·서명 안내](https://developer.android.com/training/wearables/data/overview)
 
-Android 전용 공개 개인정보처리방침 예정 주소: [개인정보처리방침](https://eric91405.github.io/piyak-bank-ios/privacy-android/). 배포 전 실제 공개 페이지 접근과 앱 내 안내의 일치를 확인해야 합니다. 운영자 김민서, 지원 문의 [eric91405@gmail.com](mailto:eric91405@gmail.com).
+Android 전용 공개 개인정보처리방침: [개인정보처리방침](https://eric91405.github.io/piyak-bank-ios/privacy-android/). Pages 소스는 `main`의 `/docs`이며 2026-09-21 로그인 없이 HTTP 200 응답과 정책 내용을 확인했습니다. 배포 전 공개 페이지와 앱 내 안내의 일치를 확인해야 합니다. 운영자 김민서, 지원 문의 [eric91405@gmail.com](mailto:eric91405@gmail.com).
