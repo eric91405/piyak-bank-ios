@@ -208,6 +208,20 @@ final class EconomyStore {
         return amount
     }
 
+    /// Cache completed pay for every possible current local day without sending
+    /// wage records to the watch/widget. Old records cannot contribute, so their
+    /// segments need not be decoded or repeatedly split into calendar days.
+    func completedEarningsSnapshot(at date: Date, calendar: Calendar = .current) throws -> CompletedEarningsSnapshot {
+        var result = CompletedEarningsSnapshot(at: date, calendar: calendar)
+        guard let earliest = result.earliestDayStart else { return result }
+        let descriptor = FetchDescriptor<WorkSession>(predicate: #Predicate { !$0.isActive })
+        for session in try context.fetch(descriptor) {
+            if let end = session.endedAt, end <= earliest { continue }
+            result.add(try session.decodedSegments(), until: date)
+        }
+        return result
+    }
+
     enum StoreError: LocalizedError {
         case alreadyOwned, insufficient, notFound, invalidRecord, corruptRecord, activeRecord
         var errorDescription: String? {

@@ -22,6 +22,7 @@ struct SessionSnapshot: Codable, Hashable, Sendable {
     var capturedAt: Date?
     var completedToday: Int?
     var preferredWage: Int?
+    var completedEarnings: CompletedEarningsSnapshot?
 
     static let empty = SessionSnapshot(isRunning: false, isPaused: false, accrued: 0, wage: 0)
 
@@ -31,9 +32,49 @@ struct SessionSnapshot: Codable, Hashable, Sendable {
     }
 
     func today(at date: Date = .now, calendar: Calendar = .current) -> Int {
-        let settled = capturedAt.map { calendar.isDate($0, inSameDayAs: date) } == true
-            ? (completedToday ?? 0) : 0
+        // Older aggregates have no source timezone. Do not label that unknown
+        // amount as today's pay after travel; the next phone refresh replaces it.
+        let settled = completedEarnings?.amount(on: date, calendar: calendar) ?? 0
         return settled + EarningsCalculator.earned(on: date, segments: segments ?? [], until: date, calendar: calendar)
+    }
+}
+
+/// A bounded table of local-day totals, rather than a copy of the user's history.
+/// Timezones sharing a midnight share one entry. Computing the boundaries at
+/// capture time also accounts for daylight-saving transitions and calendar choice.
+struct CompletedEarningsSnapshot: Codable, Hashable, Sendable {
+    struct Day: Codable, Hashable, Sendable {
+        var start: Date
+        var amount: Int
+    }
+
+    private(set) var days: [Day]
+
+    init(at date: Date, calendar: Calendar = .current) {
+        var localCalendar = calendar
+        var starts: Set<Date> = [calendar.startOfDay(for: date)]
+        for identifier in TimeZone.knownTimeZoneIdentifiers {
+            guard let timezone = TimeZone(identifier: identifier) else { continue }
+            localCalendar.timeZone = timezone
+            starts.insert(localCalendar.startOfDay(for: date))
+        }
+        days = starts.sorted().map { Day(start: $0, amount: 0) }
+    }
+
+    var earliestDayStart: Date? { days.first?.start }
+
+    mutating func add(_ segments: [WageSegment], until date: Date) {
+        let total = EarningsCalculator.total(segments, until: date)
+        for index in days.indices {
+            // Round each record's cumulative amount on either side of midnight.
+            // Clipping segments first or combining records loses fractional won.
+            days[index].amount += total - EarningsCalculator.total(segments, until: days[index].start)
+        }
+    }
+
+    func amount(on date: Date, calendar: Calendar = .current) -> Int {
+        let start = calendar.startOfDay(for: date)
+        return days.first { $0.start == start }?.amount ?? 0
     }
 }
 
