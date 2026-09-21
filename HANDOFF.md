@@ -8,6 +8,60 @@
 
 GitHub Pages는 `main` 병합 전에도 `codex/app-store-launch`의 `/docs`를 소스로 게시할 수 있습니다. [게시 절차](docs/PUBLISHING.md)를 따릅니다. 네이티브 Xcode 테스트 타깃 추가는 개발 편의 개선이며 App Store 제출 필수 조건은 아닙니다. 기존 Swift Package 테스트와 CI를 유지합니다. 아래 기능 추가 목록은 별도 로드맵이며 이번 안정화 범위에 포함되지 않습니다.
 
+## Android · Wear OS 병행 개발 (2026-09-21)
+
+사용자 요청으로 Android 휴대폰·태블릿·홈 화면 위젯과 **Wear OS 동반 앱까지** 포함해 `android/`에 독립 Gradle 프로젝트를 추가했습니다. 기존 iOS 코드·검증 상태를 Android 완료 상태로 대체하지 않습니다. 새 Android 앱과 iOS 앱 사이의 계정·기록 동기화는 구현 범위에 없습니다.
+
+현재 구현은 Compose 온보딩·4개 탭·큰 화면 배치, 시간 기록·급여·보상, 81종 아이템·OpenGL 방, SQLite 저장·revision 충돌 방지, 알림·위젯·CSV·설정, Android 휴대폰 원본을 제어하는 Wear OS 앱입니다. AI·광고·인앱 결제·앱 계정은 추가하지 않았습니다.
+
+정확한 실행 개수·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 최신 코드의 JVM 회귀 테스트, API 36의 실제 16,384바이트 페이지 환경에서 실행한 SQLite·설정·Compose 기기 테스트, Debug·R8 Release 빌드가 통과했습니다. 예정되거나 건너뛴 테스트를 통과 수로 기록하지 않습니다. [이전 커밋의 Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35573374162)는 통과했으며 최신 수정의 원격 CI는 별도 확인 중입니다.
+
+직접 확인한 사용 흐름:
+
+- API 36 에뮬레이터의 실제 페이지 크기 16,384바이트 환경에서 R8 Release를 설치해 삐약이·방·화분의 GPU 렌더링을 확인했습니다. 81개 모델 전체나 모든 GPU의 시각 품질을 검증했다는 뜻은 아닙니다.
+- 근무 시작·휴식·재개·종료, 화분 미리보기와 프로세스 재시작 후 예상 수익 101원·6P 보존을 확인했습니다.
+- 같은 QA용 Debug 인증서로 서명한 최신 R8 Release를 덮어 설치한 뒤에도 101원·6P와 GPU 장면을 유지했습니다. 최종 스토어 서명·Play 업데이트 설치 검증과는 구분합니다.
+- API 35 작은 원형 Wear OS 화면에서 연결 전 안내, 비활성화된 근무 조작과 스크롤을 확인했습니다. 물리 휴대폰–시계 연결 시험은 남아 있습니다.
+
+후속 검증 중 발견해 코드에 반영한 수정:
+
+- 시계나 다른 창에서 근무가 바뀐 뒤 예전 휴대폰 확인창·버튼이 새 근무를 시작/종료하거나 휴식 상태를 바꾸지 않도록 대상 세션·상태를 검사합니다.
+- 각 설정 필드의 변경을 최신 저장 상태에 합쳐 저장하며, 오래된 설정 화면이 다른 필드의 변경을 덮어쓰지 않게 했습니다. 시급 제한도 저장 시점의 진행 중 근무를 검사합니다.
+- 시작·재개 안내 Snackbar가 하단 근무 버튼을 덮어 실제 터치를 가로채던 문제를 수정했습니다. 버튼 영역의 측정 높이를 사용하며 UI 회귀 테스트는 안내가 떠 있는 동안에도 즉시 누릅니다.
+
+**이 수정들이 포함된 최신 로컬 빌드·자동 검사·Compose 사용 흐름 재검증과 R8 덮어 설치 후 데이터·장면 유지는 확인했습니다.** 가로 화면은 에뮬레이터의 회전 조작 후에도 Android 화면이 세로로 유지되는 환경 문제로 미확인입니다. 최소 OS·전체 UI·접근성·81개 모델과 착용 조합·물리 시계 연결·알림·위젯·장시간 전력·최종 배포 설치를 완료로 기록하지 않습니다.
+
+사용자가 기존 **개인 Google Play 개발자 계정 보유**를 확인했습니다. 계정 생성 시점, production access, 앱 등록·서명, 적용되는 테스트 조건은 실제 Console에서 추가 확인해야 합니다. Play 업로드·배포 설치·심사는 아직 완료하지 않았습니다.
+
+후속 작업은 [Android 검증 기록](android/docs/VALIDATION.md), [UI 테스트 계획](android/docs/UI_TEST_PLAN.md), [Play 출시 체크리스트](android/docs/PLAY_STORE.md)의 미확인 항목을 실제 증거로 갱신하는 것입니다. 테스트 개수만으로 화면·실기기·배포 시험까지 통과했다고 표현하지 마세요.
+
+### 구조와 실행
+
+- `android/core/`: 순수 Kotlin 도메인·금액·보상·기록·시계 명령 정책.
+- `android/app/`: Compose 휴대폰·태블릿 화면, SQLite, OpenGL 장면, 알림·위젯·시계 통신.
+- `android/wear/`: 연결된 Wear OS 앱. `app`의 장면과 에셋을 공유합니다.
+- `android/scripts/`: iOS SceneKit 원본 기하를 Android 메시로 내보내고 검사합니다.
+
+`android/`에서 실행:
+
+```sh
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest :wear:testDebugUnitTest
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebug :wear:assembleDebug
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
+```
+
+마지막 명령은 합성 데이터용 QA 기기가 필요합니다. AGP 8.13.1·Kotlin 2.2.20·Gradle 8.14·JDK 17 이상, compileSdk 36을 사용합니다. 휴대폰 minSdk 26/targetSdk 36, Wear OS minSdk 30/targetSdk 35입니다. 두 앱의 applicationId는 `com.minseo.piyakbank`이며 동일 서명을 사용해야 통신합니다. versionCode는 휴대폰 1, Wear OS 1000001부터 분리했습니다.
+
+Compose 사용 흐름과 설정 경쟁 시험은 `-PpiyakUiTest=true`로 선택한 `com.minseo.piyakbank.uitest` 전용 설치본에서 실행합니다. 먼저 `:app:assembleUiTest :app:assembleUiTestAndroidTest`를 빌드한 뒤 QA 기기를 켜고 `:app:connectedUiTestAndroidTest`를 실행합니다. 일반 Debug에서 건너뛴 이 테스트들을 통과로 세지 않으며, 실제 앱 저장소를 시험용 fixture로 초기화하지 않습니다.
+
+MacBook Air M4 16GB의 발열 관리 요청을 유지합니다. Gradle worker 1개·병렬 끄기·JVM 최대 2GB를 지키고 빌드와 에뮬레이터를 순차 실행합니다. 사용하지 않는 시뮬레이터·에뮬레이터는 종료합니다. Release 서명에는 소유자가 관리하는 `PIYAK_KEYSTORE`, `PIYAK_STORE_PASSWORD`, `PIYAK_KEY_ALIAS`, `PIYAK_KEY_PASSWORD`가 필요하며 키를 저장소에 넣지 않습니다.
+
+### 개인정보와 공개 문서
+
+Wear OS 동기화는 Google Play services Data Layer를 사용해 연결된 기기 사이에 근무 상태·오늘 수익·잔액·장착 정보를 전달합니다. Google 클라우드의 종단 간 암호화 중계 가능성을 Android 앱 내 안내에 명시했습니다. 개발자 서버가 없거나 `INTERNET` 권한이 없다는 이유로 모든 데이터가 기기 밖으로 나가지 않는다고 설명하지 마세요.
+
+Android 공개 정책 주소는 `/privacy-android/`로 준비하며 실제 Pages 게시와 앱 링크 접근을 제출 전에 확인합니다. 기존 iOS 공개 정책·지원 문서를 Android에 무조건 적용하지 않고, 위젯 주기·시계 연결·권한·구버전 포인트 이전 설명을 플랫폼별로 구분해야 합니다.
+
 ---
 
 ## 최초 인수 메모 (기록용)

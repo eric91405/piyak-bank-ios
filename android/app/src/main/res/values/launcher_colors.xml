@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Exact lavender from the existing mascot image, so its opaque edge blends into this layer. -->
+    <color name="piyak_launcher_background">#D1C4F2</color>
+</resources>
