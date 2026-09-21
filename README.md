@@ -1,148 +1,119 @@
-<div align="center">
+# 삐약뱅크 · PiyakBank
 
-<!-- ▼▼▼ [이미지 1] 앱 아이콘 또는 홈 화면 대표 컷 (정사각 권장, 가로 200~300px) ▼▼▼ -->
-<img width="1024" height="1024" alt="AppIcon_1024" src="https://github.com/user-attachments/assets/92586314-2957-4d39-bfba-bc75b3e5f950" />
-<!-- ▲▲▲ -->
+**일하는 나에게, 작은 친구 하나.**
 
-# 삐약뱅크 (PiyakBank)
+시급과 근무 시간으로 예상 수익을 기록하고, 타이머로 쌓은 시간 보상으로 병아리의 방을 꾸미는 iOS · Apple Watch 앱입니다. 시급과 꾸미기 포인트를 분리해 시간 기록에 작은 성장과 수집의 재미를 더했습니다.
 
-### 내 시간이 돈이 되는 순간을 실시간으로 — 시급 적산 + 병아리 키우기
+<img src="PiyakBank/Assets.xcassets/AppMascot.imageset/image.png" width="180" alt="입체 병아리 삐약이">
 
-[![Platform](https://img.shields.io/badge/platform-iOS%20%7C%20watchOS-FFD64D)]()
-[![Swift](https://img.shields.io/badge/Swift-5.9-FF9E8A)]()
-[![iOS](https://img.shields.io/badge/iOS-26.0+-5C4A1E)]()
+첫 출시 방향은 **무료·광고 없음·회원가입 없음**입니다. 포인트는 앱 꾸미기 전용이며 현금 가치나 송금·인출 기능은 없습니다. 표시 수익은 세금과 수당을 제외한 단순 추정치입니다.
 
-**🎬 데모 영상:** https://youtu.be/I2SiUjNcYJs
+## 실제 앱 화면
 
-[![데모 영상 보기](https://img.shields.io/badge/▶_데모_영상_보기-YouTube-FF0000?style=for-the-badge&logo=youtube)](https://youtu.be/I2SiUjNcYJs)
+<img src="docs/screenshots/iphone-home.jpg" width="240" alt="방 안에서 생활하는 입체 병아리와 예상 수익"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점"> <img src="docs/screenshots/iphone-item-preview.jpg" width="240" alt="회전과 확대 버튼으로 살펴보는 입체 의상">
 
-</div>
+iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. 홈의 시간 보상 안내와 새 상점·미리보기 가격을 반영한 최신 화면입니다. 이전 출시 후보의 레이아웃 검증 자료: [iPad 화면](docs/screenshots/ipad-home.jpg) · [다크 모드와 큰 글씨](docs/screenshots/iphone-accessibility-dark.jpg). 두 참고 화면은 모델 개선 이전 모습입니다.
 
----
+## 주요 기능
 
-## 📖 한눈에 보기
+| 기능 | 구현 |
+|---|---|
+| 근무 기록 | 시작·휴식·재개·종료, 마지막 저장 상태 복구 |
+| 수익 계산 | 유급 시간만 계산, 자정 분할, 날짜별 합계와 전체 금액 일치 |
+| 시간 보상 | 시급과 무관하게 타이머 근무 10분당 100P, 한국 시간 하루 최대 4,800P |
+| 작은 방 꾸미기 | 곡면 의상·안경·가구 등 81개 입체 아이템, 회전·확대 착용 미리보기 |
+| 삐약이와 놀기 | 삐약이를 누르거나 ‘놀아주기’ 버튼으로 인사하고 장착한 가구와 상호작용 |
+| 삐약이의 하루 | 바닥을 걷고, 장착한 화분·책·피아노·소파·강아지와 상호작용 |
+| 성장 | 새 정책으로 적립한 근무 보상 4,800P마다 레벨 상승, 아이템 구매로 레벨 감소 없음 |
+| 기록 관리 | 달력, 완료 기록 수정·삭제, 누락 근무 추가, CSV 내보내기 |
+| Apple Watch | iPhone 시급 동기화, 연결 상태 표시, 확인 응답을 받는 근무 제어 |
+| iPhone/iPad 위젯 | 5분 단위 예상 수익, 상태 변경 시 갱신 요청 |
+| 접근성과 개인정보 | Dynamic Type, VoiceOver 레이블, Reduce Motion, 다크 모드, 선택 알림 |
 
-**삐약뱅크**는 아르바이트 시급이 1초마다 쌓이는 것을 실시간으로 보여주고, 그렇게 번 포인트로 병아리 캐릭터 **삐약이**를 키우고 꾸미는 iOS·watchOS 앱입니다. "내가 지금 일해서 얼마를 벌고 있는가"라는 추상적인 감각을, 눈에 보이는 숫자와 키우는 재미로 바꿔주는 것이 목표입니다.
+## 설계에서 집중한 점
 
-> Apple Watch에서 실시간으로 급여를 확인하고 제어할 수 있도록, iOS와 watchOS를 함께 설계한 프로젝트입니다.
+### 한 가지 계산 규칙
 
----
+iPhone, Watch, 위젯이 `EarningsCalculator`를 공유합니다. 시급을 먼저 3,600으로 나누면 반복 소수 오차가 발생하므로, **밀리초 × 시급**의 분자를 유지한 뒤 마지막에 정수 원 단위로 절삭합니다. 날짜별 배분에도 누적 잔여값을 넘겨 전체 금액이 보존됩니다.
 
-## ✨ 핵심 기능
+휴식은 시급 0원 구간으로 표현합니다. 오늘 수익은 완료 기록과 진행 중인 근무의 **오늘 구간만** 합산합니다. 꾸미기 포인트는 수익 계산과 별도의 `RewardPolicy`로 계산합니다.
 
-### 1. 실시간 시급 적산 (Real-time Accrual)
-근무를 시작하면 설정한 시급이 **1초 단위로 적립**됩니다. 일시정지하면 적산도 함께 멈추며, 다시 재개할 수 있습니다.
+### 시급과 분리한 시간 보상
 
-<!-- ▼▼▼ [이미지 2] 홈 화면 — 적립 중 + 말풍선 ▼▼▼ -->
-<img width="1179" height="2556" alt="856BD67F-60BF-4003-9CFD-BFCDE1DA6BDE_1_102_o" src="https://github.com/user-attachments/assets/896d1746-f00c-441a-b4c4-56ce956726cc" />
-<!-- ▲▲▲ -->
+휴식을 제외한 타이머 근무는 **6초당 1P, 10분당 100P**입니다. 같은 날의 짧은 근무도 합산하며 하루 최대 4,800P를 적립합니다. 날짜는 기기의 시간대 변경에 영향받지 않도록 한국 시간(KST) 자정을 기준으로 나눕니다. 한 근무에서 보상에 반영할 수 있는 측정 시간은 최대 24시간이며, 한도를 넘겨도 근무 기록과 예상 수익 계산은 계속됩니다.
 
-### 2. 두 가지 적립 알림 (Smart Notifications)
-- **마일스톤 알림** — 오늘 누적 금액이 1만 / 3만 / 5만 / 10만 / 15만 / 20만 원에 도달할 때
-- **주기 알림** — 사용자가 설정한 간격(15 / 30 / 60분)마다 현재 누적 금액 보고
+측정 구간을 별도 보상 내역으로 보관하고 겹치는 시간은 한 번만 계산합니다. 시계 시간과 연속 경과 시간을 함께 확인해 기기 시각을 앞당긴 만큼 보상이 늘어나지 않도록 제한합니다. 수동으로 추가한 기록은 포인트를 만들지 않으며, 완료 기록의 시급·시간 수정이나 삭제도 이미 확정된 보상을 바꾸지 않습니다. 레벨은 새 정책에서 얻은 근무 보상 4,800P, 즉 보상 대상 시간 8시간마다 오릅니다. 구매·이전 정책 잔액 전환은 성장에 영향을 주지 않습니다.
 
-<!-- ▼▼▼ [이미지 3] 알림 배너가 뜬 화면 ▼▼▼ -->
-<img width="1179" height="2556" alt="B3882BC9-ACE3-45A9-938F-1FD0B6547678_1_102_o" src="https://github.com/user-attachments/assets/c9aa2183-6b29-4a10-a299-8b3f2062a529" />
-<!-- ▲▲▲ -->
+기존 아이템 가격은 1/20로 조정해 기본 제공 외 아이템을 450~4,000P로 구성합니다. 업데이트 시 기존 잔액도 1/20로 내림 환산하되 0~4,800P 범위에서 한 번만 전환합니다. 근무 기록과 보유 아이템을 유지하며, 이전 정책 거래는 포인트 원장 CSV 안에 `legacy`로 구분해 보관하며 현재 잔액에 합산하지 않습니다. 업데이트 당시 진행 중이던 근무는 업데이트 이후 측정한 시간부터 새 보상을 받습니다.
 
-### 3. 꾸미기 & 게이미피케이션 (Decoration)
-모은 포인트로 방과 삐약이를 꾸밉니다. **배경 · 벽장식 · 가구 · 소품 · 러그 · 옷 · 모자 · 눈 · 목** 9개 카테고리에 걸쳐 **총 81종**의 아이템을 제공하며, 착용/해제가 자유롭습니다.
+이 규칙은 시급 부풀리기와 기록 편집에 따른 추가 적립을 막기 위한 장치입니다. 계정과 서버가 없는 오프라인 앱이므로 실제 근무 여부를 증명하거나 기기 저장소 변조까지 차단하지는 않습니다.
 
-<!-- ▼▼▼ [이미지 4] 꾸미기 화면 — 아이템 그리드 + 착용된 삐약이 ▼▼▼ -->
-<img width="1179" height="2556" alt="8CE7D263-81D1-4047-9C8D-8B4D8B255BA4_1_102_o" src="https://github.com/user-attachments/assets/c3eb1195-a1ea-4d94-a39b-361f8f2cd92c" />
-<!-- ▲▲▲ -->
+### 저장이 성공해야 상태가 바뀜
 
-### 4. 온디바이스 AI 펫 (On-Device AI Chat)
-삐약이를 탭하면 대화할 수 있습니다. Apple의 **온디바이스 Foundation Models**로 동작하여 네트워크 없이 작동하고, 급여 데이터가 기기를 벗어나지 않습니다. AI가 숫자를 지어내지 않도록 **Tool Calling**으로 실제 적립 원장을 직접 조회해 답변합니다.
+근무 종료와 포인트 적립을 하나의 저장 단위로 처리합니다. 실패 시 새 원장 항목을 취소하고 화면에 연결된 SwiftData 모델 값도 복원합니다. 강제 종료 복구는 UserDefaults의 보조 키가 아닌 SwiftData의 활성 근무를 기준으로 합니다.
 
-<!-- ▼▼▼ [이미지 5] AI 채팅 화면 — "온디바이스 AI" 배지 + 대화 ▼▼▼ -->
-<img width="1179" height="2556" alt="72DD1B0D-4B26-4095-B623-5F264920B6AE_1_102_o" src="https://github.com/user-attachments/assets/095aec8a-1d8f-4a6e-8341-05549af70ac8" />
-<!-- ▲▲▲ -->
+### 늦게 도착한 워치 명령 방지
 
-### 5. Apple Watch 연동 (watchOS Companion)
-손목에서 실시간 적립 금액을 확인하고, 근무 시작·일시정지·정지를 제어할 수 있습니다. 폰과 **양방향 동기화**되며, 꾸미기에서 착용한 모습이 워치 캐릭터 화면에도 그대로 반영됩니다.
+명령에는 ID, 대상 근무 ID, 생성 시각을 넣습니다. 중복·만료·다른 근무에 대한 명령을 거부하며, 오프라인 명령을 예약하지 않습니다. iPhone의 저장 확인 응답을 받아야 워치 상태를 바꿉니다.
 
-<!-- ▼▼▼ [이미지 6] 워치 — 적산 화면 / 캐릭터 동기화 화면 ▼▼▼ -->
-<table>
-<tr>
-<td><img alt="워치 적산 화면" src="https://github.com/user-attachments/assets/5bd4e543-30dc-4222-94cb-b93225f8ba20" /></td>
-<td><img alt="워치 캐릭터 동기화" src="https://github.com/user-attachments/assets/f1278884-b0f4-4e71-91d5-9831ad4d5622" /></td>
-</tr>
-</table>
-<!-- ▲▲▲ -->
+### 같은 모델로 만드는 디자인
 
-### 6. 기록 & 통계 (History & Stats)
-월별 달력에서 일별 적립 내역을 확인하고, 설정 화면에서 통산 적립액·적립일수·최고 수입일 등의 통계를 볼 수 있습니다.
+캐릭터, 옷, 방과 가구를 코드로 구성한 SceneKit 기하 모델로 렌더링합니다. 앱 아이콘과 상점의 81개 미리보기도 같은 모델에서 생성하므로 미리보기와 실제 착용이 일치합니다. 제3자 3D 모델이나 다운로드 자산은 없습니다.
 
-<!-- ▼▼▼ [이미지 7] 기록 달력 화면 ▼▼▼ -->
-<img width="359" height="780" alt="717400EA-F908-419C-ACC4-51CCFA69B15C_4_5005_c" src="https://github.com/user-attachments/assets/8d6ab536-efb6-4491-a5b1-dbf4106deaa4" />
+의상과 봉제선은 몸 곡면을 따라 구성하고, 얇은 물체의 모서리 반경을 두께에 맞춰 제한합니다. 미리보기는 실제 모델 범위에 맞춰 카메라를 조정하며 생성 원본의 지문을 검사해 오래된 이미지가 남지 않게 합니다.
 
-<!-- ▼▼▼ [이미지 8] 설정 화면 — 프로필 카드 + 통계 ▼▼▼ -->
-<img width="359" height="780" alt="BEA6CB33-820B-442D-9626-7A82CC198B15_4_5005_c" src="https://github.com/user-attachments/assets/c534562b-4d44-4048-bda6-fbf075b91ac2" />
-<!-- ▲▲▲ -->
+방 안 행동은 가구 앞쪽 통로를 따라 이동하도록 설계했고 캐릭터 관절을 사용합니다. 삐약이를 누르거나 ‘놀아주기’ 버튼을 누르면 인사하거나 장착한 가구와 상호작용합니다. 홈이 화면에 보일 때만 최대 24fps로 움직이며, 다른 탭·백그라운드·저전력·발열 경고·Reduce Motion에서는 멈춥니다. 홈에서 직접 움직임을 멈출 수도 있습니다.
 
----
+[행동 프레임](docs/quality/room-activities.jpg)과 [착용 조합](docs/quality/room-combinations.jpg)에서 실제 엔진의 렌더링 결과를 확인할 수 있습니다. 오늘 예상 수익과 보유 포인트는 홈에서, 날짜별 근무 기록은 기록 탭에서 확인합니다.
 
-## 🛠 기술 스택 (Tech Stack)
+## 기술 구성
 
-| 영역 | 사용 기술 |
-|------|-----------|
-| Language | Swift 5.9 |
-| UI | SwiftUI |
-| 영속성 | SwiftData |
-| 알림 | UNUserNotificationCenter |
-| 워치 연동 | WatchConnectivity |
-| 인앱결제 | StoreKit 2 |
-| 위젯 | WidgetKit |
-| 온디바이스 AI | FoundationModels (Apple Intelligence) |
+SwiftUI · SwiftData · SceneKit · WatchConnectivity · WidgetKit · UserNotifications
 
----
-
-## 🏗 아키텍처 (Architecture)
-
-세 개의 타깃이 `Shared` 코드를 공유하는 구조입니다.
-
-```
+```text
 PiyakBank/
-├── App/            앱 진입점 · 라우팅 · 서비스 와이어링 · AI 엔진
-├── Services/       세션 컨트롤러 · 알림 스케줄러 · 스토어 · 워치 싱크
-├── Shared/         설계 토큰 · 경제(원장) 모델 · 공용 설정    ← 3타깃 공유
-├── Views/          홈 · 꾸미기 · 기록 · 캐릭터 합성 뷰
-├── Watch/          watchOS 앱 (적산 · 제어 · 캐릭터 페이지)
-└── Widget/         WidgetKit 익스텐션
+  App/         앱 시작, 서비스 연결
+  Shared/      공통 계산, 스냅샷, 포인트 원장, 디자인 토큰
+  Services/    근무 수명주기, 저장, 알림, 워치 통신
+  Views/       홈, 입체 방, 꾸미기, 기록, 설정, 개인정보
+  Watch/       Watch 동반 앱
+  Widget/      iPhone/iPad 위젯
+Tests/         계산 및 실제 SwiftData 회귀 테스트
+scripts/       원본 모델에서 이미지 생성, 배포 리소스 검사
+docs/          지원·개인정보·심사 자료·검증 기록
 ```
 
-### 핵심 설계 결정
-- **포인트 원장(Ledger) 방식** — 잔액을 단일 필드로 저장하지 않고, 모든 적립·구매·환불을 거래 기록(`PointTransaction`)으로 남긴 뒤 합산합니다. 자정 리셋 없이 날짜 필터만으로 "오늘 번 돈"을 정확히 계산합니다.
-- **캐릭터 합성(Compositing)** — 공용 몸체 위에 옷·모자·안경·목 아이템을 동일 좌표계의 레이어로 겹쳐 그립니다. 의상은 통합 실루엣 방식으로 베이스를 교체합니다.
-- **AI 환각 방지** — 잔액·기간 통계 질문은 LLM이 추측하지 않고 Tool Calling으로 SwiftData 원장을 직접 조회하여, 화면에 표시되는 금액과 항상 일치합니다.
+## 실행과 검증
 
----
+- **빌드:** Xcode 26 이상, iOS/watchOS SDK 26 이상
+- **실행:** iOS 17.0 이상, watchOS 10.0 이상
+- **실기기 서명:** 본인의 Team 및 `group.com.minseo.piyakbank` App Group 설정 필요
 
-## ⚙️ 빌드 방법 (Getting Started)
+`PiyakBank.xcodeproj`를 열고 `PiyakBank` scheme을 실행합니다. 의존 패키지, API 키, 서버 설정은 없습니다.
 
-```bash
-git clone https://github.com/eric91405/piyak-bank-ios.git
+```sh
+swift test --jobs 1
+python3 scripts/check_release_assets.py
+xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank \
+  -configuration Release -jobs 1 -destination 'generic/platform=iOS' \
+  -derivedDataPath /tmp/PiyakBank CODE_SIGNING_ALLOWED=NO build
 ```
 
-1. Xcode에서 `PiyakBank.xcodeproj` 열기
-2. Scheme → Run → Options → **StoreKit Configuration**을 `Products.storekit`으로 지정
-3. iOS 26.0+ 기기 또는 시뮬레이터에서 실행
-4. (선택) 온디바이스 AI 채팅은 Apple Intelligence가 활성화된 실기기에서 동작하며, 미지원 환경에서는 자동으로 규칙 기반 응답으로 대체됩니다.
+이미지 재생성:
 
-> **Requirements:** Xcode 16+, iOS 26.0+, watchOS 26.0+
-> ⚠️ **라이트 모드 권장:** 이 앱은 말랑한 파스텔 톤에 맞춰 라이트 모드 기준으로 디자인되었습니다. 실기기에서 다크 모드로 실행하면 일부 색상이 의도와 다르게 보일 수 있으니, **설정 → 디스플레이에서 라이트 모드로 두고 사용하는 것을 추천**합니다.
+```sh
+xcrun swiftc PiyakBank/Views/PiyakScene.swift scripts/GenerateAssets.swift -o /tmp/piyak-assets
+/tmp/piyak-assets "$PWD"
+```
 
+GitHub Actions에서 계산·저장 회귀 테스트와 iOS/Watch/위젯 Release 빌드를 수행합니다. 상세 결과와 아직 실기기에서 확인해야 할 항목은 [검증 기록](docs/RELEASE_VALIDATION.md)을 참고하세요.
 
----
+## 데이터와 배포
 
-## 👤 만든 사람
+기록은 기기에 저장하며 개발자 서버로 전송하지 않습니다. CSV는 열람·보관용이고 가져오기 및 클라우드 동기화는 지원하지 않습니다. 위젯은 시스템의 갱신 정책을 따르는 예상치이며 watchOS 컴플리케이션은 포함하지 않습니다.
 
-**김민서** · 한성대학교 iOS Programming
-GitHub [@eric91405](https://github.com/eric91405)
+공개 페이지: [개인정보 처리방침](https://eric91405.github.io/piyak-bank-ios/privacy/) · [지원 안내](https://eric91405.github.io/piyak-bank-ios/support/)
 
-<div align="center">
+저장소 문서: [개인정보 처리방침](docs/PRIVACY.md) · [지원 안내](docs/SUPPORT.md) · [App Store 제출 자료](docs/APP_STORE.md)
 
-🐤 *오늘도 차곡차곡, 삐약!*
-
-</div>
+개발: **김민서** · [eric91405@gmail.com](mailto:eric91405@gmail.com)

@@ -1,167 +1,243 @@
 import Foundation
 import SwiftData
 import Combine
+#if os(iOS)
+import WidgetKit
+#endif
 
-/// 워치/위젯이 읽을 경량 세션 상태 (AppGroup 공유)
+@MainActor
 protocol SessionSyncing: AnyObject {
     func didUpdateSession(_ snapshot: SessionSnapshot)
 }
 
 @MainActor
+protocol SessionReminding: AnyObject {
+    func update(snapshot: SessionSnapshot, interval: ReminderInterval, enabled: Bool)
+}
+
+enum ReminderInterval: Int, CaseIterable { case m15 = 15, m30 = 30, m60 = 60 }
+
+@MainActor
 final class SessionController: ObservableObject {
-
     @Published private(set) var current: WorkSession?
-    @Published private(set) var snapshot = SessionSnapshot(
-        isRunning: false, isPaused: false, sessionId: nil,
-        startedAt: nil, accrued: 0, wage: 0)
+    @Published private(set) var snapshot = SessionSnapshot.empty
+    @Published var errorMessage: String?
+    @Published var preferredWage: Int {
+        didSet { defaults.set(preferredWage, forKey: "hourly_wage"); refreshSnapshot() }
+    }
+    @Published var interval: ReminderInterval {
+        didSet { defaults.set(interval.rawValue, forKey: "reminder_interval"); updateReminders() }
+    }
+    @Published var notificationsEnabled: Bool {
+        didSet { defaults.set(notificationsEnabled, forKey: "reminders_enabled"); updateReminders() }
+    }
 
+    let economy: EconomyStore
     private let context: ModelContext
-    private let economy: EconomyStore
-    private let scheduler: NotificationScheduler
+    private let scheduler: any SessionReminding
+    private let defaults: UserDefaults
+    private let now: () -> Date
+    private let continuousNow: () -> TimeInterval
+    private let bootSessionID: () -> String
+    private let beforeReset: () throws -> Void
     weak var syncDelegate: SessionSyncing?
 
-    @Published var interval: NotificationScheduler.Interval = .m60   // 기본 60분
-
-    /// AppGroup 공유 저장소 (강제종료 복구 + 위젯)
-    private let defaults = AppConfig.shared
-    private let activeKey = AppConfig.kActiveSession
-
-    init(context: ModelContext, economy: EconomyStore, scheduler: NotificationScheduler) {
+    init(context: ModelContext, economy: EconomyStore, scheduler: any SessionReminding,
+         defaults: UserDefaults = AppConfig.shared ?? .standard, now: @escaping () -> Date = Date.init,
+         continuousNow: @escaping () -> TimeInterval = RewardClock.now,
+         bootSessionID: @escaping () -> String = { RewardClock.bootSessionID },
+         beforeReset: @escaping () throws -> Void = {}) {
         self.context = context
         self.economy = economy
         self.scheduler = scheduler
+        self.defaults = defaults
+        self.now = now
+        self.continuousNow = continuousNow
+        self.bootSessionID = bootSessionID
+        self.beforeReset = beforeReset
+        let wage = defaults.integer(forKey: "hourly_wage")
+        self.preferredWage = (1...EarningsCalculator.maximumWage).contains(wage) ? wage : 10_000
+        self.interval = ReminderInterval(rawValue: defaults.integer(forKey: "reminder_interval")) ?? .m60
+        self.notificationsEnabled = defaults.bool(forKey: "reminders_enabled")
     }
 
-    // MARK: 시작
+    /// UI actions surface a save failure and keep the last committed state intact.
+    @discardableResult
+    func perform(_ action: () throws -> Void) -> Bool {
+        do { try action(); return true }
+        catch { errorMessage = error.localizedDescription; return false }
+    }
 
-    func start(wage: Int, plannedEnd: Date? = nil) {
+    func start(wage: Int? = nil) throws {
         guard current == nil else { return }
-        let s = WorkSession(wage: wage)
-        context.insert(s)
-        try? context.save()
-        current = s
-        defaults?.set(s.id, forKey: activeKey)
-
-        let baseline = economy.dailyAccrued(on: .now)
-        scheduler.schedule(session: s, interval: interval,
-                           plannedEnd: plannedEnd, dailyBaseline: baseline)
-        pushSnapshot()
+        let wage = wage ?? preferredWage
+        guard (1...EarningsCalculator.maximumWage).contains(wage) else { throw EconomyStore.StoreError.invalidRecord }
+        let date = now()
+        let session = WorkSession(startedAt: date, wage: wage)
+        try economy.transaction {
+            let tick = continuousNow()
+            let boot = bootSessionID()
+            let rewardDate = try economy.rewardDate(now: date, tick: tick, bootSessionID: boot)
+            try session.setRewardTracking(RewardTracking(date: rewardDate, tick: tick, working: true, bootSessionID: boot))
+            context.insert(session)
+        }
+        current = session
+        defaults.set(session.id, forKey: AppConfig.kActiveSession)
+        refreshSnapshot()
+        updateReminders()
     }
 
-    // MARK: 일시정지 / 재개 (시급 0 구간으로 표현)
-
-    func pause() {
-        guard let s = current, s.isActive else { return }
-        var segs = s.segments
-        if let last = segs.indices.last, segs[last].end == nil {
-            segs[last].end = .now
-        }
-        segs.append(WageSegment(start: .now, end: nil, hourlyWage: 0)) // 정지 구간
-        s.segments = segs
-        try? context.save()
-        scheduler.cancel(sessionId: s.id)
-        pushSnapshot()
+    func pause() throws {
+        guard let session = current, session.isActive, session.currentWage > 0 else { return }
+        try appendSegment(wage: 0, to: session)
     }
 
-    func resume() {
-        guard let s = current, s.isActive else { return }
-        var segs = s.segments
-        let lastWage = segs.dropLast().last(where: { $0.hourlyWage > 0 })?.hourlyWage ?? 0
-        if let last = segs.indices.last, segs[last].end == nil {
-            segs[last].end = .now   // 정지 구간 닫기
+    func resume() throws {
+        guard let session = current, session.isActive, session.currentWage == 0 else { return }
+        guard let wage = try session.decodedSegments().last(where: { $0.hourlyWage > 0 })?.hourlyWage else {
+            throw EconomyStore.StoreError.corruptRecord
         }
-        segs.append(WageSegment(start: .now, end: nil, hourlyWage: lastWage))
-        s.segments = segs
-        try? context.save()
-        let baseline = economy.dailyAccrued(on: .now)
-        scheduler.schedule(session: s, interval: interval,
-                           plannedEnd: nil, dailyBaseline: baseline)
-        pushSnapshot()
+        try appendSegment(wage: wage, to: session)
     }
 
-    // MARK: 정지 (정산)
-
-    func stop() {
-        guard let s = current else { return }
-        let now = Date()
-        var segs = s.segments
-        if let last = segs.indices.last, segs[last].end == nil {
-            segs[last].end = now
+    private func appendSegment(wage: Int, to session: WorkSession) throws {
+        let date = now()
+        var segments = try session.decodedSegments()
+        guard let index = segments.indices.last, segments[index].start <= date else { throw EconomyStore.StoreError.invalidRecord }
+        segments[index].end = date
+        segments.append(.init(start: date, hourlyWage: wage))
+        try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: date, working: wage > 0)
+            session.segments = segments
         }
-        s.segments = segs
-        s.endedAt = now
-        s.isActive = false
+        refreshSnapshot()
+        updateReminders()
+    }
 
-        // 자정 분할 정산: 구간을 날짜별로 쪼개 원장에 적립
-        recordAccrualSplitByMidnight(session: s)
-
-        scheduler.cancel(sessionId: s.id)
-        try? context.save()
-        defaults?.removeObject(forKey: activeKey)
+    @discardableResult
+    func stop() throws -> Int {
+        guard let session = current else { return 0 }
+        guard session.isActive else {
+            current = nil
+            refreshSnapshot()
+            updateReminders()
+            return 0
+        }
+        let date = now()
+        var segments = try session.decodedSegments()
+        guard let index = segments.indices.last, segments[index].start <= date else { throw EconomyStore.StoreError.invalidRecord }
+        segments[index].end = date
+        var awarded = 0
+        try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: date, working: false)
+            session.segments = segments
+            session.endedAt = date
+            session.isActive = false
+            awarded = try economy.insertAccruals(for: session, now: date)
+        }
         current = nil
-        pushSnapshot()
+        defaults.removeObject(forKey: AppConfig.kActiveSession)
+        refreshSnapshot()
+        updateReminders()
+        return awarded
     }
 
-    /// 날짜 경계로 적립액을 분할해 PointTransaction 기록 (자정 리셋 없이 날짜 귀속만 분리)
-    private func recordAccrualSplitByMidnight(session s: WorkSession) {
-        let cal = Calendar.current
-        for seg in s.segments where seg.hourlyWage > 0 {
-            guard let segEnd = seg.end else { continue }
-            var cursor = seg.start
-            while cursor < segEnd {
-                let dayStart = cal.startOfDay(for: cursor)
-                let nextMidnight = cal.date(byAdding: .day, value: 1, to: dayStart)!
-                let sliceEnd = min(segEnd, nextMidnight)
-                let piece = WageSegment(start: cursor, end: sliceEnd, hourlyWage: seg.hourlyWage)
-                economy.recordAccrual(piece.accrued(), sessionId: s.id, at: cursor)
-                cursor = sliceEnd
+    private func checkpoint(_ session: WorkSession, date: Date, working: Bool) throws {
+        let tick = continuousNow()
+        let boot = bootSessionID()
+        let rewardDate = try economy.rewardDate(now: date, tick: tick, bootSessionID: boot)
+        var tracking = try session.rewardTracking() ?? RewardTracking(date: rewardDate, tick: tick, working: working, bootSessionID: boot)
+        tracking.checkpoint(date: rewardDate, tick: tick, working: working, bootSessionID: boot)
+        try session.setRewardTracking(tracking)
+    }
+
+    /// Event-driven persistence retains measured time across app termination without
+    /// running an extra timer, a background task, or keeping the device awake.
+    func checkpointRewards() throws {
+        guard let session = current else { return }
+        try economy.transaction(restoring: session.restorePoint()) {
+            try checkpoint(session, date: now(), working: session.currentWage > 0)
+        }
+    }
+
+    func recoverIfNeeded() throws {
+        // SwiftData is authoritative. UserDefaults can be lost between save and snapshot.
+        let active = try context.fetch(FetchDescriptor<WorkSession>(predicate: #Predicate { $0.isActive },
+                                                                    sortBy: [SortDescriptor(\.startedAt)]))
+        guard active.count <= 1 else { throw EconomyStore.StoreError.corruptRecord }
+        if let session = active.first {
+            let segments = try session.decodedSegments()
+            guard !segments.isEmpty else { throw EconomyStore.StoreError.corruptRecord }
+            current = session
+            // An upgraded active session begins earning under the new policy now;
+            // pre-upgrade editable segments cannot be used to manufacture rewards.
+            try checkpointRewards()
+            defaults.set(session.id, forKey: AppConfig.kActiveSession)
+        } else {
+            current = nil
+            defaults.removeObject(forKey: AppConfig.kActiveSession)
+        }
+        refreshSnapshot()
+        updateReminders()
+    }
+
+    func handleRemoteCommand(_ command: WatchCommand) throws {
+        let age = now().timeIntervalSince(command.createdAt)
+        guard (-5...30).contains(age) else { throw RemoteError.expired }
+        let ids = defaults.stringArray(forKey: "watch_command_ids") ?? []
+        if ids.contains(command.id) { return }
+        guard command.sessionId == current?.id else { throw RemoteError.changed }
+        switch command.action {
+        case "start": try start()
+        case "stop": try stop()
+        case "pause": try pause()
+        case "resume": try resume()
+        default: throw RemoteError.changed
+        }
+        defaults.set(Array((ids + [command.id]).suffix(30)), forKey: "watch_command_ids")
+    }
+
+    enum RemoteError: LocalizedError {
+        case expired, changed
+        var errorDescription: String? {
+            switch self {
+            case .expired: "요청 시간이 지났어요. 상태를 새로고침한 뒤 다시 눌러 주세요."
+            case .changed: "iPhone에서 근무 상태가 바뀌었어요. 다시 확인해 주세요."
             }
         }
     }
 
-    // MARK: 강제종료 복구
-
-    func recoverIfNeeded() {
-        guard current == nil, let sid = defaults?.string(forKey: activeKey) else { return }
-        let desc = FetchDescriptor<WorkSession>(predicate: #Predicate { $0.id == sid })
-        guard let s = try? context.fetch(desc).first, s.isActive else {
-            defaults?.removeObject(forKey: activeKey); return
-        }
-        current = s
-        let baseline = economy.dailyAccrued(on: .now)
-        scheduler.schedule(session: s, interval: interval,
-                           plannedEnd: nil, dailyBaseline: baseline)
-        pushSnapshot()
+    func refreshSnapshot() {
+        do {
+            let date = now()
+            let segments = try current?.decodedSegments()
+            snapshot = SessionSnapshot(isRunning: current?.isActive ?? false,
+                isPaused: current != nil && current?.currentWage == 0, sessionId: current?.id,
+                startedAt: current?.startedAt, accrued: current?.accrued(until: date) ?? 0,
+                wage: current?.currentWage ?? 0, segments: segments, capturedAt: date,
+                completedToday: try economy.dailyAccrued(on: date, now: date), preferredWage: preferredWage)
+            defaults.set(try JSONEncoder().encode(snapshot), forKey: AppConfig.kSnapshot)
+            syncDelegate?.didUpdateSession(snapshot)
+            #if os(iOS)
+            WidgetCenter.shared.reloadTimelines(ofKind: AppConfig.widgetKind)
+            #endif
+        } catch { errorMessage = error.localizedDescription }
     }
 
-    // MARK: 워치 원격 제어 진입점
-
-    func handleRemoteCommand(_ command: String, wage: Int?) {
-        switch command {
-        case "start": if let w = wage { start(wage: w) }
-        case "stop":  stop()
-        case "pause": pause()
-        case "resume": resume()
-        default: break
-        }
+    func resetAll() throws {
+        // Do not report a complete reset while a pre-migration copy still holds
+        // the person's records. A cleanup failure leaves the active store intact.
+        try beforeReset()
+        try economy.resetAll()
+        current = nil
+        defaults.removeObject(forKey: AppConfig.kActiveSession)
+        defaults.removeObject(forKey: "watch_command_ids")
+        refreshSnapshot()
+        updateReminders()
+        NotificationCenter.default.post(name: .piyakEquippedChanged, object: nil)
     }
 
-    // MARK: 스냅샷 갱신 (UI 타이머에서 주기 호출)
-
-    func refreshSnapshot() { pushSnapshot() }
-
-    private func pushSnapshot() {
-        let snap = SessionSnapshot(
-            isRunning: current?.isActive ?? false,
-            isPaused: current?.currentWage == 0 && (current?.isActive ?? false),
-            sessionId: current?.id,
-            startedAt: current?.startedAt,
-            accrued: current?.accrued() ?? 0,
-            wage: current?.currentWage ?? 0)
-        snapshot = snap
-        if let data = try? JSONEncoder().encode(snap) {
-            defaults?.set(data, forKey: AppConfig.kSnapshot)
-        }
-        syncDelegate?.didUpdateSession(snap)
+    func updateReminders() {
+        scheduler.update(snapshot: snapshot, interval: interval, enabled: notificationsEnabled)
     }
 }

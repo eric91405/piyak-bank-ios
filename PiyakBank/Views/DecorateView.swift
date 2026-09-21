@@ -1,193 +1,197 @@
 import SwiftUI
 import SwiftData
-import StoreKit
 
 struct DecorateView: View {
-    @Environment(\.modelContext) private var context
-    @Query private var catalog: [CatalogItem]
+    @EnvironmentObject private var session: SessionController
+    @Query(sort: \CatalogItem.price) private var catalog: [CatalogItem]
     @Query private var transactions: [PointTransaction]
     @Query private var owned: [OwnedItem]
-    @EnvironmentObject private var storeManager: StoreManager
-    
-    @State private var selectedSlot: DecorSlot = .bg
-    @State private var purchaseError: String? = nil
-    @State private var confirmItem: CatalogItem? = nil
-    @State private var equipBounce = false
-    private var store: EconomyStore { EconomyStore(context: context) }
-    
-    private let roomSlots: [DecorSlot] = [.bg, .wallDeco, .bigFurniture, .floorProp, .rug]
-    private let wearSlots: [DecorSlot] = [.bodyFront, .headTop, .eyes, .neck]
-    
-    private var balance: Int {
-        transactions.reduce(0) { $0 + $1.amount }
+    @State private var slot: DecorSlot = .bodyFront
+    @State private var onlyOwned = false
+    @State private var selected: CatalogItem?
+    private var balance: Int { transactions.filter { $0.kind != .legacy }.reduce(0) { $0 + $1.amount } }
+    private var equipped: [String: String] {
+        var map: [String: String] = [:]
+        for item in owned { if let slot = item.equippedSlotRaw { map[slot] = item.catalogId } }
+        return map
     }
-    
+    private var items: [CatalogItem] {
+        catalog.filter { $0.slot == slot && (!onlyOwned || owns($0.id)) }
+    }
+    private func owns(_ id: String) -> Bool { owned.contains { $0.catalogId == id } }
+
     var body: some View {
-        VStack(spacing: 0) {
-            balanceBar
-            preview
-            slotPicker
-            itemGrid
-        }
-        .background(PB.C.bg.ignoresSafeArea())
-        .alert("구매할까요?", isPresented: .init(
-            get: { confirmItem != nil },
-            set: { if !$0 { confirmItem = nil } }
-        )) {
-            Button("구매") {
-                if let item = confirmItem {
-                    do {
-                        try store.purchase(item.id)
-                    } catch EconomyStore.PurchaseError.insufficient {
-                        purchaseError = "포인트가 부족해요 🥲\n근무해서 더 모아볼까요?"
-                    } catch {
-                        purchaseError = "구매에 실패했어요"
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("취향을 하나씩 모아요").font(.subheadline).foregroundStyle(PB.C.secondary)
+                            Text("삐약이의 작은 방").font(.system(.title2, design: .rounded, weight: .heavy))
+                        }
+                        Spacer(minLength: 8)
+                        PointBadge(amount: balance)
                     }
-                }
-                confirmItem = nil
+                    CharacterComposite().frame(height: 260)
+                        .background(LinearGradient(colors: [PB.C.lilac, Color(hex: 0xF9E8C8)], startPoint: .top, endPoint: .bottom))
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                    HStack {
+                        Label("꾸미기 상점", systemImage: "bag.fill").font(.headline)
+                        Spacer()
+                        Toggle("보유만", isOn: $onlyOwned).font(.subheadline).fixedSize()
+                    }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach([DecorSlot.bodyFront, .headTop, .eyes, .neck, .bg, .wallDeco, .bigFurniture, .floorProp, .rug], id: \.self) { category in
+                                Button { slot = category } label: {
+                                    Label(category.title, systemImage: category.symbol)
+                                        .font(.subheadline.bold()).padding(.horizontal, 14).padding(.vertical, 12)
+                                        .foregroundStyle(slot == category ? PB.C.ink : PB.C.textBrown)
+                                        .background(slot == category ? PB.C.brandYellow : PB.C.surface, in: Capsule())
+                                }.buttonStyle(.plain).accessibilityAddTraits(slot == category ? .isSelected : [])
+                            }
+                        }
+                    }
+                    if items.isEmpty {
+                        ContentUnavailableView("아직 비어 있어요", systemImage: "shippingbox",
+                                               description: Text("보유만 보기를 끄고 마음에 드는 아이템을 찾아보세요."))
+                    } else {
+                        LazyVGrid(columns: [.init(.adaptive(minimum: 145), spacing: 14)], spacing: 14) {
+                            ForEach(items) { item in
+                                Button { selected = item } label: {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Image("thumb_" + assetName(item.id)).resizable().scaledToFit()
+                                            .frame(maxWidth: .infinity).frame(height: 122)
+                                            .background(PB.C.bg.opacity(0.65), in: RoundedRectangle(cornerRadius: 18))
+                                            .overlay(alignment: .topTrailing) {
+                                                if equipped[item.slotRaw] == item.id {
+                                                    Image(systemName: "checkmark.circle.fill").foregroundStyle(PB.C.accent)
+                                                        .font(.title3).padding(8)
+                                                }
+                                            }
+                                        Text(item.displayName).font(.subheadline.bold())
+                                        Text(owns(item.id) ? (equipped[item.slotRaw] == item.id ? "함께하는 중" : "보관함에 있어요") : item.price.points)
+                                            .font(.caption.weight(.medium)).foregroundStyle(PB.C.secondary)
+                                    }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                                        .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 24))
+                                }.buttonStyle(.plain)
+                                    .accessibilityLabel("\(item.displayName), \(owns(item.id) ? "보유" : item.price.points). 미리 보기")
+                            }
+                        }
+                    }
+                    Text("포인트는 앱 안에서만 사용할 수 있어요. 실제 결제는 없어요.")
+                        .font(.caption).foregroundStyle(PB.C.secondary).padding(.bottom, 10)
+                }.padding(20).frame(maxWidth: 720).frame(maxWidth: .infinity)
             }
-            Button("취소", role: .cancel) { confirmItem = nil }
-        } message: {
-            Text(confirmItem.map { "\($0.displayName)을(를) \($0.price.won)에 구매합니다" } ?? "")
-        }
-        .alert("구매 실패", isPresented: .init(
-            get: { purchaseError != nil },
-            set: { if !$0 { purchaseError = nil } }
-        )) {
-            Button("확인", role: .cancel) {}
-        } message: {
-            Text(purchaseError ?? "")
-        }
-        .sensoryFeedback(.impact, trigger: owned.compactMap(\.equippedSlotRaw))
-    }
-    
-    private var balanceBar: some View {
-        HStack(spacing: 6) {
-            Text("💰").font(.system(size: 14))
-            Text("보유 포인트")
-                .font(PB.F.body(12))
-                .foregroundStyle(PB.C.textBrown.opacity(0.6))
-            Text(balance.won)
-                .font(.system(size: 16, weight: .bold, design: .rounded))
-                .foregroundStyle(PB.C.textBrown)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 8)
-        .background(.white, in: Capsule())
-        .shadow(color: PB.C.textBrown.opacity(0.08), radius: 8, y: 3)
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-    }
-    
-    private var preview: some View {
-        CharacterComposite(showRoom: true, fillRoom: false)
-            .frame(maxWidth: .infinity)
-            .frame(height: 320)
-            .background(PB.C.bg)
-            .scaleEffect(equipBounce ? 1.06 : 1.0)
-            .animation(.spring(duration: 0.35, bounce: 0.5), value: equipBounce)
-            .onChange(of: owned.compactMap(\.equippedSlotRaw)) { _, _ in
-                equipBounce = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-                    equipBounce = false
-                }
+            .background(PB.C.bg.ignoresSafeArea()).foregroundStyle(PB.C.textBrown)
+            .navigationTitle("꾸미기").navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $selected) { item in
+                ItemDetailSheet(item: item, equipped: equipped, balance: balance, isOwned: owns(item.id))
+                    .environmentObject(session)
             }
-    }
-    
-    private var slotPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(roomSlots + wearSlots, id: \.self) { slot in
-                    Button(slotLabel(slot)) { selectedSlot = slot }
-                        .font(PB.F.body(13))
-                        .padding(.horizontal, 14).padding(.vertical, 8)
-                        .background(selectedSlot == slot ? PB.C.brandYellow : .white,
-                                    in: Capsule())
-                        .shadow(color: PB.C.textBrown.opacity(selectedSlot == slot ? 0.12 : 0.04),
-                                radius: 6, y: 2)
-                        .foregroundStyle(PB.C.textBrown)
-                }
-            }.padding(.horizontal, 16)
-        }.padding(.vertical, 12)
-    }
-    
-    private var itemGrid: some View {
-        ScrollView {
-            LazyVGrid(columns: [.init(.adaptive(minimum: 100), spacing: 12)], spacing: 12) {
-                ForEach(catalog.filter { $0.slot == selectedSlot }, id: \.id) { item in
-                    ItemCell(item: item,
-                             isOwned: owned.contains { $0.catalogId == item.id },
-                             isEquipped: store.equippedId(for: item.slot) == item.id,
-                             onTap: { handleTap(item) })
-                }
-            }.padding(16)
-        }
-    }
-    
-    private func handleTap(_ item: CatalogItem) {
-        if owned.contains(where: { $0.catalogId == item.id }) {
-            if store.equippedId(for: item.slot) == item.id {
-                if item.slot != .bg {                    // 배경은 해제 불가
-                    store.unequip(slot: item.slot)
-                }
-            } else {
-                store.equip(item.id)             // 보유 → 착용
-            }
-        } else if item.isIAP {
-            if let product = storeManager.products.first(where: {
-                StoreManager.productMap[$0.id] == item.id
-            }) {
-                Task { try? await storeManager.purchase(product) }
-            }
-        } else {
-            confirmItem = item
-        }
-    }
-    
-    private func slotLabel(_ s: DecorSlot) -> String {
-        switch s {
-        case .bg: "배경"; case .wallDeco: "벽장식"; case .bigFurniture: "가구"
-        case .floorProp: "소품"; case .rug: "러그"; case .bodyFront: "옷"
-        case .headTop: "모자"; case .eyes: "눈"; case .headband: "머리띠"; case .neck: "목"
         }
     }
 }
 
-struct ItemCell: View {
-    let item: CatalogItem; let isOwned: Bool; let isEquipped: Bool
-    let onTap: () -> Void
-    
+private struct ItemDetailSheet: View {
+    @EnvironmentObject private var session: SessionController
+    @Environment(\.dismiss) private var dismiss
+    let item: CatalogItem
+    let equipped: [String: String]
+    let balance: Int
+    let isOwned: Bool
+    @State private var error: String?
+    @State private var confirmPurchase = false
+    @State private var showWholeRoom = false
+    @State private var inspectionYaw: Double = 0
+    @State private var inspectionZoom: Double = 1
+    @State private var inspectionResetID = 0
+    private var wearable: Bool { [.bodyFront, .headTop, .eyes, .neck].contains(item.slot) }
+    private var isEquipped: Bool { equipped[item.slotRaw] == item.id }
+    private var preview: [String: String] {
+        var map = equipped; map[item.slotRaw] = item.id; return map
+    }
     var body: some View {
-        Button(action: onTap) {
-            VStack(spacing: 6) {
-                RoundedRectangle(cornerRadius: PB.R.md)
-                    .fill(.white)
-                    .frame(height: 80)
-                    .shadow(color: PB.C.textBrown.opacity(0.06), radius: 8, y: 3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: PB.R.md)
-                            .strokeBorder(isEquipped ? PB.C.coral : .clear, lineWidth: 2)
-                    )
-                    .overlay(
-                        Image(assetName(item.id))
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 64, height: 64, alignment: .bottom)
-                            .clipped()
-                            .padding(8)
-                    )
-                    .overlay(alignment: .topTrailing) {
-                        if isEquipped { Text("착용중").font(.caption2).padding(4)
-                            .background(PB.C.coral, in: Capsule()).foregroundStyle(.white).padding(4) }
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 20) {
+                    CharacterComposite(showRoom: !wearable || showWholeRoom, preview: preview,
+                                       allowsInspection: true, inspectionYaw: inspectionYaw,
+                                       inspectionZoom: inspectionZoom, inspectionResetID: inspectionResetID)
+                        .frame(height: 320)
+                        .background(PB.C.lilac, in: RoundedRectangle(cornerRadius: 28))
+                    inspectionControls
+                    if wearable {
+                        Picker("미리보기 범위", selection: $showWholeRoom) {
+                            Text("가까이 보기").tag(false)
+                            Text("방에서 보기").tag(true)
+                        }.pickerStyle(.segmented)
                     }
-                Text(item.displayName).font(PB.F.body(12)).foregroundStyle(PB.C.textBrown)
-                Text(badge).font(PB.F.body(11)).foregroundStyle(PB.C.textBrown.opacity(0.6))
-            }
+                    Label("버튼으로 돌려 보세요. 드래그와 두 손가락 확대도 가능해요", systemImage: "hand.draw")
+                        .font(.caption).foregroundStyle(PB.C.secondary)
+                    VStack(spacing: 8) {
+                        Text(item.displayName).font(.title2.bold())
+                        Text("\(item.slot.title) · 미리 보는 중").font(.subheadline).foregroundStyle(PB.C.secondary)
+                    }
+                    if isOwned {
+                        Button(isEquipped ? "보관함에 넣기" : "함께하기") {
+                            action {
+                                if isEquipped { try session.economy.unequip(slot: item.slot) }
+                                else { try session.economy.equip(item.id) }
+                            }
+                        }.buttonStyle(GameButtonStyle()).disabled(isEquipped && item.slot == .bg)
+                    } else {
+                        Text(item.price.points).font(.system(.title, design: .rounded, weight: .bold))
+                        Text(balance >= item.price ? "구매 후 남는 포인트: \((balance - item.price).points)" : "현재 보유 포인트: \(balance.points)")
+                            .font(.subheadline).foregroundStyle(PB.C.secondary)
+                        Button(balance >= item.price ? "포인트로 데려오기" : "\((item.price - balance).points) 더 필요해요") {
+                            confirmPurchase = true
+                        }.buttonStyle(GameButtonStyle()).disabled(balance < item.price)
+                        Text("근무를 마치면 포인트를 받을 수 있어요. 현금 결제는 없어요.")
+                            .font(.caption).foregroundStyle(PB.C.secondary)
+                    }
+                }.padding(20).frame(maxWidth: 600).frame(maxWidth: .infinity)
+            }.background(PB.C.bg).foregroundStyle(PB.C.textBrown)
+                .navigationTitle("마음에 드나요?").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { dismiss() } } }
+                .onChange(of: showWholeRoom) { _, _ in resetInspection() }
+                .confirmationDialog("\(item.price.points)로 데려올까요?", isPresented: $confirmPurchase, titleVisibility: .visible) {
+                    Button("구매하고 꾸미기") { action { try session.economy.purchase(item.id, equip: true) } }
+                }
+                .alert("변경하지 못했어요", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+                    Button("확인") { error = nil }
+                } message: { Text(error ?? "") }
         }
     }
-    private var badge: String {
-        if isOwned { return "보유" }
-        if item.isIAP { return "결제" }
-        return item.price.won
+    private var inspectionControls: some View {
+        HStack(spacing: 8) {
+            inspectionButton("왼쪽으로 회전", symbol: "arrow.counterclockwise") { inspectionYaw -= .pi / 8 }
+            inspectionButton("오른쪽으로 회전", symbol: "arrow.clockwise") { inspectionYaw += .pi / 8 }
+            inspectionButton("축소", symbol: "minus.magnifyingglass") { inspectionZoom = max(0.7, inspectionZoom - 0.15) }
+                .disabled(inspectionZoom <= 0.7001)
+            inspectionButton("확대", symbol: "plus.magnifyingglass") { inspectionZoom = min(1.6, inspectionZoom + 0.15) }
+                .disabled(inspectionZoom >= 1.5999)
+            inspectionButton("원래대로", symbol: "arrow.uturn.backward") { resetInspection() }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("3D 미리보기 조절")
+        .accessibilityValue("확대 \(Int((inspectionZoom * 100).rounded()))퍼센트")
+    }
+    private func inspectionButton(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.body.weight(.semibold))
+                .frame(minWidth: 44, minHeight: 44)
+                .background(PB.C.surface, in: RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+    }
+    private func resetInspection() {
+        inspectionYaw = 0
+        inspectionZoom = 1
+        inspectionResetID += 1
+    }
+    private func action(_ operation: () throws -> Void) {
+        do { try operation(); dismiss() } catch { self.error = error.localizedDescription }
     }
 }
