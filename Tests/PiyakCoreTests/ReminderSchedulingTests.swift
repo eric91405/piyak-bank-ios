@@ -218,3 +218,62 @@ private final class FakeReminderClient: ReminderNotificationClient {
     snapshot.isRunning = false
     #expect(ReminderPlan(snapshot: snapshot, intervalMinutes: 15, enabled: true) == nil)
 }
+
+private func legacyReminders() -> [ReminderNotification] {
+    let sessionIDs = ["5410A348-0F73-43A1-977F-D336E28C78D1", "B561A244-84B4-4A48-8C58-09D8A071E95A"]
+    return sessionIDs.flatMap { sessionID in
+        ["periodic.0", "periodic.47", "milestone.10000", "milestone.200000"].map { suffix in
+            ReminderNotification(identifier: "piyak.\(sessionID).\(suffix)",
+                fireDate: reminderStart.addingTimeInterval(3600),
+                title: "이전 근무 알림", body: "업데이트 후 지워야 해요", deepLink: "piyakbank://home")
+        }
+    }
+}
+
+private func unrelatedReminders() -> [ReminderNotification] {
+    ["another.feature", "piyak.settings", "piyak.work.goal.10000",
+     "piyak.work.periodic", "piyak.work.periodic.1.extra", "piyak..periodic.0",
+     "piyak.work.periodic.-1", "piyak.work.milestone.amount"].map { identifier in
+        ReminderNotification(identifier: identifier, fireDate: reminderStart.addingTimeInterval(3600),
+            title: "다른 알림", body: "유지해야 해요", deepLink: "")
+    }
+}
+
+@Test @MainActor func disablingRemindersAfterUpgradeRemovesLegacyAndCurrentRequests() async throws {
+    let client = FakeReminderClient()
+    let legacy = legacyReminders()
+    let foreign = unrelatedReminders()
+    let currentPlan = try #require(ReminderPlan(snapshot: workingReminderSnapshot(), intervalMinutes: 15, enabled: true))
+    let current = Array(currentPlan.notifications(after: client.now).prefix(2))
+    client.entries = Dictionary(uniqueKeysWithValues: (legacy + current + foreign).map { ($0.identifier, $0) })
+
+    let scheduler = ReminderReconciler(client: client, now: { client.now })
+    scheduler.update(plan: nil)
+    await scheduler.waitForPendingUpdate()
+
+    #expect(client.entries == Dictionary(uniqueKeysWithValues: foreign.map { ($0.identifier, $0) }))
+    #expect(Set(client.removed) == Set((legacy + current).map(\.identifier)))
+    #expect(client.added.isEmpty)
+}
+
+@Test @MainActor func activeReminderPlanAfterUpgradeReplacesLegacyRequests() async throws {
+    let client = FakeReminderClient()
+    let legacy = legacyReminders()
+    let foreign = unrelatedReminders()
+    client.entries = Dictionary(uniqueKeysWithValues: (legacy + foreign).map { ($0.identifier, $0) })
+    let plan = try #require(ReminderPlan(snapshot: workingReminderSnapshot(), intervalMinutes: 30, enabled: true))
+    let expected = plan.notifications(after: client.now)
+
+    let scheduler = ReminderReconciler(client: client, now: { client.now })
+    scheduler.update(plan: plan)
+    await scheduler.waitForPendingUpdate()
+
+    #expect(client.entries == Dictionary(uniqueKeysWithValues: (expected + foreign).map { ($0.identifier, $0) }))
+    #expect(Set(client.removed) == Set(legacy.map(\.identifier)))
+    #expect(client.added == expected)
+
+    scheduler.update(plan: plan)
+    await scheduler.waitForPendingUpdate()
+    #expect(client.added == expected)
+    #expect(client.removed.count == legacy.count)
+}

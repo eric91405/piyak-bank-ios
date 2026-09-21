@@ -37,6 +37,9 @@ struct RewardTracking: Codable {
     var working: Bool
     var capturedSeconds: TimeInterval = 0
     var bootSessionID: String?
+    /// Civil-time anchor for the editable pay timeline, separate from the reward calendar.
+    /// Optional so existing persisted tracking blobs continue to decode.
+    var wageClockAnchor: RewardClockAnchor?
     static let maximumSessionSeconds: TimeInterval = 24 * 60 * 60
 
     init(date: Date, tick: TimeInterval, working: Bool, bootSessionID: String? = nil) {

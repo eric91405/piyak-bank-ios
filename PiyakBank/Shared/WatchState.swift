@@ -74,12 +74,22 @@ struct WatchStateCache: Codable {
 
     @discardableResult
     mutating func receive(_ payload: SessionStatePayload) -> Bool {
-        if let current = state?.stateIssuedAt, let incoming = payload.stateIssuedAt {
+        switch (state?.stateIssuedAt, payload.stateIssuedAt) {
+        case let (.some(current), .some(incoming)):
             if incoming < current { return false }
-        } else if let current = state?.snapshot.capturedAt,
-                  let incoming = payload.snapshot.capturedAt, incoming < current {
-            // Payloads from earlier phone versions do not carry an issue date.
+        case (.some, .none):
+            // Once the phone supplies transport ordering, a delayed legacy message
+            // cannot downgrade the cache or overwrite its matching portrait.
             return false
+        case (.none, .some):
+            // The first ordered state replaces legacy wall-clock ordering, even if
+            // the old snapshot was captured before a correction from a future date.
+            break
+        case (.none, .none):
+            if let current = state?.snapshot.capturedAt,
+               let incoming = payload.snapshot.capturedAt, incoming < current {
+                return false
+            }
         }
         let previous = state
         var next = payload

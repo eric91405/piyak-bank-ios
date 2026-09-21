@@ -209,3 +209,58 @@ private func watchPayload(equipped: [String: String] = watchOutfitA,
     let olderLegacyAccepted = legacyCache.receive(watchPayload(time: 50, legacy: true))
     #expect(!olderLegacyAccepted)
 }
+
+@Test func orderedStateReplacesPersistedLegacyCacheAfterClockCorrection() throws {
+    let now = Date(timeIntervalSince1970: 1_780_012_800)
+    let future = now.addingTimeInterval(7 * 24 * 60 * 60)
+    let legacy = watchPayload(time: future.timeIntervalSince1970, legacy: true,
+                              portrait: Data([1]))
+    let stored = try JSONEncoder().encode(WatchStateCache(legacyState: legacy))
+    var cache = try JSONDecoder().decode(WatchStateCache.self, from: stored)
+    let updatedPortrait = WatchPortrait(equipped: watchOutfitB, data: Data([2]))
+    cache.receive(updatedPortrait)
+
+    var outbox = WatchStateOutbox()
+    let modern = outbox.payload(snapshot: watchPayload(time: now.timeIntervalSince1970).snapshot,
+                                equipped: watchOutfitB, now: now)
+    let received = cache.receive(modern)
+
+    #expect(received)
+    #expect(cache.state?.snapshot == modern.snapshot)
+    #expect(cache.state?.stateIssuedAt == now)
+    #expect(cache.state?.equipped == watchOutfitB)
+    #expect(cache.state?.portrait == updatedPortrait.data)
+    #expect(cache.displayedPortraitIdentity == updatedPortrait.identity)
+}
+
+@Test func orderedCacheRejectsDelayedLegacyStateAndPortraitAfterRelaunch() throws {
+    var outbox = WatchStateOutbox()
+    let first = outbox.payload(snapshot: watchPayload(time: 100).snapshot,
+                               equipped: watchOutfitB, now: Date(timeIntervalSince1970: 100))
+    var original = WatchStateCache()
+    original.receive(first)
+    original.receive(WatchPortrait(equipped: watchOutfitB, data: Data([2])))
+    let stored = try JSONEncoder().encode(original)
+    var cache = try JSONDecoder().decode(WatchStateCache.self, from: stored)
+    let expectedState = cache.state
+    let expectedPortraits = cache.portraits
+
+    // A legacy message can have a later earnings date without being newer state.
+    let stale = watchPayload(time: 100 + 7 * 24 * 60 * 60, legacy: true,
+                             portrait: Data([9]))
+    let receivedLegacy = cache.receive(stale)
+    let receivedRawPortrait = cache.receiveLegacyPortrait(Data([9]))
+    #expect(!receivedLegacy)
+    #expect(!receivedRawPortrait)
+    #expect(cache.state == expectedState)
+    #expect(cache.portraits == expectedPortraits)
+
+    let next = outbox.payload(snapshot: watchPayload(time: 50).snapshot,
+                              equipped: watchOutfitA, now: Date(timeIntervalSince1970: 50))
+    let receivedModern = cache.receive(next)
+    #expect(receivedModern)
+    #expect(cache.state?.equipped == watchOutfitA)
+    #expect(cache.state?.portrait == nil)
+    let receivedOlderModern = cache.receive(first)
+    #expect(!receivedOlderModern)
+}

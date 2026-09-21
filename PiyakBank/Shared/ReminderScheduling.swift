@@ -4,6 +4,20 @@ import Foundation
 /// pending requests, rather than an optimistic in-memory flag, are authoritative.
 struct ReminderNotification: Equatable, Sendable {
     static let identifierPrefix = "piyak.reminder."
+
+    static func owns(identifier: String) -> Bool {
+        if identifier.hasPrefix(identifierPrefix) { return true }
+        // Earlier releases used piyak.<sessionID>.periodic.<index> and
+        // piyak.<sessionID>.milestone.<amount>. Reconcile these on every pass,
+        // including disabling reminders, without claiming all piyak.* requests.
+        let parts = identifier.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 4, parts[0] == "piyak", !parts[1].isEmpty,
+              parts[2] == "periodic" || parts[2] == "milestone",
+              !parts[3].isEmpty else { return false }
+        return parts[3].utf8.allSatisfy { $0 >= 48 && $0 <= 57 }
+            && UInt(parts[3]) != nil
+    }
+
     var identifier: String
     var fireDate: Date
     var title: String
@@ -94,7 +108,7 @@ final class ReminderReconciler {
             guard !Task.isCancelled else { return }
             let desired = authorized ? (plan?.notifications(after: now()) ?? []) : []
             let desiredByID = Dictionary(uniqueKeysWithValues: desired.map { ($0.identifier, $0) })
-            let owned = pending.filter { $0.identifier.hasPrefix(ReminderNotification.identifierPrefix) }
+            let owned = pending.filter { ReminderNotification.owns(identifier: $0.identifier) }
             var matchingIDs: Set<String> = []
             var removedIDs: [String] = []
             for old in owned {

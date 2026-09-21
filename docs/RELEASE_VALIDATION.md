@@ -1,6 +1,6 @@
 # 출시 개선 검증 기록
 
-최근 검증일: 2026-09-21. 기준: 기존 main `c70a8be`에서 개선한 출시 후보. 이전 화면·실행 검증은 해당 항목의 설명을 따릅니다.
+최근 검증일: 2026-09-21. 기준: PR #1로 병합한 `5ab7751` 이후 출시 감사의 6개 오류를 보완한 후보. 이전 화면·실행 검증은 해당 항목의 설명을 따릅니다.
 
 현재 출시 범위는 근무 기록·포인트·입체 방 꾸미기와 ‘놀아주기’입니다.
 
@@ -28,13 +28,18 @@
 ```sh
 nice -n 15 swift test --jobs 1 --scratch-path /tmp/piyak-core-tests
 python3 scripts/check_release_assets.py
-nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Debug -jobs 1 -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/piyak-bank-release-work CODE_SIGNING_ALLOWED=NO build
-nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Release -jobs 1 -destination 'generic/platform=iOS' -derivedDataPath /tmp/piyak-bank-release-work-device CODE_SIGNING_ALLOWED=NO build
+nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Debug -jobs 1 -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/piyak-bank-release-work 'OTHER_SWIFT_FLAGS=$(inherited) -j1' CODE_SIGNING_ALLOWED=NO build
+nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configuration Release -jobs 1 -destination 'generic/platform=iOS' -derivedDataPath /tmp/piyak-bank-release-work-device 'OTHER_SWIFT_FLAGS=$(inherited) -j1' CODE_SIGNING_ALLOWED=NO build
 ```
 
 ## 자동 검증 결과
 
-- **Swift Testing 84개 통과.** 기존 계산·저장·보상·캐릭터 행동 55개에 저장소 이전·사본 정리 8개, 초기화 실패 보존 1개, 알림 재조정 8개, 워치 상태·이미지 12개를 추가했습니다.
+- **Swift Testing 110개 통과.** 기존 84개에 다중 컨트롤러·복구·알림 보충 5개, 시계 보정 8개, 시간대별 위젯 수익 9개, 구형 알림 정리 2개, 워치 프로토콜 전환 2개를 추가했습니다.
+- 여러 iPad 창이 앱 전체의 근무 서비스를 공유합니다. 별도 컨트롤러가 생겨도 시작 전에 저장소를 확인해 두 번째 활성 근무를 만들지 않습니다. 이미 중복된 활성 기록은 최근 근무를 이어가고, 이전 기록의 열린 구간은 다음 근무 시작 시점에 닫아 보관합니다. 겹친 보상은 합집합으로 한 번만 인정하며, 복구 실패 시 모든 기록과 보상 원장을 원상 복원합니다. 실제 iPad 두 창 UI 조작은 이번 검증에 포함하지 않았습니다.
+- 시계 보정 후 종료·휴식·재개가 막히지 않도록 급여 구간의 상대 시간을 유지하며 현재 시각에 맞춥니다. 새 기준점은 기존 보상 JSON의 선택 필드이므로 SwiftData 모델 필드를 추가하지 않습니다. 완료·수동 기록과 보상 날짜는 이동하지 않습니다. 진행 중 기록의 날짜별 귀속은 보정된 시각을 따르며, 재부팅으로 측정할 수 없는 시간은 보존된 체크포인트까지만 복구합니다. 소수 밀리초·최대 시급의 반올림과 저장 실패 후 재시도도 검사했습니다.
+- 위젯의 완료 수익은 각 시간대의 자정별 합계로 저장합니다. 기록별 원 단위 이월을 유지하면서 기록 원문을 전송하지 않고, 1,000개 기록의 페이로드가 8KB 미만임을 검사했습니다. 서울↔UTC/미국 이동, DST, 자정, 비그레고리력, 전체 시스템 시간대의 계산 일치를 확인했습니다. 구형 스냅샷의 출처 불명 완료 합계는 iPhone 재동기화 전까지 0으로 처리하며 근무 기록은 보존합니다.
+- 구형 `piyak.<sessionID>.periodic/milestone.*` 알림도 취소·업데이트 시 정리하며 다른 알림은 보존합니다. 워치의 상태 요청은 저장소 복구·체크포인트·알림 보충을 함께 호출합니다. 15분 간격의 48개 예약 소진 이후 새 예약이 채워지는 경로를 합성 클라이언트로 검증했습니다.
+- 미래 시각이 담긴 구형 워치 캐시도 최초 신규 형식 상태로 전환됩니다. 전환 후에는 지연된 구형 상태가 최신 상태·초상화를 덮지 못하도록 차단하며, 캐시 저장·재실행 뒤에도 같은 규칙을 검사했습니다.
 - 저장소 이전은 SQLite backup API로 미반영 WAL까지 포함한 일관된 복제본을 만든 뒤 게시합니다. 이전 실패·재시도·빈 공유 파일·복수 이전 저장소 충돌을 검사하며, 실패 시 오래된 복사본으로 돌아가거나 빈 DB를 여는 경로를 제거했습니다. 실제 디스크 SwiftData 테스트에서 기록·보유/장착·잔액·보상 전환 마커와 새 저장소의 후속 쓰기를 재실행 후에도 유지했습니다.
 - 이전 저장소 사본은 업그레이드 동안 보존하며, 사용자가 ‘모든 데이터 삭제’를 선택할 때 사본과 중단된 이전 작업의 잔재도 정리합니다. 현재 저장소·WAL은 정리 대상에서 제외하고, 정리 실패 시 현재 근무·잔액을 삭제하지 않습니다.
 - 알림은 시스템의 실제 pending 요청과 대조합니다. 권한 재허용, 부분 예약 실패, 예약 소진, 재진입·재실행의 주기 보존, 일시정지/재개 중 취소 이후 완료된 비동기 예약 정리를 검증했습니다.
@@ -49,7 +54,7 @@ nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configurat
 - 리소스 검사 통과: 81개 고유 아이템 미리보기, iOS/Watch 1024px 불투명 아이콘, 3개 개인정보 매니페스트, URL scheme, StoreKit 테스트 설정 제거.
 - 최신 Debug 시뮬레이터 빌드가 성공했습니다. 앱·동반 Watch 앱·위젯을 모두 포함한 서명 비활성화 검증입니다. 생성된 앱 실행 파일과 Debug 라이브러리에 제거한 모델 프레임워크 연결이 없음을 확인했습니다.
 - 2026-09-21 Debug iPhone·Watch·위젯 통합 빌드는 시뮬레이터용 임시 서명으로 성공했습니다. App Group entitlement를 실제로 적용해 이전을 검증하기 위한 빌드이며 배포용 서명 Archive와 다릅니다. Swift 컴파일러에도 `OTHER_SWIFT_FLAGS='$(inherited) -j1'`을 전달하고 로컬 빌드 동안 모든 시뮬레이터를 종료했습니다.
-- 이전 놀아주기 구현 커밋 `e319c46`의 [원격 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35187449624)는 회귀 테스트·리소스 검사와 iOS·Watch·위젯 Release 빌드를 통과했습니다. 시간 보상 변경의 최종 Release 검사 결과는 [현재 PR 검사](https://github.com/eric91405/piyak-bank-ios/pull/1/checks)에서 확인할 수 있습니다.
+- 이전 놀아주기 구현 커밋 `e319c46`의 [원격 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35187449624)는 회귀 테스트·리소스 검사와 iOS·Watch·위젯 Release 빌드를 통과했습니다. 각 출시 후보의 Release 검사 결과는 [검증 워크플로](https://github.com/eric91405/piyak-bank-ios/actions/workflows/validate.yml)에서 해당 커밋 기준으로 확인할 수 있습니다.
 - 이전 로컬 Release 산출물에서 iOS 17.0 / watchOS 10.0 최소 버전과 매니페스트 포함을 확인했습니다. 해당 빌드에는 AppIntents를 사용하지 않아 나오는 메타데이터 추출 생략 경고 외 빌드 오류가 없었습니다.
 
 ## 직접 확인한 동작

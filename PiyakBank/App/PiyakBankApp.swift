@@ -7,12 +7,13 @@ import Combine
 struct PiyakBankApp: App {
     @StateObject private var persistence = AppPersistence()
     @StateObject private var router = AppRouter()
+    @StateObject private var services = ServiceHolder()
     init() { UNUserNotificationCenter.current().delegate = NotificationDelegate.shared }
     var body: some Scene {
         WindowGroup {
             Group {
                 if let container = persistence.container {
-                    RootView().modelContainer(container).environmentObject(router)
+                    RootView().modelContainer(container).environmentObject(router).environmentObject(services)
                 } else {
                     ContentUnavailableView {
                         Label("기록을 열지 못했어요", systemImage: "externaldrive.badge.exclamationmark")
@@ -82,7 +83,7 @@ struct RootView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var phase
     @AppStorage("did_onboard") private var didOnboard = false
-    @StateObject private var services = ServiceHolder()
+    @EnvironmentObject private var services: ServiceHolder
     var body: some View {
         Group {
             if let session = services.session {
@@ -99,9 +100,11 @@ struct RootView: View {
                     }
                 }
                 .environmentObject(session)
-                .alert("변경을 완료하지 못했어요", isPresented: Binding(get: { session.errorMessage != nil }, set: { if !$0 { session.errorMessage = nil } })) {
-                    Button("확인") { session.errorMessage = nil }
-                } message: { Text(session.errorMessage ?? "다시 시도해 주세요.") }
+                .alert(session.errorMessage == nil ? "근무 기록을 복구했어요" : "변경을 완료하지 못했어요",
+                       isPresented: Binding(get: { session.errorMessage != nil || session.recoveryMessage != nil },
+                                            set: { if !$0 { session.errorMessage = nil; session.recoveryMessage = nil } })) {
+                    Button("확인") { session.errorMessage = nil; session.recoveryMessage = nil }
+                } message: { Text(session.errorMessage ?? session.recoveryMessage ?? "다시 시도해 주세요.") }
             } else if let error = services.error {
                 ContentUnavailableView {
                     Label("준비를 마치지 못했어요", systemImage: "externaldrive.badge.exclamationmark")
@@ -150,7 +153,7 @@ final class ServiceHolder: ObservableObject {
                 guard UserDefaults.standard.bool(forKey: "did_onboard") else { throw SetupError.onboarding }
                 try controller?.handleRemoteCommand(command)
             }
-            watch.onRequestSnapshot = { [weak controller] in controller?.refreshSnapshot() }
+            watch.onRequestSnapshot = { [weak controller] in controller?.refresh() }
             let bridge = WatchBridge(watch: watch)
             self.bridge = bridge
             controller.syncDelegate = bridge
@@ -166,9 +169,7 @@ final class ServiceHolder: ObservableObject {
         }
     }
     func refresh() {
-        checkpointRewards()
-        session?.refreshSnapshot()
-        session?.updateReminders()
+        session?.refresh()
         refreshEquipment()
     }
     func checkpointRewards() {
