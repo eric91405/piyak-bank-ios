@@ -2,7 +2,7 @@
 
 **일하는 나에게, 작은 친구 하나.**
 
-시급과 근무 시간으로 예상 수익을 기록하고, 타이머로 쌓은 시간 보상으로 병아리의 방을 꾸미는 iOS · Apple Watch 앱입니다. 시급과 꾸미기 포인트를 분리해 시간 기록에 작은 성장과 수집의 재미를 더했습니다.
+시급과 근무 시간으로 예상 수익을 기록하고, 타이머로 쌓은 시간 보상으로 병아리의 방을 꾸미는 앱입니다. iOS · Apple Watch 버전과 Android 휴대폰·태블릿 · Wear OS 버전을 같은 저장소에서 개발합니다. 시급과 꾸미기 포인트를 분리해 시간 기록에 작은 성장과 수집의 재미를 더했습니다.
 
 <img src="PiyakBank/Assets.xcassets/AppMascot.imageset/image.png" width="180" alt="입체 병아리 삐약이">
 
@@ -10,7 +10,9 @@
 
 ## 현재 진행 상황 · 2026-09-21
 
-출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)까지 `main`에 반영했습니다. **핵심 로직과 주요 iPhone 사용 흐름은 검증했으며, 전체 출시 검증과 TestFlight 배포는 아직 완료하지 않았습니다.**
+### iOS · Apple Watch
+
+iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)까지 `main`에 반영했습니다. **핵심 로직과 주요 iPhone 사용 흐름은 검증했으며, 전체 출시 검증과 TestFlight 배포는 아직 완료하지 않았습니다.**
 
 | 범위 | 상태 |
 |---|---|
@@ -23,7 +25,21 @@
 
 재현 방법과 후속 체크리스트는 [출시 검증 기록](docs/RELEASE_VALIDATION.md)에 정리했습니다.
 
-## 실제 앱 화면
+### Android · Wear OS
+
+`android/`에 별도 Gradle 프로젝트를 추가해 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현하고 있습니다. **개발 빌드와 일부 자동 테스트를 통과한 상태이며 Play 출시 준비 완료 상태는 아닙니다.**
+
+| 범위 | 확인된 상태 |
+|---|---|
+| JVM 테스트 | 코어 45개 + 앱 15개 통과 |
+| Android 기기 저장소 테스트 | API 35에서 SQLite instrumentation 8개 통과 |
+| 개발 빌드 | 휴대폰·Wear OS Debug APK 및 휴대폰 테스트 APK 빌드 성공 |
+| 남은 검증 | Release·Lint 최종 결과, 3D GPU 화면, 전체 UI·접근성, 최소 OS, 실제 시계 연결·알림·위젯·발열 |
+| 배포 | Play 업로드·실제 배포 설치·심사 미진행, 개발자 계정 상태 미확인 |
+
+설정과 모듈 구조는 [Android README](android/README.md), 시나리오는 [Android UI 테스트 계획](android/docs/UI_TEST_PLAN.md), 외부 배포 절차는 [Play Store 체크리스트](android/docs/PLAY_STORE.md)를 참고하세요. Android의 결과는 iOS 테스트 115개와 별개입니다.
+
+## 실제 iOS 앱 화면
 
 <img src="docs/screenshots/iphone-home.jpg" width="240" alt="방 안에서 생활하는 입체 병아리와 예상 수익"> <img src="docs/screenshots/iphone-decorate.jpg" width="240" alt="옷과 가구를 미리 보는 꾸미기 상점"> <img src="docs/screenshots/iphone-item-preview.jpg" width="240" alt="회전과 확대 버튼으로 살펴보는 입체 의상">
 
@@ -44,8 +60,12 @@ iPhone 17 Pro Max 시뮬레이터에서 직접 캡처했습니다. 홈의 시간
 | Apple Watch | iPhone 시급 동기화, 연결 상태 표시, 확인 응답을 받는 근무 제어 |
 | iPhone/iPad 위젯 | 5분 단위 예상 수익, 상태 변경 시 갱신 요청 |
 | 접근성과 개인정보 | Dynamic Type, VoiceOver 레이블, Reduce Motion, 다크 모드, 선택 알림 |
+| Android 휴대폰·태블릿 | 네이티브 Compose 4개 탭·넓은 화면 탐색 레일, 근무·꾸미기·달력·설정, 로컬 저장 |
+| Android 위젯·Wear OS | 시스템 주기의 위젯 갱신, 연결된 Android 휴대폰의 저장 확인을 받는 시계 근무 제어 |
 
 ## 설계에서 집중한 점
+
+아래 상세 설명의 SwiftData·SceneKit·WatchConnectivity는 iOS 구현입니다. Android는 같은 제품 규칙을 순수 Kotlin 코어, SQLite 트랜잭션, OpenGL, Wear Data Layer로 구현합니다. 두 플랫폼의 저장소나 런타임 코드가 자동으로 공유·동기화되는 구조는 아닙니다.
 
 ### 한 가지 계산 규칙
 
@@ -83,7 +103,8 @@ iPhone, Watch, 위젯이 `EarningsCalculator`를 공유합니다. 시급을 먼�
 
 ## 기술 구성
 
-SwiftUI · SwiftData · SceneKit · WatchConnectivity · WidgetKit · UserNotifications
+- iOS: SwiftUI · SwiftData · SceneKit · WatchConnectivity · WidgetKit · UserNotifications
+- Android: Kotlin · Jetpack Compose · SQLite · OpenGL ES 2.0 · AppWidget · Google Play services Wear Data Layer
 
 ```text
 PiyakBank/
@@ -96,9 +117,15 @@ PiyakBank/
 Tests/         계산 및 실제 SwiftData 회귀 테스트
 scripts/       원본 모델에서 이미지 생성, 배포 리소스 검사
 docs/          지원·개인정보·심사 자료·검증 기록
+android/
+  core/        순수 Kotlin 계산·보상·기록·아이템·시계 명령 규칙
+  app/         휴대폰·태블릿 UI, 저장소, 3D 방, 알림, 위젯, 시계 통신
+  wear/        연결된 Wear OS 앱, Android 공용 장면·에셋 사용
+  scripts/     iOS 원본 기하를 Android 모델로 변환·검사
+  docs/        Android UI 검증 계획과 Play 출시 체크리스트
 ```
 
-## 실행과 검증
+## iOS 실행과 검증
 
 - **빌드:** Xcode 26 이상, iOS/watchOS SDK 26 이상
 - **실행:** iOS 17.0 이상, watchOS 10.0 이상
@@ -124,12 +151,30 @@ xcrun swiftc PiyakBank/Views/PiyakScene.swift scripts/GenerateAssets.swift -o /t
 
 GitHub Actions에서 계산·저장 회귀 테스트, 초기 SwiftData 스키마의 업그레이드·재실행 검증, iOS/Watch/위젯 Release 빌드를 수행합니다. 상세 결과와 남은 화면·호환성·실기기 검증은 [검증 기록](docs/RELEASE_VALIDATION.md)을 참고하세요.
 
+## Android 실행과 검증
+
+Android Studio에서 `android/` 폴더를 엽니다. JDK 17 이상과 Android SDK 36을 사용하며, 휴대폰은 Android 8.0(API 26) 이상, Wear OS 앱은 API 30 이상을 대상으로 합니다. 기기 간 시계 통신에는 같은 패키지 이름·서명과 연결된 Android 휴대폰이 필요합니다.
+
+다음 명령은 **`android/` 폴더 안에서** 실행합니다. Gradle은 worker 1개·병렬 빌드 끄기·JVM 최대 2GB를 기본으로 사용합니다.
+
+```sh
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :core:test :app:testDebugUnitTest
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebug :wear:assembleDebug
+nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
+```
+
+마지막 명령은 합성 데이터용 QA 기기 또는 에뮬레이터를 연결한 뒤 실행합니다. 빌드와 에뮬레이터 부하를 겹치지 않고 사용하지 않는 기기를 종료합니다. Release 검증과 서명 환경 변수는 [Android 개발 문서](android/README.md)에 정리했으며, unsigned 산출물을 스토어 업로드 준비 완료로 취급하지 않습니다.
+
 ## 데이터와 배포
 
-기록은 기기에 저장하며 개발자 서버로 전송하지 않습니다. CSV는 열람·보관용이고 가져오기 및 클라우드 동기화는 지원하지 않습니다. 위젯은 시스템의 갱신 정책을 따르는 예상치이며 watchOS 컴플리케이션은 포함하지 않습니다.
+기록은 기기에 저장하며 개발자 서버로 전송하지 않습니다. CSV는 열람·보관용이고 가져오기 및 계정 기반 클라우드 동기화는 지원하지 않습니다. 위젯은 각 OS의 갱신 정책을 따르는 예상치이며 watchOS 컴플리케이션은 포함하지 않습니다.
+
+Android의 연결된 Wear OS에는 근무 상태·오늘 예상 수익·잔액·장착 정보를 전달합니다. Google Play services의 Data Layer는 Google 클라우드를 통한 종단 간 암호화 중계를 사용할 수 있으므로 모든 정보가 기기 밖으로 나가지 않는다고 설명하지 않습니다. [공식 Data Layer 안내](https://developer.android.com/training/wearables/data/overview)
 
 공개 페이지: [개인정보 처리방침](https://eric91405.github.io/piyak-bank-ios/privacy/) · [지원 안내](https://eric91405.github.io/piyak-bank-ios/support/)
 
 저장소 문서: [개인정보 처리방침](docs/PRIVACY.md) · [지원 안내](docs/SUPPORT.md) · [App Store 제출 자료](docs/APP_STORE.md)
+
+Android 전용: [개발·검증 안내](android/README.md) · [Play Store 체크리스트](android/docs/PLAY_STORE.md) · [공개 개인정보처리방침 예정 주소](https://eric91405.github.io/piyak-bank-ios/privacy-android/) — 제출 전에 실제 게시 상태를 확인합니다.
 
 개발: **김민서** · [eric91405@gmail.com](mailto:eric91405@gmail.com)

@@ -1,0 +1,1 @@
+<resources><style name="Theme.PiyakWear" parent="android:style/Theme.Material.NoActionBar"><item name="android:windowSwipeToDismiss">true</item><item name="android:windowBackground">#131416</item><item name="android:colorAccent">#FFDF67</item></style></resources>

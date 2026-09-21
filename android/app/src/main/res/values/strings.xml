@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">삐약뱅크</string>
+    <string name="widget_description">오늘의 예상 수익과 꾸미기 포인트</string>
+    <string name="widget_initial_status">오늘의 예상 수익</string>
+    <string name="widget_initial_amount">0원</string>
+    <string name="widget_initial_points">0 P</string>
+    <string name="widget_initial_instruction">앱에서 시작해 주세요</string>
+    <!-- Wear Data Layer discovers this reserved resource by name, without an R reference. -->
+    <string-array name="android_wear_capabilities" translatable="false" tools:ignore="UnusedResources">
+        <item>piyak_phone_v1</item>
+    </string-array>
+</resources>
