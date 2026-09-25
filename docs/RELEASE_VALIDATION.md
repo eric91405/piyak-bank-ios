@@ -1,17 +1,42 @@
 # 출시 개선 검증 기록
 
-진행 상황 갱신일: 2026-09-21. 앱 코드 기준: [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)이 병합된 `8ea2a10`. 기록 편집 화면의 잘못된 초기값과 다른 창에서 변경·삭제한 기록을 오래된 편집 화면에서 저장하는 문제를 추가로 보완했습니다. 이전 화면·실행 검증은 해당 항목의 설명을 따릅니다.
+진행 상황 갱신일: 2026-09-26. 첫 TestFlight 업로드 소스는 `main`의 `de91f5d`이며 버전은 **1.0 (2)**입니다. 기존 2026-09-21 화면·저장 검증의 코드 기준은 [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)이 병합된 `8ea2a10`입니다. 이전 화면·실행 검증은 해당 항목의 설명을 따릅니다.
 
 현재 출시 범위는 근무 기록·포인트·입체 방 꾸미기와 ‘놀아주기’입니다.
 
 ## 현재 상태
 
-**완료한 검증은 통과했지만, TestFlight 이전에 가능한 모든 테스트를 마친 상태는 아닙니다.** 이번 문서 갱신은 기존 결과와 남은 작업을 정리한 것이며 새로운 기기 테스트를 수행한 기록이 아닙니다.
+**완료한 검증은 통과했지만, 전체 출시 검증을 마친 상태는 아닙니다.** 2026-09-26 배포 서명·IPA 검증과 TestFlight 업로드를 추가했습니다. 사용자는 TestFlight 설치 안내 후 “다 잘된다”고 회신했습니다. 이는 사용자가 직접 시험한 범위의 정상 동작 보고이며, 아래의 모든 기기·호환성 항목을 개별 확인한 기록은 아닙니다.
 
 - 완료: Swift 테스트 115개, 실제 초기 모델의 합성 저장소 업그레이드, 리소스·개인정보 매니페스트 검사, iPhone·Watch·위젯 Release 빌드. [PR 검증](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569203812)과 [main 병합 후 검증](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569409466)이 모두 통과했습니다.
 - 완료: iOS 26.5 시뮬레이터에서 주요 근무·정산·기록 편집·재실행 보존 흐름 확인. 아래의 직접 확인한 동작에 검증 범위와 수치를 기록했습니다.
 - 남음: iPad 다중 창 실제 조작, 접근성·화면 방향 전체 흐름, 최소 지원 OS 실행, 실물 iPhone·Watch의 시스템 연동과 성능, 배포 빌드 업그레이드.
-- 배포 대기: Apple Developer Program 미가입. 배포 서명 Archive·TestFlight 업로드·App Store 심사 제출은 미진행입니다.
+- 배포 준비: Apple Developer Program 개인 멤버십과 App Store Connect 로그인을 확인했습니다. 앱 레코드 `6816129028`을 생성하고 **1.0 (2) TestFlight 업로드에 성공**했습니다. Apple 처리·내부 배포·실기기 설치 결과는 아래 기록을 따릅니다. App Store 심사 제출은 하지 않았습니다.
+
+## 첫 TestFlight 배포 준비 · 2026-09-26
+
+- 개발자 팀 `G2D6ZG4SX3`의 앱·Watch·위젯 ID 및 `group.com.minseo.piyakbank` 연결과 App Store 프로비저닝을 구성했습니다. 사용자가 인증서·식별자·App Group·프로파일 생성을 명시적으로 승인했습니다. 기존 인증서를 폐기하지 않았습니다.
+- Xcode 26.6에서 `nice -n 15`, 단일 작업, Swift `-j1`로 Archive를 만들었습니다. 시뮬레이터를 실행하지 않았고 macOS 발열·성능 경고가 기록되지 않았습니다. 실제 온도나 iPhone 성능 측정은 아닙니다.
+- 서명 없이 만든 Archive의 첫 내보내기는 성공했으나 **실제 IPA 서명에 App Group entitlement가 누락**됐습니다. 이 IPA는 업로드하지 않았습니다. Archive 사본의 세 타깃에 원본 entitlement를 보존하는 임시 서명을 적용한 뒤 Apple 배포 서명으로 다시 내보냈습니다.
+- 수정한 IPA의 세 타깃에서 `codesign --verify --strict`, 팀·앱 ID·버전 일치, 디버그 권한 비활성화, App Store 프로파일, App Group의 서명/프로파일 일치, 최소 OS·실행 파일·개인정보 매니페스트 포함을 확인했습니다. 세 타깃 dSYM도 Archive에 있습니다.
+- `scripts/verify_distribution_ipa.py`를 추가했습니다. 정상 IPA는 통과하고 최초의 App Group 누락 IPA는 차단함을 실제 산출물로 확인했습니다. 내보내기 성공만으로 권한이 보존됐다고 판단하지 않습니다.
+- 00:14 KST에 Xcode의 `Upload succeeded`와 `EXPORT SUCCEEDED`를 확인했고 Apple 화면에서도 업로드 처리 **완료**를 확인했습니다. [App Store Connect](https://appstoreconnect.apple.com/apps/6816129028/distribution)에 앱이 있으며, 빌드 `1.0 (2)`를 내부 그룹 `내부 출시 검증`의 계정 소유자 1명에게 연결했습니다. 자동 배포는 끄고 이 빌드를 수동으로 선택했습니다. 그룹의 **테스터 1명·빌드 1개·초대됨** 상태와 테스트 안내 저장을 확인했습니다. 이후 사용자는 TestFlight 사용 결과 “다 잘된다”고 회신했습니다. 기기·OS·개별 시험 범위와 기존 데이터 업데이트 보존 여부는 별도로 확인되지 않았습니다.
+
+macOS에서 최종 IPA를 재검증합니다. IPA·프로파일·인증서·업로드 로그는 저장소에 커밋하지 않습니다.
+
+```sh
+python3 scripts/verify_distribution_ipa.py /path/to/PiyakBank.ipa --team G2D6ZG4SX3
+```
+
+## 스토어 화면 및 연결된 Watch 시뮬레이터 · 2026-09-26
+
+- 출시 소스 `de91f5d`를 Release로 빌드했습니다. `nice -n 15`, `-jobs 1`, Swift `-j1`을 사용했고 빌드와 시뮬레이터 부팅을 분리했습니다.
+- 서명 비활성화 시뮬레이터 산출물을 처음 실행했을 때 App Group entitlement 누락으로 저장소 접근 오류가 표시됐습니다. OS 로그로 권한 오류를 확인하고 앱·위젯·Watch의 원본 entitlement를 보존한 로컬 임시 서명을 적용했습니다. 같은 기기에 덮어 설치한 뒤 기존 데이터를 유지하고 정상 실행했습니다. 이미 검증·업로드한 배포 IPA의 오류가 아니며 앱 코드는 바꾸지 않았습니다.
+- iPad Pro 13인치(M5), iOS 26.5에서 홈과 꾸미기 화면을 확인하고 2064×2752 스크린샷 2장을 갱신했습니다. 다중 창·전체 접근성 시험으로 계산하지 않습니다.
+- 연결된 iPhone 17 Pro Max(iOS 26.5)와 Watch Series 11 46mm(watchOS 26.5)에서 Watch로 근무 시작→휴식→재개→종료 및 종료 확인을 실행했습니다. 각 명령 후 버튼이 해당 상태로 바뀌었고, iPhone에서 진행 중 근무를 확인했습니다. 종료 후 iPhone은 근무 시작 대기, 오늘 수익 692원, 오늘 보상 41P, 보유 110P(기존 69P + 41P)를 표시했습니다. 기존 장착 4개도 유지됐습니다.
+- 연결된 Watch의 수익·제어 화면 416×496 캡처 2장을 등록했습니다. 장착 캐릭터 이미지 화면은 기본 캐릭터와 수신 대기 안내가 유지돼 전송 성공으로 처리하지 않았습니다. 원인은 확정하지 않았으며 실물 Watch의 이미지 수신·재연결·백그라운드 시험은 남아 있습니다.
+- App Store Connect에 iPhone 3장·iPad 2장·Watch 2장 등록을 확인했습니다. 무료·대한민국 1개 지역·Mac/Vision Pro 제외·수동 출시 설정을 저장했습니다. ‘심사에 추가’ 검증은 개인정보 정보 게시만 요구했고, 게시 동의·심사 제출은 완료하지 않았습니다. [입력 현황](APP_STORE.md)을 따릅니다.
+- QA 세션을 종료한 뒤 iPad·iPhone·Watch를 모두 종료했으며 `simctl list devices booted`에 실행 기기가 없음을 확인했습니다. macOS에 발열·성능 경고가 기록되지 않았으며 이는 실제 온도 측정은 아닙니다.
 
 ## 구현 범위
 
@@ -93,7 +118,7 @@ nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configurat
 - 행동 선택과 경로 검증은 장착한 가구·소품, 안전한 이동 범위와 일시정지를 다룹니다.
 - 생성 미리보기에는 원본 모델·생성기 파일의 SHA-256 지문을 기록하고 CI에서 대조합니다. 모델을 바꾸면 이미지도 다시 생성해야 검사에 통과합니다.
 
-[실제 화면 캡처](screenshots/): iPhone 1320×2868, iPad 2064×2752. 원본 시뮬레이터 화면을 크기 변경 없이 JPEG로 내보냈으며 합성 목업이 아닙니다. 홈의 시간 보상 안내, 상점 및 아이템 미리보기의 새 가격으로 iPhone 캡처 3장을 갱신했습니다. iPad 및 접근성 다크 모드 이미지는 모델 개선 이전의 QA 참고용입니다.
+[실제 화면 캡처](screenshots/): iPhone 1320×2868, iPad 2064×2752, Watch 416×496. 원본 시뮬레이터 화면이며 합성 목업이 아닙니다. 홈의 시간 보상 안내, 상점 및 아이템 미리보기의 새 가격으로 iPhone 캡처 3장을 갱신했습니다. iPad 홈·꾸미기 및 Watch 수익·제어 화면은 2026-09-26 출시 소스로 갱신했습니다. 접근성 다크 모드와 기존 Watch 캐릭터 대기 이미지는 이전 QA 참고용입니다.
 
 발열을 줄이기 위해 로컬 검증은 낮은 프로세스 우선순위·직렬 작업과 냉각 간격을 적용하며, 빌드 중 시뮬레이터를 종료하고 화면 점검 때 iPhone 한 대만 실행합니다. 전체 Release 빌드는 원격 GitHub Actions에서 확인합니다. 이번 검증의 macOS 발열 상태는 `nominal`이었으나 새 시뮬레이터의 초기 부팅 중 CPU 사용률과 메모리 압력이 상승해 종료·냉각 후 재개했습니다. 이는 실제 온도 측정값은 아닙니다.
 
@@ -118,8 +143,12 @@ nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configurat
 
 ### 배포 계정 준비 후 진행할 단계
 
-- [ ] Apple Developer Program 가입 후 배포 가능한 팀·App Group·프로비저닝을 구성합니다. 현재 확인된 것은 Apple Development 인증서와 무료 Personal Team이며, 마지막 점검 당시 실물 iPhone/Watch는 연결되지 않았습니다.
-- [ ] 배포 서명 Archive 검증과 TestFlight 업로드·설치·업데이트 시험을 진행합니다.
-- [ ] 최종 빌드와 맞는 iPad·연결된 Watch 화면 및 제출 자료를 점검하고 App Store 심사를 제출합니다.
+- [x] Apple Developer Program 개인 멤버십, 배포 팀·App Group·프로비저닝을 확인·구성했습니다.
+- [x] Archive와 최종 배포 IPA 검증 및 TestFlight 업로드를 완료했습니다.
+- [x] Apple 업로드 처리 완료를 확인하고 1.0 (2)를 내부 테스트 그룹에 연결했습니다.
+- [x] TestFlight 설치 안내 후 사용자의 정상 동작 보고를 받았습니다(2026-09-26, “다 잘된다”).
+- [ ] 기존 데이터가 있는 배포 빌드의 업데이트 보존 및 기기·OS별 세부 결과를 기록합니다.
+- [x] 출시 소스의 iPad·연결된 Watch 화면을 갱신하고 iPhone/iPad/Watch 스크린샷과 제출 정보를 등록했습니다.
+- [ ] App Privacy 게시 동의를 확인한 뒤 심사 제출을 완료합니다.
 
 제출 자료와 운영자 설정은 [APP_STORE.md](APP_STORE.md)를 참고하세요. 로컬 검증 통과가 Apple 심사 승인을 의미하지는 않습니다.
