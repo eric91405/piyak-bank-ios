@@ -17,7 +17,7 @@ collect_evidence() {
   trap - EXIT
   set +e
   timeout 20s adb -s "$PIYAK_SERIAL" logcat -d -t 3000 > "$PIYAK_REPORTS/logcat.txt" 2>&1
-  if timeout 10s adb -s "$PIYAK_SERIAL" shell run-as "$PIYAK_PACKAGE" test -d files/scene-gpu-qa; then
+  if timeout 10s adb -s "$PIYAK_SERIAL" shell run-as "$PIYAK_PACKAGE" ls files/scene-gpu-qa >/dev/null 2>&1; then
     timeout 30s adb -s "$PIYAK_SERIAL" exec-out run-as "$PIYAK_PACKAGE" tar -cf - files/scene-gpu-qa > "$PIYAK_REPORTS/scene-gpu-qa.tar"
   fi
   exit "$result"
@@ -32,7 +32,9 @@ fi
 adb -s "$PIYAK_SERIAL" shell getprop > "$PIYAK_REPORTS/device-properties.txt"
 adb -s "$PIYAK_SERIAL" install -r -t app/build/outputs/apk/uiTest/app-uiTest.apk
 adb -s "$PIYAK_SERIAL" install -r -t app/build/outputs/apk/androidTest/uiTest/app-uiTest-androidTest.apk
-adb -s "$PIYAK_SERIAL" logcat -c
+# Some API 26 images reject clearing log buffers. This is optional housekeeping,
+# not a test result; still run the suite and let the strict result parser decide.
+timeout 10s adb -s "$PIYAK_SERIAL" logcat -c || echo "Warning: log buffers could not be cleared; continuing with instrumentation."
 
 # adb/am may return zero for a failing test suite: both transport and structured results matter.
 timeout --signal=TERM 12m adb -s "$PIYAK_SERIAL" shell am instrument -w -r \
