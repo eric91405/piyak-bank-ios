@@ -11,7 +11,7 @@
 - 완료: Swift 테스트 115개, 실제 초기 모델의 합성 저장소 업그레이드, 리소스·개인정보 매니페스트 검사, iPhone·Watch·위젯 Release 빌드. [PR 검증](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569203812)과 [main 병합 후 검증](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569409466)이 모두 통과했습니다.
 - 완료: iOS 26.5 시뮬레이터에서 주요 근무·정산·기록 편집·재실행 보존 흐름 확인. 아래의 직접 확인한 동작에 검증 범위와 수치를 기록했습니다.
 - 남음: iPad 다중 창 실제 조작, 접근성·화면 방향 전체 흐름, 최소 지원 OS 실행, 실물 iPhone·Watch의 시스템 연동과 성능, 배포 빌드 업그레이드.
-- 배포 준비: Apple Developer Program 개인 멤버십과 App Store Connect 로그인을 확인했습니다. 앱 레코드 `6816129028`을 생성하고 **1.0 (2) TestFlight 업로드에 성공**했습니다. Apple 처리·내부 배포·실기기 설치 결과는 아래 기록을 따릅니다. App Store 심사 제출은 하지 않았습니다.
+- 배포 준비: Apple Developer Program 개인 멤버십과 App Store Connect 로그인을 확인했습니다. 앱 레코드 `6816129028`을 생성하고 **1.0 (2) TestFlight 업로드에 성공**했습니다. Apple 처리·내부 배포·실기기 설치 결과는 아래 기록을 따릅니다. 사용자 승인 후 2026-09-26 01:56 KST에 App Store 심사 제출을 완료했고 **심사 대기 중**을 확인했습니다. 승인·공개 출시는 아직입니다.
 
 ## 첫 TestFlight 배포 준비 · 2026-09-26
 
@@ -35,7 +35,7 @@ python3 scripts/verify_distribution_ipa.py /path/to/PiyakBank.ipa --team G2D6ZG4
 - iPad Pro 13인치(M5), iOS 26.5에서 홈과 꾸미기 화면을 확인하고 2064×2752 스크린샷 2장을 갱신했습니다. 다중 창·전체 접근성 시험으로 계산하지 않습니다.
 - 연결된 iPhone 17 Pro Max(iOS 26.5)와 Watch Series 11 46mm(watchOS 26.5)에서 Watch로 근무 시작→휴식→재개→종료 및 종료 확인을 실행했습니다. 각 명령 후 버튼이 해당 상태로 바뀌었고, iPhone에서 진행 중 근무를 확인했습니다. 종료 후 iPhone은 근무 시작 대기, 오늘 수익 692원, 오늘 보상 41P, 보유 110P(기존 69P + 41P)를 표시했습니다. 기존 장착 4개도 유지됐습니다.
 - 연결된 Watch의 수익·제어 화면 416×496 캡처 2장을 등록했습니다. 장착 캐릭터 이미지 화면은 기본 캐릭터와 수신 대기 안내가 유지돼 전송 성공으로 처리하지 않았습니다. 원인은 확정하지 않았으며 실물 Watch의 이미지 수신·재연결·백그라운드 시험은 남아 있습니다.
-- App Store Connect에 iPhone 3장·iPad 2장·Watch 2장 등록을 확인했습니다. 무료·대한민국 1개 지역·Mac/Vision Pro 제외·수동 출시 설정을 저장했습니다. ‘심사에 추가’ 검증은 개인정보 정보 게시만 요구했고, 게시 동의·심사 제출은 완료하지 않았습니다. [입력 현황](APP_STORE.md)을 따릅니다.
+- App Store Connect에 iPhone 3장·iPad 2장·Watch 2장 등록을 확인했습니다. 무료·대한민국 1개 지역·Mac/Vision Pro 제외·수동 출시 설정을 저장했습니다. ‘심사에 추가’ 검증은 개인정보 정보 게시만 요구했습니다. 이후 사용자 동의로 데이터 미수집 안내를 게시하고 01:56 KST에 1.0 (2)를 제출했습니다. Apple 제출 상세 화면에서 **심사 대기 중**, 제출 ID `619653b0-9aa4-4b2f-9972-0157e1b90097`을 확인했습니다. [입력 현황](APP_STORE.md)을 따릅니다.
 - QA 세션을 종료한 뒤 iPad·iPhone·Watch를 모두 종료했으며 `simctl list devices booted`에 실행 기기가 없음을 확인했습니다. macOS에 발열·성능 경고가 기록되지 않았으며 이는 실제 온도 측정은 아닙니다.
 
 ## 구현 범위
@@ -149,6 +149,7 @@ nice -n 15 xcodebuild -project PiyakBank.xcodeproj -scheme PiyakBank -configurat
 - [x] TestFlight 설치 안내 후 사용자의 정상 동작 보고를 받았습니다(2026-09-26, “다 잘된다”).
 - [ ] 기존 데이터가 있는 배포 빌드의 업데이트 보존 및 기기·OS별 세부 결과를 기록합니다.
 - [x] 출시 소스의 iPad·연결된 Watch 화면을 갱신하고 iPhone/iPad/Watch 스크린샷과 제출 정보를 등록했습니다.
-- [ ] App Privacy 게시 동의를 확인한 뒤 심사 제출을 완료합니다.
+- [x] 사용자 동의 후 App Privacy를 게시하고 1.0 (2) 심사 제출을 완료했습니다(2026-09-26 01:56 KST).
+- [ ] Apple 심사 결과에 대응하고 승인 후 수동으로 공개 출시합니다.
 
 제출 자료와 운영자 설정은 [APP_STORE.md](APP_STORE.md)를 참고하세요. 로컬 검증 통과가 Apple 심사 승인을 의미하지는 않습니다.
