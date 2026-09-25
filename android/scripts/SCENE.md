@@ -5,8 +5,8 @@ replace them with icons, sprites, external assets, a WebView or a network servic
 `ExportScene.swift` reads the original source and tessellates SceneKit's parametric
 geometry from its explicit dimensions on the CPU. Model I/O's bridge was found to
 silently substitute unit boxes and spheres, so it is deliberately not used. Meshes
-are deduplicated; clothing, sleeves, hats and hair use additions/removals from the same character, preserving fitted
-surfaces. The original item-preview cameras and behavior book/watering can are
+are deduplicated; clothing, sleeves, hats and hair use additions/removals from the
+same character, preserving fitted surfaces. The original item-preview cameras and behavior book/watering can are
 exported too. The exporter reads the shared iOS model source without modifying it.
 
 SceneKit's shape primitive exposes no CPU vertices through Model I/O. Its original
@@ -81,8 +81,8 @@ pbuffer and uses production `SceneAssets` and `RoomRenderer`; it does not captur
 an app screen, interact with UI controls or modify bank data.
 
 The final run rendered all 81 catalog previews at 320×320, nine complete room
-combinations at 512×384, and nine combined outfits at 384×384. Across the room and
-outfit sets, every catalog item appears once in its slot. Close-up outfit cameras
+combinations at 512×384, and nine combined outfits at 384×384. The nine room
+combinations cover every catalog item once in its slot. Close-up outfit cameras
 make hats, eyewear, neckwear and clothing intersections visible. The test also
 destroyed and recreated the EGL context while retaining the scene; the restored
 static render had identical pixels to the original.

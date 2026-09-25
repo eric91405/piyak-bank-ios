@@ -8,7 +8,7 @@
 
 첫 출시 방향은 **무료·광고 없음·회원가입 없음**입니다. 포인트는 앱 꾸미기 전용이며 현금 가치나 송금·인출 기능은 없습니다. 표시 수익은 세금과 수당을 제외한 단순 추정치입니다.
 
-## 현재 진행 상황 · 2026-09-21
+## 현재 진행 상황 · 2026-09-25
 
 ### iOS · Apple Watch
 
@@ -27,19 +27,20 @@ iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-i
 
 ### Android · Wear OS
 
-`android/`에 별도 Gradle 프로젝트로 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현했습니다. **로컬 자동 검사·빌드와 PR 최종 코드의 Android·iOS CI가 통과했으며, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합했습니다(`4786cdd`).** 실기기와 Play 배포 전 검증은 남아 있습니다.
+`android/`에 독립 Gradle 프로젝트로 네이티브 Compose 화면, 81종 아이템의 OpenGL 3D 방, SQLite 저장, 알림·위젯과 Wear OS 앱을 구현했습니다. [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)의 구현에 이어 [PR #5](https://github.com/eric91405/piyak-bank-ios/pull/5)에서 최소 OS·접근성·화면·예외 처리를 보완했습니다.
 
 | 범위 | 확인된 상태 |
 |---|---|
-| 자동 검사·빌드 | 최신 코드의 JVM·SQLite·설정·Compose 사용 흐름 회귀 테스트와 Debug·R8 Release 빌드 통과. 기기 테스트는 API 36의 실제 16,384바이트 페이지 환경에서 실행 |
-| Android 휴대폰 수동 QA | API 36 에뮬레이터의 16,384바이트 페이지 환경에서 R8 Release의 삐약이·방·화분 렌더링, 근무 시작·휴식·재개·종료, 화분 미리보기와 프로세스 재시작 후 101원·6P 보존 확인. 같은 QA 인증서로 최신 R8 설치본을 덮어 설치한 뒤에도 데이터·GPU 장면 유지 확인 |
-| Wear OS 수동 QA | API 35 작은 원형 화면에서 연결 전 안내·비활성 근무 버튼·스크롤 확인. 실제 휴대폰 연결 검증과 구분 |
-| 추가 수정 | 오래된 근무 조작 거부, 설정 필드 간 덮어쓰기 방지, 하단 조작 버튼을 가리던 안내 배너 수정 및 로컬 회귀 검증 통과 |
-| 원격 CI | PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 모두 통과 |
-| 남은 검증 | 81개 전체 모델·조합, 전체 UI·접근성·최소 OS, 가로 화면(에뮬레이터 회전이 Android 화면에 적용되지 않아 미확인), 물리 기기의 시계 연결·알림·위젯·장시간 전력, 최종 배포 서명과 Play 설치 |
-| 배포 | 기존 개인 Google Play 개발자 계정 보유 확인. 앱 업로드·실제 Play 설치·심사 미진행이며 계정별 배포 조건과 최종 서명 확인 필요 |
+| 자동 검사 | **134개 통과**: 코어 52·앱 19·Wear JVM 12, 휴대폰 API 36 46, Wear API 30 5. 최소 휴대폰 API 26도 45개 통과 |
+| Release | 양쪽 R8 APK·unsigned AAB 생성, Lint 오류 0, 네이티브 16 KB 정렬 검사 통과 |
+| 3D | 81종 전체 모델·방 9조합·의상 9조합과 EGL 복구 검사. 모든 조합의 완전 탐색은 아님 |
+| 수동 QA | API 26 CSV 저장·취소·알림 채널, API 36 권한 거부/재허용·TalkBack·최대 글꼴/표시 크기·실제 분할 화면. 최신 R8 업데이트·재부팅 후 101원/6P 보존 |
+| 수정 | 최소 OS 계산 크래시, 회전 중 CSV 유지, 알림 상태, 큰 글꼴/대화상자, TalkBack 방 설명, 오래된 Wear 조작, 곡선 모델 이음새 |
+| 원격 CI | 코드 `8fe25b7`의 [Android](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766276)·[iOS](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766453) 통과 |
+| 남은 검증 | 물리 GPU·휴대폰–시계 연결·알림·위젯·전력·태블릿·보조 입력. 스위치 접근은 에뮬레이터 입력 제약으로 미완료 |
+| 배포 | 개인 Google Play 계정 보유. 최종 배포 서명·Play 설치·계정별 조건·심사는 아직 미완료 |
 
-실행별 정확한 테스트 개수·결과·남은 항목은 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 예정된 테스트 수를 통과 수로 세지 않습니다. 설정과 모듈 구조는 [Android README](android/README.md), 시나리오는 [Android UI 테스트 계획](android/docs/UI_TEST_PLAN.md), 외부 배포 절차는 [Play Store 체크리스트](android/docs/PLAY_STORE.md)를 참고하세요. Android의 결과는 iOS 테스트 115개와 별개입니다.
+실행 환경과 한계는 [Android 검증 기록](android/docs/VALIDATION.md), 구조와 명령은 [Android README](android/README.md), 후속 절차는 [UI 테스트 계획](android/docs/UI_TEST_PLAN.md)과 [Play Store 체크리스트](android/docs/PLAY_STORE.md)에 정리했습니다. Android 134개는 iOS 115개와 별개이며 물리 기기·스토어 검증을 대신하지 않습니다.
 
 ## 실제 iOS 앱 화면
 

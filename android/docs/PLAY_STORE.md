@@ -1,31 +1,25 @@
 # Google Play 출시 체크리스트
 
-기준일: 2026-09-21. 이 문서는 Android 휴대폰·태블릿 앱과 Wear OS 앱의 배포 준비 절차다. 소유자는 기존 **개인 Google Play 개발자 계정**을 보유한다고 확인했다. 계정 생성일·인증 상태·업로드 권한과 적용되는 테스트 조건은 Console에서 아직 확인하지 않았으며, 실제 Play 업로드나 공개 출시는 수행하지 않았다. 체크되지 않은 항목은 완료로 간주하지 않는다.
+기준일: 2026-09-25. 이 문서는 Android 휴대폰·태블릿 앱과 Wear OS 앱의 배포 준비 절차다. 소유자는 기존 **개인 Google Play 개발자 계정**을 보유한다고 확인했다. 계정 생성일·인증 상태·업로드 권한과 적용되는 테스트 조건은 Console에서 아직 확인하지 않았으며, 실제 Play 업로드나 공개 출시는 수행하지 않았다. 체크되지 않은 항목은 완료로 간주하지 않는다.
 
 ## 코드와 테스트의 현재 위치
 
-- [x] PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)·[iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 통과, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합(병합 커밋 `4786cdd`).
-- [x] 순수 Kotlin 코어 테스트 50개, 앱 JVM 테스트 19개, Wear JVM 테스트 7개 통과.
-- [x] 휴대폰 및 Wear OS Debug APK 빌드.
-- [x] API 35 에뮬레이터에서 실제 SQLite instrumentation 테스트 8개 통과.
-- [x] 양쪽 Release Lint 오류 0개 확인. 휴대폰 경고 18개, Wear 경고 13개 및 각 hint 1개는 별도 검토 대상이다.
-- [x] 최신 수정을 반영한 양쪽 R8 Release APK와 unsigned AAB 재생성: AAB 휴대폰 약 9.3 MiB, Wear 약 7.9 MiB.
-- [x] 최종 APK·AAB 등 5개 산출물·4 ABI의 네이티브 ELF/무압축 APK ZIP 16 KB 정렬 검사 통과.
-- [x] 카탈로그 81개 일치, 3D 메시 362개·삼각형 245,728개와 원본 크기 검사 통과.
-- [x] Wear 최근 앱 화면·백업 규칙을 수정하고 Release Lint 재실행 확인.
-- [x] API 36의 실제 16 KB 페이지 에뮬레이터에서 로컬 개발용 서명으로 R8 앱 설치·실행 및 주요 방 모델·배회·화분 상호작용 확인.
-- [x] 근무 시작·휴식·재개·정산 101원/6P, 프로세스 재시작 후 보존과 화분 미리보기 수동 확인.
-- [x] 동일한 로컬 개발용 인증서로 최종 R8 QA APK를 기존 QA 설치 위에 업데이트하고 101원/6P와 방·화분 표시 유지 확인. Play 배포 서명 검증과는 구분한다.
-- [x] Wear API 35 작은 원형 화면에서 R8 앱 설치·실행·오프라인 버튼 상태·스크롤·새로고침 접근 확인.
-- [x] Snackbar 가림 수정 후 실제 16 KB 페이지 API 36에서 instrumentation 15개(SQLite 8·설정 저장소 2·Compose UI 5) 모두 통과.
-- [ ] 81종 전체 모델·착용 조합과 [UI 테스트 계획](UI_TEST_PLAN.md)의 전체 시나리오 확인.
-- [ ] [UI 테스트 계획](UI_TEST_PLAN.md)에 따른 휴대폰·태블릿·접근성·최소 지원 OS 검증. 가로 화면은 현재 AVD의 회전 제약으로 환경 차단 상태이므로 실기기 또는 다른 이미지에서 다시 확인한다.
-- [ ] 실물 휴대폰–Wear OS 연결, 알림·위젯·복구·발열 및 물리 16 KB 기기 실행 검증.
-- [ ] 소유자가 관리하는 배포 키와 Play App Signing 준비.
-- [ ] Play 내부 테스트 설치본의 양쪽 앱 서명·연동·업데이트 검증.
-- [ ] 계정에 적용되는 비공개 테스트 및 production access 조건 충족.
+- [x] [PR #5](https://github.com/eric91405/piyak-bank-ios/pull/5) 코드 `8fe25b7`의 [Android](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766276)·[iOS](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766453) 원격 검사 통과.
+- [x] JVM 83개, API 36 휴대폰 46개, 최소 Wear API 30 5개 통과. 최소 휴대폰 API 26 원격 실행도 45개 통과.
+- [x] 양쪽 Debug/R8 Release APK·unsigned AAB 생성과 16 KB 네이티브 정렬 검사 통과.
+- [x] Release Lint 오류 0. 휴대폰 Warning 18·Wear Warning 14 및 각 Hint 1은 남아 있음.
+- [x] 81종 카탈로그·메시 363개·삼각형 246,752개, production GLES 81종·방 9조합·의상 9조합·EGL 복구 확인.
+- [x] API 26 CSV 선택기 취소/저장·45원 내용·개별 알림 채널, API 36 알림 권한 거부/재허용 확인.
+- [x] 실제 ContentResolver·SQLite로 쓰기/닫기 실패·취소·Activity 재생성·예약 오류와 데이터 보존 확인.
+- [x] 실제 Activity 회전·재생성, 좁은/가로/태블릿 viewport, ATF·플랫폼 접근성 트리 통과.
+- [x] R8 앱의 실제 TalkBack 주요 탐색·조작, 최대 OS 글꼴/표시 크기, OS 분할 화면 확인.
+- [x] 동일 QA 인증서의 최신 R8 업데이트·재시작·재부팅 후 101원/6P 보존. Play 서명 검증과는 구분.
+- [ ] 스위치 접근 실제 조작: 에뮬레이터의 가상 키 등록 실패로 환경 차단, 물리 보조 입력 장치 필요.
+- [ ] 물리 태블릿·휴대폰–Wear 연결·제조사 알림/위젯·GPU·발열·전력·물리 16 KB 기기.
+- [ ] 소유자 업로드 키·Play App Signing, 내부 테스트 설치본의 양쪽 앱 인증서·연동·업데이트.
+- [ ] Console 계정 조건·스토어 입력·내부/비공개 테스트·production access·사전 출시 보고서.
 
-실제 수행 범위와 결과의 한계는 [검증 결과 기록](VALIDATION.md)에 남긴다. 76개 JVM 테스트와 API 36 instrumentation 15개, 총 91개의 서로 다른 자동 검사가 통과했다. API 35에서 실행한 SQLite 8개는 같은 테스트의 반복 실행이므로 중복 합산하지 않는다. 이 결과와 일부 수동 검증은 전체 실기기·Play 설치 검증 완료와 다르다. unsigned AAB를 만들었다는 이유로 업로드 가능한 서명이나 스토어 심사 준비가 끝났다고 표시하지 않는다.
+서로 다른 자동 검사는 **134개(83 + 46 + 5)**다. OS별로 반복한 같은 테스트를 중복 합산하지 않는다. 자세한 실행 환경·제약은 [검증 기록](VALIDATION.md)에 남긴다. unsigned AAB 생성이나 에뮬레이터 통과만으로 출시 준비가 끝난 것은 아니다.
 
 ## 패키지, 지원 범위와 버전
 
