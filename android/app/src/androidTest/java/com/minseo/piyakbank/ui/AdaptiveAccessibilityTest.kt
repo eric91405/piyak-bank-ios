@@ -22,6 +22,8 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
+import android.view.accessibility.AccessibilityNodeInfo
 import com.minseo.piyakbank.MainActivity
 import com.minseo.piyakbank.core.AppState
 import com.minseo.piyakbank.core.ClockSample
@@ -285,6 +287,17 @@ class AdaptiveAccessibilityTest {
         compose.waitUntil(10_000) { repository.ui.value.settings.wage == 24_680 }
         tab("설정").assertIsSelected()
         compose.onNodeWithText("24,680원").assertExists()
+    }
+
+    @Test fun systemAccessibilityTreeExposesRoomDescription() {
+        launch(overrideSize = false)
+        val automation = InstrumentationRegistry.getInstrumentation().uiAutomation
+        fun containsRoom(node: AccessibilityNodeInfo): Boolean {
+            if (node.contentDescription?.toString() == ROOM_DESCRIPTION && node.isVisibleToUser) return true
+            return (0 until node.childCount).any { index -> node.getChild(index)?.let(::containsRoom) == true }
+        }
+        // Query the platform tree used by TalkBack, not just Compose's test semantics.
+        compose.waitUntil(10_000) { automation.rootInActiveWindow?.let(::containsRoom) == true }
     }
 
     /** ATF checks actual device bounds: no ForcedSize scaling that could distort touch-size results. */

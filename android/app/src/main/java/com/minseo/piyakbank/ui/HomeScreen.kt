@@ -152,16 +152,22 @@ internal fun Room(
         }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val roomHeight = (maxWidth * 0.77f).coerceIn(230.dp, 380.dp)
-            AndroidView(
-                factory = { context -> PiyakRoomView(context).also { view ->
-                    view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                    view.onInteraction = { activity = "함께 놀아 줘서 고마워!" }
-                    view.onActivityChanged = { activity = it }
-                    room = view
-                } },
-                update = { it.configure(equipped, ui.settings.animationEnabled && previewItemId == null, working, previewItemId) },
-                modifier = Modifier.fillMaxWidth().height(roomHeight).semantics { contentDescription = "삐약이와 가구가 있는 3D 방. 아래 버튼으로 놀아 주거나 시점을 바꿀 수 있어요." },
-            )
+            // Keep the spoken description on a Compose parent. AndroidView's native
+            // accessibility exclusion otherwise also hides semantics on its modifier.
+            Box(Modifier.fillMaxWidth().height(roomHeight).semantics(mergeDescendants = true) {
+                contentDescription = "삐약이와 가구가 있는 3D 방. 아래 버튼으로 놀아 주거나 시점을 바꿀 수 있어요."
+            }) {
+                AndroidView(
+                    factory = { context -> PiyakRoomView(context).also { view ->
+                        view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                        view.onInteraction = { activity = "함께 놀아 줘서 고마워!" }
+                        view.onActivityChanged = { activity = it }
+                        room = view
+                    } },
+                    update = { it.configure(equipped, ui.settings.animationEnabled && previewItemId == null, working, previewItemId) },
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
         }
         if (!onboarding) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
