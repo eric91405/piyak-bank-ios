@@ -28,7 +28,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.minseo.piyakbank.core.*
 import com.minseo.piyakbank.platform.PiyakViewModel
@@ -98,7 +97,7 @@ internal fun HistoryScreen(ui: UiState, viewModel: PiyakViewModel) {
     }
     deleting?.let { payload ->
         val record = remember(payload) { recordFromSnapshot(payload) }
-        AlertDialog(
+        DensityAwareAlertDialog(
             onDismissRequest = { if (!ui.busy) { deleting = null; submittedAt = null } },
             title = { Text("이 기록을 삭제할까요?") },
             text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -121,11 +120,12 @@ private fun EarningsCalendar(day: LocalDate, today: LocalDate, amounts: Map<Loca
     GameCard {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onSelect(month.minusMonths(1).atDay(1)) }) { Icon(Icons.Rounded.ChevronLeft, "이전 달") }
-            Text("${month.year}년 ${month.monthValue}월", style = MaterialTheme.typography.titleMedium)
+            Text("${month.year}년 ${month.monthValue}월", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.titleMedium)
             IconButton(onClick = { onSelect(month.plusMonths(1).atDay(1)) }) { Icon(Icons.Rounded.ChevronRight, "다음 달") }
         }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val width = maxOf(maxWidth, (48 * fontScale.coerceAtLeast(1f) * 7).dp)
+            // Each day keeps a 48dp touch area after its two 1dp spacing insets.
+            val width = maxOf(maxWidth, (50 * fontScale.coerceAtLeast(1f) * 7).dp)
             Column(Modifier.horizontalScroll(rememberScrollState()).width(width), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row { listOf("일", "월", "화", "수", "목", "금", "토").forEach { Text(it, Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) } }
                 repeat(rows) { row -> Row {
@@ -195,7 +195,7 @@ private fun RecordEditor(record: WorkRecord?, ui: UiState, viewModel: PiyakViewM
     ActionCompletion(ui, submittedAt) { onDismiss() }
     fun update(index: Int, value: SegmentDraft) { drafts = drafts.toMutableList().also { it[index] = value }; changed = true; error = null }
     fun requestDismiss() { if (!ui.busy) { if (changed) discard = true else onDismiss() } }
-    Dialog(onDismissRequest = ::requestDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    DensityAwareDialog(onDismissRequest = ::requestDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(modifier = Modifier.padding(12.dp).widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(.96f).imePadding(), shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.background) {
             Column {
                 Row(Modifier.fillMaxWidth().padding(start = 8.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -230,7 +230,7 @@ private fun RecordEditor(record: WorkRecord?, ui: UiState, viewModel: PiyakViewM
             }
         }
     }
-    if (confirm) AlertDialog(
+    if (confirm) DensityAwareAlertDialog(
         onDismissRequest = { if (!ui.busy) confirm = false }, title = { Text("근무 기록을 저장할까요?") },
         text = { Text("근무 시간과 예상 수익에 반영돼요. 이미 받은 포인트와 레벨은 그대로 유지돼요.") },
         confirmButton = { Button(onClick = {
@@ -244,7 +244,7 @@ private fun RecordEditor(record: WorkRecord?, ui: UiState, viewModel: PiyakViewM
         }, enabled = !ui.busy) { Text("저장") } },
         dismissButton = { TextButton(onClick = { confirm = false }, enabled = !ui.busy) { Text("계속 편집") } },
     )
-    if (discard) AlertDialog(onDismissRequest = { discard = false }, title = { Text("작성한 내용을 닫을까요?") }, text = { Text("저장하지 않은 수정 내용은 사라져요.") }, confirmButton = { TextButton(onClick = onDismiss) { Text("저장하지 않고 닫기") } }, dismissButton = { TextButton(onClick = { discard = false }) { Text("계속 편집") } })
+    if (discard) DensityAwareAlertDialog(onDismissRequest = { discard = false }, title = { Text("작성한 내용을 닫을까요?") }, text = { Text("저장하지 않은 수정 내용은 사라져요.") }, confirmButton = { TextButton(onClick = onDismiss) { Text("저장하지 않고 닫기") } }, dismissButton = { TextButton(onClick = { discard = false }) { Text("계속 편집") } })
 }
 
 private fun validateDrafts(drafts: List<SegmentDraft>, now: Long): String? {

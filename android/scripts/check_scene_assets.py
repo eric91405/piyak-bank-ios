@@ -21,11 +21,13 @@ cursor = 0
 triangles = 0
 assert len(manifest["meshBounds"]) == manifest["meshCount"]
 mesh_bounds = []
+mesh_vertices = []
 for index in range(manifest["meshCount"]):
     count, size = struct.unpack_from("<II", raw, cursor)
     cursor += 8
     assert 0 < count < 65536 and size >= 3 and size % 3 == 0
     floats = struct.unpack_from(f"<{count * 6}f", raw, cursor)
+    mesh_vertices.append(floats)
     assert all(map(math.isfinite, floats)), f"Nonfinite mesh {index}"
     low = [min(floats[axis::6]) for axis in range(3)]
     high = [max(floats[axis::6]) for axis in range(3)]
@@ -50,6 +52,22 @@ for axis, extent in enumerate([4.8, .3, 3.9]):
 body = next(item for item in manifest["base"] if item["rig"] == "bodyRig")
 body_bounds = mesh_bounds[body["mesh"]]
 assert abs(body_bounds[1][0] - body_bounds[0][0] - 2) < .0001, "Original radius-one chick sphere became a unit-diameter sphere"
+# The right cactus arm used to join +Z-oriented and -Z-oriented cross-section
+# rings, twisting through its own centre despite perfectly valid bounds/indices.
+# Check actual exported ring correspondence: the intended 90-degree branch bend
+# is spread over its three rings, so corresponding normals remain aligned.
+cactus_arms = {item["mesh"] for item in manifest["items"]["floorProp.cactus"]["add"]
+               if manifest["meshBounds"][item["mesh"]]["kind"] == "SCNGeometry"}
+assert len(cactus_arms) == 2, "Expected both original swept cactus branches"
+for mesh in cactus_arms:
+    vertices = mesh_vertices[mesh]
+    assert len(vertices) == 3 * 8 * 6, "Cactus branch cross-section topology changed; review regression coverage"
+    for ring in range(2):
+        for side in range(8):
+            first = (ring * 8 + side) * 6 + 3
+            second = ((ring + 1) * 8 + side) * 6 + 3
+            alignment = sum(vertices[first + axis] * vertices[second + axis] for axis in range(3))
+            assert alignment > .5, f"Cactus branch {mesh} twists between rings {ring} and {ring + 1}: normal alignment {alignment}"
 rigs = {rig["name"] for rig in manifest["rigs"]}
 assert {"piyak", "bodyRig", "headRig", "eyes", "wing.left", "wing.right", "foot.left", "foot.right"} == rigs
 
@@ -75,4 +93,4 @@ for preview in manifest["previews"].values():
 for instances in manifest["effects"].values():
     inspect(instances)
 assert {"book", "wateringCan", *(f"drop.{i}" for i in range(6))} == set(manifest["effects"])
-print(f"PASS: 81 models, 9 rooms, {manifest['meshCount']} deduplicated meshes, {triangles:,} triangles; original dimensions, floor/body sentinels, binary indices, finite transforms, rig composition, source fingerprint and effects verified.")
+print(f"PASS: 81 models, 9 rooms, {manifest['meshCount']} deduplicated meshes, {triangles:,} triangles; original dimensions, floor/body sentinels, cactus frame continuity, binary indices, finite transforms, rig composition, source fingerprint and effects verified.")

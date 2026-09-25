@@ -26,9 +26,9 @@ nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
 
 기기 테스트는 합성 데이터용 QA 기기에만 실행한다. Gradle은 worker 1·병렬 끄기·JVM 최대 2GB로 제한했다. MacBook Air M4 16GB에서 빌드와 에뮬레이터를 겹치지 말고, 사용하지 않는 에뮬레이터를 종료한다. Debug·JVM·기기 테스트·Release·실기기·스토어 설치 결과를 서로 대체하지 말 것. Android 설정·배포 서명·체크리스트는 [android/README.md](android/README.md)와 [PLAY_STORE.md](android/docs/PLAY_STORE.md)에 있다.
 
-Compose 사용 흐름과 설정 경쟁 테스트는 별도 `.uitest` 패키지로 격리한다. `-PpiyakUiTest=true`로 `:app:assembleUiTest :app:assembleUiTestAndroidTest`를 먼저 빌드하고, QA 기기에서 `:app:connectedUiTestAndroidTest`를 실행한다. 실제 앱의 데이터로 fixture를 만들거나 초기화하지 말 것. 일반 Debug에서 건너뛴 UI 테스트를 통과로 세지 않는다. 정확한 실행 개수·커밋·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)을 갱신하며, 테스트를 추가했다는 이유만으로 통과 개수를 늘리지 않는다.
+Compose·설정 경쟁·CSV·알림 예외 테스트는 별도 `.uitest` 패키지로 격리한다. `-PpiyakUiTest=true`로 `:app:assembleUiTest :app:assembleUiTestAndroidTest`를 먼저 빌드하고, 같은 속성으로 QA 기기에서 `:app:connectedUiTestAndroidTest`를 실행한다. 실제 ContentResolver 시험용 제공자는 `src/uiTest`에만 넣고 일반 Debug·Release에 노출하지 않는다. 실제 앱 데이터로 fixture를 만들거나 초기화하지 말 것. 일반 Debug에서 건너뛴 UI 테스트를 통과로 세지 않는다. 정확한 개수·커밋·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)을 갱신하며, 테스트 추가만으로 통과 개수를 늘리지 않는다.
 
-최신 Android 코드의 로컬 JVM·기기 회귀 테스트와 Debug·R8 Release 빌드는 통과했다. API 36의 실제 16 KB 페이지 환경에서 SQLite·설정·Compose 사용 흐름을 실행했으며, R8 Release 일부 수동 흐름과 Wear 연결 전 원형 화면도 확인했다. 같은 QA 인증서의 최신 R8 설치본으로 덮어 설치한 뒤에도 101원·6P와 GPU 장면을 유지했다. 가로 화면은 에뮬레이터 회전이 Android 화면에 적용되지 않아 미확인이며, 최신 원격 CI·물리 기기 연결·배포 검증도 남아 있다. 개인 Google Play 개발자 계정 보유는 확인됐으며, 계정별 배포 조건·앱 등록·소유자 서명·Play 테스트는 별도 확인 대상이다. Apple Developer Program 상태로 Google Play 계정 상태를 추정하지 않는다.
+2026-09-25 [PR #5](https://github.com/eric91405/piyak-bank-ios/pull/5)의 Android 자동 검사 **134개(JVM 83 + 휴대폰 API 36 46 + Wear API 30 5)**와 Swift 115개가 통과했다. 최소 API 26 원격 실행은 ATF를 제외한 45개 통과다. 81종·방 9조합·의상 9조합 GLES, 최종 R8·Lint·정렬, TalkBack 주요 조작·최대 글꼴/표시 크기·실제 OS 분할 화면·알림 거부/재허용·CSV 수동 QA를 확인했다. 스위치 접근은 가상 키가 등록되지 않아 환경 차단으로 남긴다. [검증 기록](android/docs/VALIDATION.md)의 증거·제약을 따른다. 개인 Google Play 계정 보유는 확인됐으나 Console 조건·소유자 서명·Play 설치·물리 휴대폰–시계 연결 등은 미완료다. Android 결과를 iOS 또는 실기기 완료 상태로 대체하지 않는다.
 
 모델(`PiyakScene.swift`)을 수정하면 iOS 미리보기 이미지를 반드시 재생성해야 한다. 생성기와 원본의 SHA-256 지문을 CI가 대조하므로 그러지 않으면 검사에 실패한다.
 
@@ -69,6 +69,8 @@ android/docs/        Android UI 테스트 계획·Play 출시 체크리스트
 - **Android 휴대폰 조작도 표시했던 근무 상태를 확인한다.** 확인창을 열어 둔 사이 시계나 다른 창에서 근무가 바뀌면 이전 시작·휴식·재개·종료 조작을 새 근무에 적용하지 않는다.
 - **Android 설정은 변경한 필드만 저장한다.** 이전 화면의 `UserSettings` 전체 사본으로 다른 창의 최신 값을 덮어쓰지 않는다. 진행 중 시급 변경의 제한은 UI뿐 아니라 저장 직전의 최신 상태에서도 검사한다.
 - **안내 배너가 근무 버튼을 덮으면 안 된다.** Android 홈의 실제 조작 영역 높이로 Snackbar 위치를 조절한다. 고정 여백으로 되돌리거나 테스트에서 배너가 사라질 때까지 기다려 실제 터치 오류를 가리지 말 것. 큰 글꼴·회전에서도 확인한다.
+- **Android 최소 버전의 런타임 API를 실제로 검증한다.** 순수 JVM 코어도 Android API 26에서 실행되므로 최신 JDK 메서드의 존재를 가정하지 않는다. `BigInteger.longValueExact()` 대신 범위를 검사하는 호환 변환을 유지하고, 최소 API instrumentation 결과를 확인한다.
+- **CSV 저장 중 회전으로 작업을 취소하지 않는다.** application 참조만 가진 ViewModel이 진행 작업과 완료 결과를 유지한다. Activity를 캡처하지 않으며 coroutine 취소를 일반 실패로 삼키지 않는다. 제공자 오류가 원본 저장소를 바꾸면 안 된다.
 
 ## 관례
 

@@ -17,28 +17,19 @@
 
 ## 현재 검증 상태
 
-2026-09-21 기준 JVM 76개와 최종 기기 instrumentation 15개, **서로 다른 자동 테스트 91개를 통과했습니다.** 전체 출시 검증과 Play 배포는 아직 완료되지 않았습니다. 자세한 범위·증거·미실행 항목은 [검증 결과 기록](docs/VALIDATION.md)에 구분했습니다.
+2026-09-25 기준 **Android 자동 테스트 134개(JVM 83 + 휴대폰 46 + Wear 5)가 통과**했습니다. 실제 최소 API 26에서는 ATF를 제외한 45개, 최소 Wear API 30에서는 5개가 통과했습니다. [PR #5](https://github.com/eric91405/piyak-bank-ios/pull/5)의 코드 커밋 `8fe25b7`에서 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766276)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766453)가 통과했습니다.
 
-| 항목 | 확인된 결과 |
+| 범위 | 확인된 결과 |
 | --- | --- |
-| JVM 테스트 | 코어 50개 + 앱 19개 + Wear 7개, 총 76개 통과 |
-| 실제 SQLite instrumentation | API 35 Android 에뮬레이터에서 8개 통과 |
-| 휴대폰·Wear OS Debug APK | 빌드 성공 |
-| Release Lint | 양쪽 오류 0개; 휴대폰 경고 18개, Wear 경고 13개 및 각 hint 1개 |
-| 최종 R8 축소 Release APK·AAB | 최신 수정으로 양쪽 재생성 성공; AAB unsigned, 휴대폰 약 9.3 MiB·Wear 약 7.9 MiB |
-| 16 KB 네이티브 정렬 검사 | 최종 5개 산출물·4 ABI 검사 통과; APK ELF/무압축 ZIP·AAB ELF |
-| 꾸미기·3D 파일 검사 | 카탈로그 81개 일치; 메시 362개·삼각형 245,728개, 원본 크기 검증 통과 |
-| API 36·16 KB 페이지 R8 앱 | 로컬 개발용 서명으로 설치·실행; 방·삐약이·배회·화분 상호작용과 주요 근무 흐름 확인 |
-| 수동 데이터 보존 | 정산 101원·6P를 프로세스 재시작과 최종 R8 QA APK 덮어쓰기 설치 후에도 보존 |
-| 최종 API 36 instrumentation | 실제 16 KB 페이지 환경에서 SQLite 8개·설정 저장소 2개·Compose UI 5개, 총 15개 통과 |
-| 가로 화면 | 환경 차단: 자동 회전이 켜져 있어도 현재 AVD가 앱을 세로 상태로 유지; 다른 환경 재검증 필요 |
-| Wear API 35 작은 원형 화면 | R8 앱 설치·실행, 오프라인 조작 비활성화와 스크롤·새로고침 접근 확인 |
-| 원격 CI | PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)·[iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707) 모두 통과 |
-| GitHub 반영 | [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)를 `main`에 병합, 병합 커밋 `4786cdd` |
-| 실물 휴대폰–Wear OS 연결·알림·위젯·배터리 | 미실행 |
-| Play 내부/비공개 테스트·출시 심사 | 미진행 |
+| Release | 양쪽 APK·unsigned AAB 생성, Lint 오류 0, 네이티브 16 KB 정렬 통과. 경고는 휴대폰 18·Wear 14, 각 hint 1 |
+| 3D | 81종, 메시 363개·삼각형 246,752개. GLES에서 81종·방 9조합·의상 9조합·EGL 복구 검사 |
+| 화면 | 실제 Activity 회전·재생성, 좁은/가로/태블릿 viewport·글꼴 2배 자동 검사와 OS 분할 화면·최대 표시 크기 수동 확인 |
+| 접근성 | ATF·플랫폼 접근성 트리 통과, 실제 TalkBack 주요 탐색·조작 확인. 스위치 접근은 가상 키 미인식으로 환경 차단 |
+| 예외 | API 26 정수 API, CSV 취소·쓰기 실패·회전, 개별 알림 채널과 API 36 권한 거부/재허용 확인 |
+| R8 수동 QA | API 36 실제 16 KB 페이지에서 근무·3D·기록, QA 업데이트·재시작·재부팅 후 101원/6P 보존 |
+| 남은 단계 | 물리 휴대폰–Wear 연결·GPU·알림·위젯·배터리·보조 입력, 배포 서명과 Play 설치 |
 
-Wear 최근 앱 화면·백업 규칙을 수정한 뒤 Lint를 재실행했습니다. 남은 경고가 0개라는 뜻은 아닙니다. 16 KB 페이지는 API 36 에뮬레이터에서 `getconf PAGESIZE`의 16384 값을 확인했으며 물리 기기 검증은 남아 있습니다. 81종 전체 착용 조합, 접근성, 실제 시계 연결과 Play 설치 검증은 [UI 테스트 계획](docs/UI_TEST_PLAN.md)을 따릅니다. 소유자는 기존 개인 Google Play 개발자 계정을 보유한다고 확인했으며, 계정 생성일과 적용 테스트 조건은 Console에서 확인해야 합니다.
+정확한 환경·실행 증거·제약은 [검증 기록](docs/VALIDATION.md), 시나리오는 [UI 계획](docs/UI_TEST_PLAN.md)에 있습니다. 134개는 OS별 반복 검사를 중복 합산하지 않은 수치이며 모든 기기·아이템 조합을 완전 탐색했다는 뜻은 아닙니다. 기존 개인 Google Play 계정의 실제 조건과 최종 서명은 [출시 체크리스트](docs/PLAY_STORE.md)에 따라 확인해야 합니다.
 
 ## 개발 환경
 
@@ -67,11 +58,15 @@ nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebug :wear:assemb
 nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:assembleDebugAndroidTest
 ```
 
-QA 전용 휴대폰 또는 에뮬레이터를 하나 연결한 뒤 instrumentation 테스트를 실행합니다. 합성 데이터용 테스트 기기에서만 실행하고 실제 사용자의 기록이 든 설치본과 구분합니다.
+기본 Debug 기기 검사는 SQLite 중심이며, UI·CSV·알림 예외는 별도 `.uitest` 설치본에서만 실행합니다. 먼저 아래 APK를 빌드한 뒤 QA 전용 기기 하나를 켭니다. 이 변형의 합성 데이터·테스트 제공자는 일반 Debug·Release와 분리됩니다.
 
 ```sh
-nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
+nice -n 15 ./gradlew --no-daemon --max-workers=1 -PpiyakUiTest=true :app:assembleUiTest :app:assembleUiTestAndroidTest
+# 빌드가 끝난 뒤 QA 기기에서 실행
+nice -n 15 ./gradlew --no-daemon --max-workers=1 -PpiyakUiTest=true :app:connectedUiTestAndroidTest
 ```
+
+API 26 원격 CI는 Linux KVM에서 미리 빌드한 APK를 설치한 뒤 `am instrument`를 실행합니다. `scripts/verify_instrumentation.py`가 실패·크래시·빈 실행·예상치 못한 skip을 거부하며 로그와 GPU 결과를 artifact로 남깁니다. 아직 원격 통과 결과를 확인하기 전입니다.
 
 Release 코드 축소와 Lint, 배포 번들을 다시 검증하는 명령입니다. 실제 업로드에는 소유자가 준비한 서명이 필요합니다.
 
@@ -111,7 +106,8 @@ android/
 │       │   └── scene/      # 공용 OpenGL 3D 방과 캐릭터 동작
 │       ├── main/assets/    # 카탈로그 썸네일과 변환된 3D 모델
 │       ├── test/           # JVM 테스트
-│       └── androidTest/    # 기기 저장소 instrumentation 테스트
+│       ├── androidTest/    # 저장소·CSV·알림·Compose·GPU instrumentation
+│       └── uiTest/         # 격리 QA용 제공자; 일반 Debug·Release 제외
 ├── wear/                   # 연결된 Wear OS 앱, 공용 scene/assets 사용
 ├── scripts/                # iOS 원본 기하의 Android 모델 변환·검사
 └── docs/                   # 실제 검증 기록, UI 계획, Play 출시 체크리스트

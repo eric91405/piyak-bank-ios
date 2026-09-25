@@ -33,11 +33,14 @@ class PiyakApplication : Application() {
     override fun onCreate() { super.onCreate(); repository.initialize() }
 }
 
-class PiyakRepository(private val app: Application) {
+class PiyakRepository(
+    private val app: Application,
+    private val db: BankDatabase = BankDatabase(app),
+    private val reminders: (PersistentState, Boolean) -> Unit = { state, delivered -> ReminderScheduler.synchronize(app, state, delivered) },
+) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val mutex = Mutex()
     private val systemMutex = Mutex()
-    private val db = BankDatabase(app)
     private var current: PersistentState? = null
     private val unknownBoot = "unverified-${UUID.randomUUID()}"
     private val mutable = MutableStateFlow(UiState())
@@ -118,9 +121,9 @@ class PiyakRepository(private val app: Application) {
     private suspend fun synchronizeSystem() = systemMutex.withLock {
         val state = mutex.withLock { current } ?: return@withLock
         // Side effects never turn a successful database commit into a failed money operation.
-        runCatching { ReminderScheduler.synchronize(app, state) }
-        runCatching { PiyakWidget.updateAll(app, state, clock()) }
-        runCatching { WearSync.publish(app, state, clock()) }
+        try { reminders(state, false) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
+        try { PiyakWidget.updateAll(app, state, clock()) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
+        try { WearSync.publish(app, state, clock()) } catch (cancelled: CancellationException) { throw cancelled } catch (_: Exception) { }
         currentCoroutineContext().ensureActive()
     }
     /** An alarm cannot publish an older working snapshot after a pause/disable commit. */
@@ -128,7 +131,7 @@ class PiyakRepository(private val app: Application) {
         systemMutex.withLock {
             mutex.withLock stateLock@ {
                 val state = db.read() ?: return@stateLock
-                ReminderScheduler.synchronize(app, state, delivered = true)
+                reminders(state, true)
             }
         }
     }

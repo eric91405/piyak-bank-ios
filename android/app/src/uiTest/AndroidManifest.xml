@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Only the isolated QA variant contains this provider; release/debug expose no test API. -->
+        <provider android:name="com.minseo.piyakbank.platform.ExportTestProvider"
+            android:authorities="${applicationId}.export-test" android:exported="false" />
+    </application>
+</manifest>

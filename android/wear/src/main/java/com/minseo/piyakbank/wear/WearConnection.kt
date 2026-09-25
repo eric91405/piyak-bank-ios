@@ -111,10 +111,15 @@ class WearConnection(private val context: Context) {
         mutable.update { it.copy(phone = phone, connected = true, receivedAt = SystemClock.elapsedRealtime()) }
     }
     fun clearError() { mutable.update { it.copy(error = null) } }
-    fun command(action: String) {
+    fun command(action: String, expected: WearCommandTarget) {
         val state = mutable.value
         val phone = state.phone ?: return
         val node = selectedNode ?: return
+        if (!expected.matches(phone)) {
+            mutable.update { it.copy(error = "근무 상태가 바뀌었어요. 현재 상태를 확인하고 다시 눌러 주세요.") }
+            refresh()
+            return
+        }
         if (state.busy || !state.connected || SystemClock.elapsedRealtime() - state.receivedAt > 30_000) { refresh(); return }
         val id = UUID.randomUUID().toString()
         pendingId = id

@@ -8,32 +8,19 @@
 
 GitHub Pages의 현재 소스는 `main`의 `/docs`입니다. 2026-09-21 홈·iOS 정책·Android 정책·지원 페이지 모두 로그인 없이 HTTP 200 응답과 실제 내용을 확인했습니다. [게시 절차](docs/PUBLISHING.md)를 따릅니다. 네이티브 Xcode 테스트 타깃 추가는 개발 편의 개선이며 App Store 제출 필수 조건은 아닙니다. 기존 Swift Package 테스트와 CI를 유지합니다. 아래 기능 추가 목록은 별도 로드맵이며 이번 안정화 범위에 포함되지 않습니다.
 
-## Android · Wear OS 병행 개발 (2026-09-21)
+## Android · Wear OS 병행 개발 (2026-09-25)
 
-사용자 요청으로 Android 휴대폰·태블릿·홈 화면 위젯과 **Wear OS 동반 앱까지** 포함해 `android/`에 독립 Gradle 프로젝트를 추가했습니다. 기존 iOS 코드·검증 상태를 Android 완료 상태로 대체하지 않습니다. 새 Android 앱과 iOS 앱 사이의 계정·기록 동기화는 구현 범위에 없습니다.
+사용자 요청으로 `android/`에 휴대폰·태블릿·홈 화면 위젯과 **Wear OS 동반 앱**을 구현했습니다. AI·광고·인앱 결제·앱 계정은 없으며 iOS와 Android 사이의 기록 동기화는 범위에 없습니다. [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)의 구현 이후 [PR #5](https://github.com/eric91405/piyak-bank-ios/pull/5)에서 최소 OS와 출시 예외 검증을 보완했습니다.
 
-현재 구현은 Compose 온보딩·4개 탭·큰 화면 배치, 시간 기록·급여·보상, 81종 아이템·OpenGL 방, SQLite 저장·revision 충돌 방지, 알림·위젯·CSV·설정, Android 휴대폰 원본을 제어하는 Wear OS 앱입니다. AI·광고·인앱 결제·앱 계정은 추가하지 않았습니다.
+**Android 자동 검사 134개(JVM 83 + API 36 휴대폰 46 + API 30 Wear 5)가 통과**했습니다. 최소 API 26 원격 실행도 45개 통과했습니다. 코드 `8fe25b7`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766276)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766453)가 성공했습니다. Swift 115개는 별도입니다.
 
-정확한 실행 개수·환경·결과는 [Android 검증 기록](android/docs/VALIDATION.md)에 모읍니다. 최신 코드의 JVM 회귀 테스트, API 36의 실제 16,384바이트 페이지 환경에서 실행한 SQLite·설정·Compose 기기 테스트, Debug·R8 Release 빌드가 통과했습니다. 예정되거나 건너뛴 테스트를 통과 수로 기록하지 않습니다. PR 최종 커밋 `009fb1f`의 [Android CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930705)와 [iOS CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35574930707)가 모두 통과했으며, [PR #4](https://github.com/eric91405/piyak-bank-ios/pull/4)는 `main`에 병합했습니다(병합 커밋 `4786cdd`).
+- API 26 계산 크래시, 회전 중 CSV, 알림 채널·예약 예외, 큰 글꼴/창 변경 대화상자, 실제 TalkBack의 방 설명 누락, 오래된 Wear 종료 대상, 3D 곡선 이음새를 수정했습니다.
+- 81종·방 9조합·의상 9조합 production GLES와 컨텍스트 복구를 확인하고 iOS/Android/Watch 생성 리소스를 갱신했습니다. 모든 조합·물리 GPU 검증은 아닙니다.
+- 최종 R8·Lint·16 KB 정렬, API 26 CSV·채널 조작, API 36 권한 거부/재허용·TalkBack·최대 글꼴/표시 크기·실제 분할 화면을 확인했습니다. QA 업데이트·재시작·재부팅 후 101원·6P를 보존했습니다.
+- **스위치 접근은 환경 차단**입니다. 에뮬레이터 가상 키가 스위치로 등록되지 않아 실제 조작은 통과 처리하지 않았습니다. 물리 보조 입력에서 확인해야 합니다.
+- 실제 물리 휴대폰–Wear 연결·GPU·알림·위젯·장시간 전력·태블릿·최종 배포 설치는 남아 있습니다. 기존 개인 Google Play 계정은 있으나 Console 조건·업로드 키·Play App Signing·테스트 트랙은 미확인입니다.
 
-직접 확인한 사용 흐름:
-
-- API 36 에뮬레이터의 실제 페이지 크기 16,384바이트 환경에서 R8 Release를 설치해 삐약이·방·화분의 GPU 렌더링을 확인했습니다. 81개 모델 전체나 모든 GPU의 시각 품질을 검증했다는 뜻은 아닙니다.
-- 근무 시작·휴식·재개·종료, 화분 미리보기와 프로세스 재시작 후 예상 수익 101원·6P 보존을 확인했습니다.
-- 같은 QA용 Debug 인증서로 서명한 최신 R8 Release를 덮어 설치한 뒤에도 101원·6P와 GPU 장면을 유지했습니다. 최종 스토어 서명·Play 업데이트 설치 검증과는 구분합니다.
-- API 35 작은 원형 Wear OS 화면에서 연결 전 안내, 비활성화된 근무 조작과 스크롤을 확인했습니다. 물리 휴대폰–시계 연결 시험은 남아 있습니다.
-
-후속 검증 중 발견해 코드에 반영한 수정:
-
-- 시계나 다른 창에서 근무가 바뀐 뒤 예전 휴대폰 확인창·버튼이 새 근무를 시작/종료하거나 휴식 상태를 바꾸지 않도록 대상 세션·상태를 검사합니다.
-- 각 설정 필드의 변경을 최신 저장 상태에 합쳐 저장하며, 오래된 설정 화면이 다른 필드의 변경을 덮어쓰지 않게 했습니다. 시급 제한도 저장 시점의 진행 중 근무를 검사합니다.
-- 시작·재개 안내 Snackbar가 하단 근무 버튼을 덮어 실제 터치를 가로채던 문제를 수정했습니다. 버튼 영역의 측정 높이를 사용하며 UI 회귀 테스트는 안내가 떠 있는 동안에도 즉시 누릅니다.
-
-**이 수정들이 포함된 최신 로컬 빌드·자동 검사·Compose 사용 흐름 재검증과 R8 덮어 설치 후 데이터·장면 유지는 확인했습니다.** 가로 화면은 에뮬레이터의 회전 조작 후에도 Android 화면이 세로로 유지되는 환경 문제로 미확인입니다. 최소 OS·전체 UI·접근성·81개 모델과 착용 조합·물리 시계 연결·알림·위젯·장시간 전력·최종 배포 설치를 완료로 기록하지 않습니다.
-
-사용자가 기존 **개인 Google Play 개발자 계정 보유**를 확인했습니다. 계정 생성 시점, production access, 앱 등록·서명, 적용되는 테스트 조건은 실제 Console에서 추가 확인해야 합니다. Play 업로드·배포 설치·심사는 아직 완료하지 않았습니다.
-
-후속 작업은 [Android 검증 기록](android/docs/VALIDATION.md), [UI 테스트 계획](android/docs/UI_TEST_PLAN.md), [Play 출시 체크리스트](android/docs/PLAY_STORE.md)의 미확인 항목을 실제 증거로 갱신하는 것입니다. 테스트 개수만으로 화면·실기기·배포 시험까지 통과했다고 표현하지 마세요.
+정확한 실행 환경·결과는 [검증 기록](android/docs/VALIDATION.md), 남은 시나리오는 [UI 계획](android/docs/UI_TEST_PLAN.md)과 [Play 체크리스트](android/docs/PLAY_STORE.md)를 따릅니다. 테스트 개수만으로 모든 화면·기기·배포 검증이 끝났다고 표현하지 마세요. QA 후 에뮬레이터를 종료하고, 로컬 빌드와 에뮬레이터를 겹치지 않습니다. `piyakbank-fixes.patch`는 사용자 파일이므로 변경·스테이징·삭제하지 않습니다.
 
 ### 구조와 실행
 
@@ -52,7 +39,7 @@ nice -n 15 ./gradlew --no-daemon --max-workers=1 :app:connectedDebugAndroidTest
 
 마지막 명령은 합성 데이터용 QA 기기가 필요합니다. AGP 8.13.1·Kotlin 2.2.20·Gradle 8.14·JDK 17 이상, compileSdk 36을 사용합니다. 휴대폰 minSdk 26/targetSdk 36, Wear OS minSdk 30/targetSdk 35입니다. 두 앱의 applicationId는 `com.minseo.piyakbank`이며 동일 서명을 사용해야 통신합니다. versionCode는 휴대폰 1, Wear OS 1000001부터 분리했습니다.
 
-Compose 사용 흐름과 설정 경쟁 시험은 `-PpiyakUiTest=true`로 선택한 `com.minseo.piyakbank.uitest` 전용 설치본에서 실행합니다. 먼저 `:app:assembleUiTest :app:assembleUiTestAndroidTest`를 빌드한 뒤 QA 기기를 켜고 `:app:connectedUiTestAndroidTest`를 실행합니다. 일반 Debug에서 건너뛴 이 테스트들을 통과로 세지 않으며, 실제 앱 저장소를 시험용 fixture로 초기화하지 않습니다.
+Compose·설정 경쟁·CSV·알림 예외 시험은 `-PpiyakUiTest=true`로 선택한 `com.minseo.piyakbank.uitest` 전용 설치본에서 실행합니다. 같은 속성으로 `:app:assembleUiTest :app:assembleUiTestAndroidTest`를 먼저 빌드한 뒤 QA 기기를 켜고 `:app:connectedUiTestAndroidTest`를 실행합니다. CSV 제공자는 `src/uiTest`에만 있으며 일반 Debug·Release에 넣지 않습니다. 신규 API 26 CI도 빌드 후 에뮬레이터를 켜고 원시 instrumentation 결과를 별도로 검증합니다. 일반 Debug의 skip을 통과로 세거나 실제 사용자 저장소를 fixture로 초기화하지 않습니다.
 
 MacBook Air M4 16GB의 발열 관리 요청을 유지합니다. Gradle worker 1개·병렬 끄기·JVM 최대 2GB를 지키고 빌드와 에뮬레이터를 순차 실행합니다. 사용하지 않는 시뮬레이터·에뮬레이터는 종료합니다. Release 서명에는 소유자가 관리하는 `PIYAK_KEYSTORE`, `PIYAK_STORE_PASSWORD`, `PIYAK_KEY_ALIAS`, `PIYAK_KEY_PASSWORD`가 필요하며 키를 저장소에 넣지 않습니다.
 

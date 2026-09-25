@@ -80,7 +80,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 if (active == null) {
                     Button(onClick = { confirmSession = ""; confirmStage = ui.timerStage; confirm = "start" }, enabled = !ui.busy, modifier = Modifier.widthIn(max = 640.dp).fillMaxWidth().heightIn(min = 56.dp), shape = RoundedCornerShape(18.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("삐약이와 근무 시작")
+                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("삐약이와 근무 시작", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 } else {
                     Row(Modifier.widthIn(max = 740.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -96,7 +96,7 @@ internal fun HomeScreen(ui: UiState, viewModel: PiyakViewModel, onShop: () -> Un
             }
         }
     }
-    if (confirm != null) AlertDialog(
+    if (confirm != null) DensityAwareAlertDialog(
         onDismissRequest = { if (!ui.busy) { confirm = null; submittedAt = null } },
         icon = { Icon(if (confirm == "start") Icons.Rounded.WbSunny else Icons.Rounded.Celebration, null) },
         title = { Text(if (confirm == "start") "오늘도 함께 일해요" else "근무를 마치고 기록할까요?") },
@@ -152,16 +152,22 @@ internal fun Room(
         }
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val roomHeight = (maxWidth * 0.77f).coerceIn(230.dp, 380.dp)
-            AndroidView(
-                factory = { context -> PiyakRoomView(context).also { view ->
-                    view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                    view.onInteraction = { activity = "함께 놀아 줘서 고마워!" }
-                    view.onActivityChanged = { activity = it }
-                    room = view
-                } },
-                update = { it.configure(equipped, ui.settings.animationEnabled && previewItemId == null, working, previewItemId) },
-                modifier = Modifier.fillMaxWidth().height(roomHeight).semantics { contentDescription = "삐약이와 가구가 있는 3D 방. 아래 버튼으로 놀아 주거나 시점을 바꿀 수 있어요." },
-            )
+            // Keep the spoken description on a Compose parent. AndroidView's native
+            // accessibility exclusion otherwise also hides semantics on its modifier.
+            Box(Modifier.fillMaxWidth().height(roomHeight).semantics(mergeDescendants = true) {
+                contentDescription = "삐약이와 가구가 있는 3D 방. 아래 버튼으로 놀아 주거나 시점을 바꿀 수 있어요."
+            }) {
+                AndroidView(
+                    factory = { context -> PiyakRoomView(context).also { view ->
+                        view.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                        view.onInteraction = { activity = "함께 놀아 줘서 고마워!" }
+                        view.onActivityChanged = { activity = it }
+                        room = view
+                    } },
+                    update = { it.configure(equipped, ui.settings.animationEnabled && previewItemId == null, working, previewItemId) },
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
         }
         if (!onboarding) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -173,7 +179,7 @@ internal fun Room(
                     Icon(Icons.Rounded.TouchApp, null, Modifier.size(19.dp)); Spacer(Modifier.width(5.dp)); Text("놀아주기")
                 }
             }
-            if (controls) Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
+            if (controls) FlowRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                 IconButton(onClick = { room?.rotateBy(-15f) }) { Icon(Icons.Rounded.RotateLeft, "왼쪽으로 회전", tint = WarmInk) }
                 IconButton(onClick = { room?.rotateBy(15f) }) { Icon(Icons.Rounded.RotateRight, "오른쪽으로 회전", tint = WarmInk) }
                 IconButton(onClick = { room?.zoomBy(1.15f) }) { Icon(Icons.Rounded.ZoomIn, "방 확대", tint = WarmInk) }
