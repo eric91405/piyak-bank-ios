@@ -8,6 +8,7 @@ theme: jekyll-theme-minimal
 # 심사 자료와 내부 검증 기록은 공개 사이트에서 제외한다.
 exclude:
   - APP_STORE.md
+  - APP_REVIEW_FOLLOWUP.md
   - RELEASE_VALIDATION.md
   - PUBLISHING.md
   - quality
