@@ -1,9 +1,9 @@
 # App Review 추가 정보 대응 · 2026-09-27
 
-상태: **1.0 (2) 자료는 저장된 이전 초안이며, 현재 회신·재제출 보류.** 사용자는 1.0 (3) 움직임 개선에 정상 동작을 보고한 뒤 설정 메뉴 개편을 요청했습니다. 현재 후보는 [1.0 (4) 설정 개편](quality/settings-20260927.md)이며 실물 설치 확인·새 영상이 남아 있습니다. 아래 영상은 1.0 (2) 촬영이므로 새 빌드 영상이라고 변경해 사용하지 않습니다. 새 자료에서 문의 경로는 설정 → 문의하기, CSV/초기화는 설정 → 내 데이터입니다. 자동 출시 설정을 유지합니다. 아래 영상의 사용자 확인 기기·버전은 **iPhone 16 / iOS 27 / TestFlight 1.0 (2)**입니다. 2026-09-27 라이브 화면에서 해결되지 않은 문제 상태와 기존 Apple 요청을 확인했습니다.
+상태: **1.0 (4) 재제출 완료 — 2026-09-27 21:11 KST에 ‘심사 대기 중’ 확인.** 사용자가 정상 동작을 보고한 새 85초 영상에서 문의하기의 빌드 1.0 (4)와 새 설정 상세 화면을 확인했습니다. App Store Connect의 심사 빌드를 4로 교체하고 영상과 아래 3,722자 문안을 심사 Notes·회신에 반영했습니다. 21:09 KST 회신 전송 후 ‘심사 업데이트’와 ‘앱 심사에 다시 제출’을 완료했습니다. 출시 설정은 **승인 후 자동 출시**입니다. 심사 접수이며 승인·공개 출시 완료는 아닙니다.
 
-제출: iOS 1.0 (2), ID `619653b0-9aa4-4b2f-9972-0157e1b90097`.
-근거: 사용자 제공 App Store Connect 스크린샷 3장과 2026-09-27 라이브 페이지 재조회. Apple 메시지 시각은 2026-09-26 13:56이며 상태는 해결되지 않은 문제 / 심사를 통과하지 못함입니다.
+최초 제출: iOS 1.0 (2), ID `619653b0-9aa4-4b2f-9972-0157e1b90097`.
+근거: 사용자 제공 App Store Connect 스크린샷 3장과 2026-09-27 라이브 페이지 재조회. Apple 메시지 시각은 2026-09-26 13:56이며 당시 상태는 해결되지 않은 문제 / 심사를 통과하지 못함이었습니다.
 
 ## Apple 요청과 현재 준비 범위
 
@@ -36,7 +36,7 @@
 
 **최신 OS 근거:** [Apple security releases](https://support.apple.com/en-us/100100), 2026-09-27 조회. iOS 27은 2026-09-14 출시이며 iPhone 11 이후 모델을 지원합니다. 첫 영상은 iOS 26.6.1 촬영으로 확인되어 제외했고, 사용자는 아래 새 영상을 iOS 27 업데이트 후 촬영했다고 확인했습니다.
 
-## 새 영상 검토 · 2026-09-27 19:38 촬영
+## 이전 빌드 영상 검토 · 2026-09-27 19:38 촬영
 
 - 제출 후보 원본 `ScreenRecording_09-27-2026 19-38-29_1.mp4`: 71.026667초, 1180×2556, HEVC/AAC, 72,432,393바이트. 원본은 변경하지 않았으며 개인 영상·추출 프레임을 저장소에 넣지 않습니다.
 - 사용자 확인: **iPhone 16 / iOS 27 / TestFlight 1.0 (2)**. 영상 자체에는 설정의 앱 버전 1.0이 표시되지만 OS 버전이나 빌드 번호 (2)는 표시되지 않습니다. 기기·OS·빌드는 사용자 확인에 근거합니다.
@@ -50,11 +50,23 @@
 - 약 01:09~01:10: 홈으로 복귀. 온보딩·Watch·위젯·계정·실제 결제 시연은 없습니다. 계정과 실제 결제는 앱에 없는 기능입니다.
 - 사용자 확인에 따라 최신 OS의 실물 기기에서 앱 실행과 대표 사용 흐름을 보여 주는 자료로 준비합니다. 이번 영상으로 전체 기기·접근성·시스템 연동 시험을 완료 처리하지 않습니다. 최종 자료 수락 여부는 Apple 심사에서 결정됩니다.
 
+## 최신 영상 검토 · 2026-09-27 20:50 전달
+
+- 사용자 제공 파일 `KakaoTalk_Video_2026-09-27-20-50-33.mp4`: 85.165초, 884×1920, HEVC/AAC, 13,904,631바이트. 전달받은 파일은 변경하지 않았으며 영상·추출 이미지를 공개 저장소에 넣지 않습니다.
+- 사용자는 설정 개편 후 정상 동작을 보고하며 새 영상을 전달했습니다. 약 01:15의 문의하기 화면에 **1.0 (4)**가 직접 표시됩니다. 기기/OS 설명은 앞서 확인한 iPhone 16 / iOS 27 환경을 따르며, 이번 영상에서 OS 설정 화면을 독립 확인한 것은 아닙니다.
+- 전체 구간에서 1초 간격의 85개 프레임을 시각 검토했습니다. 전체 실시간 재생, 정량적 FPS 측정, 오디오 내용 검사 또는 직접 실물 조작 시험은 아닙니다. 확인한 장면에서 오류 팝업이나 비정상 종료는 보이지 않았습니다.
+- 00:00~00:02: 홈 화면에서 앱 실행. 00:06~00:08: 시급 10,320원 확인 후 근무 시작. 00:18~00:20: 휴식 중 일 합계 116원 유지, 이후 재개해 증가.
+- 00:28~00:31: 종료 확인·3P 적립, 잔액 24P→27P, 일 합계 86원→143원. 기록 화면의 새 근무 57원과 일 합계 증가분이 일치합니다.
+- 00:32~00:51: 상점 탐색, 정장 조끼 미리보기, 회전·방 보기, 보유 아이템 필터. 잔액 부족에 따른 구매 비활성화가 보이며, 실제 구매나 신규 장착을 시연했다고 설명하지 않습니다.
+- 00:52~00:58: 월 합계 480원, 당일 기록 57원·47원·39원. 이전 영상의 기록 두 건이 새 빌드에도 보이지만, 이것만으로 전체 업데이트·재시작 데이터 보존 시험을 완료 처리하지 않습니다.
+- 00:59~01:16: 설정의 6개 메뉴와 근무 설정·꾸미기 보상·내 데이터·이용 안내·문의하기 상세 화면. 01:17~01:20: 앱 내 개인정보처리방침 본문. 약 01:24 홈 복귀.
+- CSV 메뉴는 표시하지만 내보내기·파일 내용 검증은 시연하지 않습니다. 기록 편집·전체 초기화·온보딩·Watch·위젯을 시연했다고 주장하지 않습니다. 이 영상과 사용자 보고를 모든 기기·접근성·시스템 연동 검증 완료로 취급하지 않습니다.
+
 ## 실물 iPhone 녹화 순서
 
 Apple의 필수 조건은 **실물 기기·최신 OS·앱 실행 장면·대표 사용 흐름**입니다. 아래 3~5분 길이는 작업 편의를 위한 권장이며 Apple이 지정한 분량이 아닙니다.
 
-- TestFlight에서 제출된 **1.0 (2)**를 확인합니다. 기기 모델명과 설치된 iOS 버전을 기록하고, 설정 → 일반 → 소프트웨어 업데이트에서 최신 OS 여부를 확인합니다. 기기 일련번호나 Apple 계정을 영상에 담을 필요는 없습니다.
+- TestFlight에서 제출 후보 **1.0 (4)**를 확인합니다. 기기 모델명과 설치된 iOS 버전을 기록하고, 설정 → 일반 → 소프트웨어 업데이트에서 최신 OS 여부를 확인합니다. 기기 일련번호나 Apple 계정을 영상에 담을 필요는 없습니다.
 - 화면 녹화를 시작한 뒤 홈 화면에서 삐약뱅크 아이콘을 눌러 실행합니다. 앱 화면이 이미 열린 상태로 시작하지 않습니다.
 - 첫 실행이면 시급 예시 `10000`을 입력하고 온보딩을 마칩니다. 이미 설정한 앱은 기존 상태로 진행하고 설정에서 시급을 보여 줍니다. 촬영을 위해 앱을 삭제하거나 기록을 초기화하지 않습니다.
 - 홈에서 병아리를 누르거나 놀아주기를 실행합니다. 근무 시작 → 20~30초 진행 → 휴식 → 재개 → 20~30초 진행 → 종료 확인을 보여 줍니다. 홈의 예상 수익과 새 포인트 적립을 보여 줍니다.
@@ -64,51 +76,59 @@ Apple의 필수 조건은 **실물 기기·최신 OS·앱 실행 장면·대표 
 - iPhone 위젯이 설정돼 있으면 위젯 표시도 보여 줍니다. 실물 Watch가 있으면 연결과 시작/휴식/재개/종료를 별도 영상으로 추가할 수 있으나 이번 메시지가 별도의 Watch 영상까지 명시적으로 요구한 것은 아닙니다. 실제로 촬영·검증한 범위만 회신에 적습니다.
 - 원본 화면 녹화를 유지합니다. 영상에 오류가 보이면 해당 오류를 기록하고 수정·재검증 후 제출 빌드와 영상을 일치시킵니다. 합성 영상이나 시뮬레이터를 실물 영상으로 제출하지 않습니다.
 
-## 영문 답변 초안
+## 최신 영문 답변 · 1.0 (4)
 
-**아래 3,794자 문안은 심사 Notes와 회신 초안에 저장했습니다. 회신 전송 버튼은 누르지 않았습니다.** 양쪽 첨부 목록에서 새 영상 파일명을 확인했고 Notes 저장 완료와 회신의 ‘초안 계속 작성’ 표시를 확인했습니다. 남은 글자 수는 206자입니다.
+아래 3,722자 문안을 Notes에 저장하고 같은 문안과 새 영상을 심사팀에 전송했습니다(잔여 278자). 회신 메시지 수 2개, 21:09 KST 회신 및 새 파일명·다운로드 표시를 확인했습니다.
 
 ```text
 Hello App Review Team,
 
-Here is the requested Guideline 2.1 information for PiyakBank 1.0 (2).
+Here is the requested Guideline 2.1 information for PiyakBank 1.0 (4). This build improves room animation and organizes Settings into detail pages.
 
 1. Physical-device recording
-Recording file: ScreenRecording_09-27-2026 19-38-29_1.mp4 (71 seconds).
-Recorded on a physical iPhone 16 running iOS 27, using TestFlight version 1.0 (2).
-The video begins with app launch and shows work start, pause, resume, finish and point credit; clothing and room previews with rotation/zoom; work history; and settings. There are no account, public UGC, or paid-content flows.
+Attached: KakaoTalk_Video_2026-09-27-20-50-33.mp4 (85 seconds), recorded on a physical iPhone 16 running iOS 27 with TestFlight 1.0 (4).
+It begins with app launch and shows work start, pause, resume, finish and point credit; item/room previews with rotation; work history; and the new Settings pages, including Help, Contact and Privacy. At about 01:15, Contact displays 1.0 (4). There are no account, public UGC or paid-content flows.
 
 2. Purpose and audience
-PiyakBank is a personal work-time tracker for Korean-speaking users, including hourly and part-time workers. Users record work and breaks, view simple estimated earnings, and use time-earned virtual points to decorate a chick's room. The room encourages recordkeeping. No employer or organization membership is required.
+PiyakBank helps Korean-speaking users, including hourly/part-time workers, keep personal work and break records, view estimated earnings and decorate a chick's room with time-earned virtual points. The room encourages recordkeeping. No employer or organization membership is required.
 
 3. Setup and access
-There is no registration, login, account deletion flow, or required sample file. On first launch, enter an hourly wage (for example, 10000 KRW) and complete onboarding. Notification permission is optional.
-Home: start work, pause, resume, and finish. After finishing, open History to inspect or edit the record. Timer-measured work earns 1 point per 6 seconds, excluding breaks, with a 4800-point daily cap. Wages do not affect points, and manually adding/editing records does not earn points.
-Decorate: preview items without buying them, equip owned items, or spend earned points. Default items are already owned. Points cannot be bought with money; there are no paid features, subscriptions, or in-app purchases.
-Settings: change the default wage, choose local notifications, export work records or the point ledger as CSV, and view help/privacy information. CSV import is not supported.
-The optional Watch app requires a paired, reachable iPhone with onboarding completed. The iPhone/iPad widget shows an estimate; refresh timing is controlled by WidgetKit. The phone app works without a Watch.
-There is no public user-content feed, messaging, or user-to-user content sharing service. Work records are private local data. CSV export uses the system file exporter at the user's request.
+No registration, login, credentials or sample files are required. On first launch, enter an hourly wage (e.g. 10000 KRW) and finish onboarding. Notification permission is optional.
+Home: start, pause, resume and finish work. History (기록): inspect, add or edit records. Timer work earns 1 point per 6 seconds excluding breaks, capped at 4800 points per day. Wages and manually added/edited records do not increase points.
+Decorate (꾸미기): preview items freely, equip owned items or spend earned points. Default items are owned. There are no point purchases, paid features, subscriptions or in-app purchases.
+Settings (설정): Work Settings (근무 설정) contains wage/reminders; My Data (내 데이터) contains CSV exports and a reset with confirmation. Help (이용 안내), Contact (문의하기) and Privacy (개인정보 처리방침) are directly accessible from Settings. Contact includes email/copy options and the support website. Privacy includes the policy text and web link.
+The optional Watch app needs a paired, reachable iPhone with onboarding complete. The iPhone/iPad widget's refresh timing is controlled by WidgetKit. The phone app works without a Watch.
+There is no public UGC feed, messaging or user-to-user sharing service. Records are private local data. CSV export uses the system file exporter at the user's request. CSV import and in-app cloud synchronization are not supported.
 
 4. Services and platforms
-The iOS app has no third-party SDKs, developer-operated backend, external data provider, authentication service, payment processor, advertising/analytics service, or AI service. Core tracking and room rendering work locally using Apple's SwiftUI, SwiftData, and SceneKit. It uses UserNotifications for local reminders, WidgetKit/App Groups for its widget, WatchConnectivity for the paired Watch, and the system file exporter for CSV.
-Public support/privacy pages are hosted on GitHub Pages. Support email opens the user's mail app voluntarily. These are optional. There is no in-app cloud synchronization.
+The iOS app has no third-party SDKs, developer backend, external data provider, authentication/payment service, ads/analytics or AI service. Core tracking/rendering run locally with Apple's SwiftUI, SwiftData and SceneKit. It uses UserNotifications for local reminders, WidgetKit/App Groups for the widget, WatchConnectivity for the paired Watch and the system file exporter for CSV.
+Optional public support/privacy pages use GitHub Pages. Email support opens the user's mail app only on request.
 
 5. Regional behavior
-Initial App Store availability is South Korea only. The interface is Korean and earnings are displayed in KRW. There are no region-specific content catalogs or feature switches. The point cap resets at midnight Asia/Seoul regardless of location; earnings/history dates follow the device's local calendar/time zone.
+App Store availability is South Korea only. The interface is Korean and earnings use KRW. There are no regional content catalogs or feature switches. The point cap resets at midnight Asia/Seoul regardless of location; earnings/history dates follow the device's local calendar/time zone.
 
 6. Regulated services and third-party content
-Despite the name PiyakBank, this is not a bank or a payment/payroll provider. It does not connect to financial accounts, accept deposits, lend money, or offer transfers or withdrawals. Earnings are simple estimates based on user input, excluding taxes and workplace-specific rules. Virtual points have no cash value and cannot be redeemed or transferred.
-The chick, room, items, previews, and app icons use the project's own SceneKit geometry. The app uses Apple system fonts/symbols and does not distribute third-party content feeds or licensed media catalogs.
+PiyakBank is a personal tracker, not a bank or payment/payroll provider. It does not connect to financial accounts, accept deposits, lend, transfer or withdraw money. Earnings are simple user-input estimates excluding taxes and workplace-specific rules. Points have no cash value and cannot be redeemed or transferred.
+The chick, room, items, previews and icons use the project's own SceneKit geometry. The app uses Apple system fonts/symbols and has no third-party content feeds or licensed media catalogs.
 
-Thank you for reviewing the additional information.
+Thank you.
 ```
 
-## App Store Connect 반영 · 2026-09-27
+## 최신 App Store Connect 반영 · 1.0 (4)
+
+1. 심사 버전의 빌드를 `39948079-bd9e-460a-b7ae-45fa4bac16f3` / **1.0 (4)**로 바꾸고 저장했습니다. 로그인 불필요, 기존 설명·스크린샷·지원 URL·개인정보 설정을 유지했습니다.
+2. 새 영상을 심사 정보 첨부와 회신 양쪽에 업로드했습니다. 이전 영상과 실패한 임시 업로드가 최종 회신에 섞이지 않도록 정상 첨부가 있는 초안을 저장·다시 열어 확인했습니다. Notes 문안은 첨부 처리 후에도 일치했습니다.
+3. 초기 업로드 실패 중 제공 영상이 다운로드 폴더에서 휴지통으로 이동한 것을 확인했습니다. 사용자가 파일을 복원한 후 작업 폴더의 사본을 사용했습니다. 사용자의 Chrome 전환 지시와 파일 접근 권한 설정 후 업로드를 마쳤습니다. 영상 자체를 수정하거나 다시 인코딩하지 않았습니다.
+4. **21:09 KST**에 회신 전송을 완료했습니다. 화면의 메시지 수가 1개에서 2개로 늘었고 최신 영문 답변 및 `KakaoTalk_Video_2026-09-27-20-50-33.mp4` 첨부가 표시됐습니다.
+5. ‘심사 업데이트’에서 지난 예약일(9월 26일)로 인한 출시 날짜 유효성 오류가 표시돼, 사용자 선택에 맞게 **자동으로 버전 출시**로 변경·저장했습니다. 과거 날짜가 붙은 예약 옵션은 선택하지 않습니다.
+6. ‘심사 업데이트’ 후 **1.0 (4) / 심사 준비됨**을 확인하고 ‘앱 심사에 다시 제출’을 실행했습니다. **21:11 KST** 확인 시 제출 전체와 항목 모두 **심사 대기 중**입니다. 기존 제출 ID `619653b0-9aa4-4b2f-9972-0157e1b90097`을 사용합니다. 이 기록은 최종 승인이나 전체 기기 시험 완료를 의미하지 않습니다.
+
+## 이전 App Store Connect 반영 기록 · 1.0 (2) / 2026-09-27 19:48
 
 1. 새 영상의 대표 흐름과 사용자 확인 환경(iPhone 16 / iOS 27 / TestFlight 1.0 (2))을 반영했습니다.
 2. 앱 심사 정보 첨부 파일에 새 MP4를 올려 처리 중 표시가 사라지고 파일명만 표시되는 상태를 확인했습니다. 첨부 처리 시 저장하지 않은 Notes가 이전 값으로 돌아가, 처리 완료 후 최종 문안을 다시 입력하고 저장했습니다. 저장 버튼 비활성화와 입력 내용을 확인했습니다.
 3. 심사팀 회신에도 같은 MP4와 3,794자 문안을 넣고 **초안 저장**을 눌렀습니다. 19:48 KST 초안에 파일명·다운로드·초안 계속 작성·초안 삭제가 표시됩니다. 메시지 개수는 기존 Apple 메시지 1개이며 아직 회신하지 않았습니다.
-4. 회신 전송 및 기존 빌드 재제출 지시를 사용자에게 요청했습니다. 지시가 오면 초안을 전송하고, 버전 화면의 ‘심사 업데이트’와 제출 화면의 ‘앱 심사에 다시 제출’ 절차를 따라 최종 접수를 확인합니다. 현재 ‘앱 심사에 다시 제출’은 비활성화 상태입니다.
+4. 이 시점에는 회신 전송·재제출 전이었으며, 이후 사용자가 움직임·설정 개선을 요청했습니다. 현재 상태는 문서 첫머리를 따릅니다.
 5. 출시 설정이 **2026-09-26 13:00 이후 승인 시 자동 출시**로 표시됩니다. 이전 수동 출시 계획과 달라 사용자가 자동 출시 유지 방향을 확인했고 현재 설정을 유지합니다.
 
 개인 영상과 비공개 연락처는 공개 저장소에 넣지 않습니다. 이번 자료 보완은 전체 기기/접근성 검증 완료나 승인 보장이 아닙니다.
