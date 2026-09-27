@@ -6,6 +6,8 @@ enum AppConfig {
     static let kSnapshot = "session_snapshot"
     static let kActiveSession = "active_session_id"
     static let supportEmail = "eric91405@gmail.com"
+    static let supportURL = URL(string: "https://eric91405.github.io/piyak-bank-ios/support/")!
+    static let privacyPolicyURL = URL(string: "https://eric91405.github.io/piyak-bank-ios/privacy/")!
     static let operatorName = "김민서"
     static let widgetKind = "PiyakComplication"
 }
