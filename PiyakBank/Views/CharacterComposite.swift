@@ -40,14 +40,28 @@ struct CharacterComposite: View {
         return showRoom ? "삐약이의 방. \(wearing)" : "삐약이. \(wearing)"
     }
     private var shouldAnimate: Bool {
-        animateLife && visible && intersectsScreen && phase == .active && !reduceMotion && !powerLimited
+        animateLife && renderingEnabled && !motionReduced && !powerLimited
             && thermalState != .serious && thermalState != .critical
+    }
+    private var motionReduced: Bool {
+        #if DEBUG
+        if CommandLine.arguments.contains("--piyak-reduce-motion") { return true }
+        #endif
+        return reduceMotion
+    }
+    private var renderingEnabled: Bool { visible && intersectsScreen && phase == .active }
+    private var preferredFramesPerSecond: Int {
+        #if DEBUG
+        // A/B the previous cadence on the same simulator without a second build.
+        if CommandLine.arguments.contains("--debug-room-24fps") { return 24 }
+        #endif
+        return powerLimited || thermalState != .nominal ? 30 : 60
     }
     private var playbackPauseReason: String? {
         guard animateLife, visible, intersectsScreen, phase == .active else { return nil }
         if thermalState == .serious || thermalState == .critical { return "기기가 식을 때까지 쉬고 있어요" }
         if powerLimited { return "저전력 모드에서는 쉬고 있어요" }
-        if reduceMotion { return "동작 줄이기 설정으로 쉬고 있어요" }
+        if motionReduced { return "동작 줄이기 설정으로 쉬고 있어요" }
         return nil
     }
     private var debugPlaybackGate: String? {
@@ -61,6 +75,9 @@ struct CharacterComposite: View {
     var body: some View {
         PiyakSceneView(equipped: equipped, working: isWorking,
                        animated: shouldAnimate, icon: !showRoom,
+                       renderingEnabled: renderingEnabled,
+                       preferredFramesPerSecond: preferredFramesPerSecond,
+                       animateInspection: !motionReduced,
                        allowsInspection: allowsInspection, inspectionYaw: inspectionYaw,
                        inspectionZoom: inspectionZoom, inspectionResetID: inspectionResetID,
                        interactionID: interactionID, onInteract: onInteract,
@@ -97,7 +114,7 @@ struct CharacterComposite: View {
                     print("[PiyakRoom] viewport frame=\(frame) screen=\(screen) intersection=\(intersection) visible=\(visible)")
                 }
                 #endif
-                intersectsScreen = visible
+                if intersectsScreen != visible { intersectsScreen = visible }
             }
             .onAppear { visible = true }
             .onDisappear { visible = false }
@@ -115,6 +132,9 @@ struct PiyakSceneView: UIViewRepresentable {
     var working = false
     var animated = true
     var icon = false
+    var renderingEnabled = true
+    var preferredFramesPerSecond = 60
+    var animateInspection = true
     var allowsInspection = false
     var inspectionYaw: Double = 0
     var inspectionZoom: Double = 1
@@ -133,6 +153,8 @@ struct PiyakSceneView: UIViewRepresentable {
         var sceneGeneration = 0
         var lastActivity = ""
         var wasAnimating = false
+        var renderingEnabled = false
+        var lifeAnimating = false
         var playbackPauseReason: String?
         var onInteract: (() -> Void)?
         var lastInteractionID: Int?
@@ -145,9 +167,12 @@ struct PiyakSceneView: UIViewRepresentable {
         private(set) var inspectionTarget = SCNVector3Zero
         private var inspectionScale: Double = 1
         private var inspectionInput: (yaw: Double, zoom: Double, resetID: Int)?
+        private var inspectionTransition = 0
+        private var isTransitioning = false
         var isInspecting: Bool { inspectionEnabled && !activeGestures.isEmpty }
         #if DEBUG
         var lastDiagnostic = ""
+        let frameProbe = PiyakFrameProbe()
         #endif
 
         func enableCharacterTap(in view: SCNView, enabled: Bool) {
@@ -177,6 +202,7 @@ struct PiyakSceneView: UIViewRepresentable {
         }
 
         func captureInspectionCamera(in view: SCNView) {
+            cancelInspectionTransition(in: view)
             guard let camera = view.pointOfView else { return }
             inspectionOrigin = camera.simdWorldPosition
             let forward = camera.simdWorldFront
@@ -189,25 +215,44 @@ struct PiyakSceneView: UIViewRepresentable {
             inspectionInput = nil
         }
 
-        func applyInspection(in view: SCNView, yaw: Double, zoom: Double, resetID: Int) {
+        func applyInspection(in view: SCNView, yaw: Double, zoom: Double, resetID: Int, animated: Bool) {
             guard inspectionEnabled, let camera = view.pointOfView else { return }
             let zoom = min(1.6, max(0.7, zoom))
             if let previous = inspectionInput,
                previous.yaw == yaw, previous.zoom == zoom, previous.resetID == resetID { return }
+            let shouldAnimate = animated && renderingEnabled && inspectionInput != nil
             inspectionInput = (yaw, zoom, resetID)
+            // Start a new transition from the visible pose, including rapid taps
+            // or a button pressed just after a drag. Old completions cannot stop it.
+            cancelInspectionTransition(in: view)
+            let transition = inspectionTransition
+            isTransitioning = shouldAnimate
+            updateRendering(in: view)
             let target = SIMD3<Float>(Float(inspectionTarget.x), Float(inspectionTarget.y), Float(inspectionTarget.z))
             let orbit = simd_quatf(angle: Float(yaw), axis: SIMD3<Float>(0, 1, 0))
             let offset = orbit.act(inspectionOrigin - target)
             SCNTransaction.begin()
-            SCNTransaction.animationDuration = 0
+            SCNTransaction.animationDuration = shouldAnimate ? 0.24 : 0
+            SCNTransaction.animationTimingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+            if shouldAnimate {
+                SCNTransaction.completionBlock = { [weak self, weak view] in
+                    DispatchQueue.main.async {
+                        guard let self, let view, !self.invalidated,
+                              self.inspectionTransition == transition else { return }
+                        self.isTransitioning = false
+                        self.updateRendering(in: view)
+                        view.setNeedsDisplay()
+                    }
+                }
+            }
             camera.simdWorldPosition = target + offset
             camera.look(at: inspectionTarget)
             camera.camera?.orthographicScale = inspectionScale / zoom
             view.defaultCameraController.pointOfView = camera
             view.defaultCameraController.target = inspectionTarget
             SCNTransaction.commit()
-            // A button changes one frame, not the idle rendering policy. Gestures
-            // still use SceneKit's camera and their existing temporary clock.
+            // Only the finite transition needs a continuous clock. The preview
+            // returns to on-demand drawing as soon as its camera settles.
             SCNTransaction.flush()
             view.setNeedsDisplay()
         }
@@ -215,7 +260,11 @@ struct PiyakSceneView: UIViewRepresentable {
         func observeCameraGestures(in view: SCNView, enabled: Bool) {
             inspectionEnabled = enabled
             inspectionView = view
-            guard enabled else { removeCameraObservers(); return }
+            guard enabled else {
+                removeCameraObservers()
+                cancelInspectionTransition(in: view, preservingVisiblePose: false)
+                return
+            }
             // Keep SceneKit's own pan/pinch implementation and delegates. These
             // targets only control when it needs a continuous rendering clock.
             for gesture in view.gestureRecognizers ?? [] where !observedGestures.contains(gesture) {
@@ -232,16 +281,49 @@ struct PiyakSceneView: UIViewRepresentable {
             activeGestures.removeAll()
         }
 
+        func cancelInspectionTransition(in view: SCNView, preservingVisiblePose: Bool = true) {
+            inspectionTransition += 1
+            let wasTransitioning = isTransitioning
+            isTransitioning = false
+            guard wasTransitioning, let camera = view.pointOfView else { return }
+            let pose = preservingVisiblePose ? camera.presentation : camera
+            let transform = pose.simdTransform
+            let scale = pose.camera?.orthographicScale
+            SCNTransaction.begin()
+            SCNTransaction.disableActions = true
+            camera.removeAllAnimations()
+            camera.camera?.removeAllAnimations()
+            camera.simdTransform = transform
+            if let scale { camera.camera?.orthographicScale = scale }
+            SCNTransaction.commit()
+        }
+
+        func updateRendering(in view: SCNView) {
+            let active = renderingEnabled && (lifeAnimating || inspectionEnabled)
+            view.scene?.isPaused = !active
+            view.isPlaying = active
+            view.rendersContinuously = renderingEnabled && (lifeAnimating || isInspecting || isTransitioning)
+            #if DEBUG
+            if view.delegate != nil {
+                frameProbe.configure(mode: lifeAnimating ? "home" : "preview",
+                                     continuous: view.rendersContinuously,
+                                     preferredFPS: view.preferredFramesPerSecond)
+            }
+            #endif
+        }
+
         @objc private func cameraGestureChanged(_ gesture: UIGestureRecognizer) {
             guard inspectionEnabled, !invalidated, let view = inspectionView else { return }
             let wasInspecting = isInspecting
             switch gesture.state {
-            case .began, .changed: activeGestures.insert(ObjectIdentifier(gesture))
+            case .began, .changed:
+                if !wasInspecting { cancelInspectionTransition(in: view) }
+                activeGestures.insert(ObjectIdentifier(gesture))
             case .ended, .cancelled, .failed: activeGestures.remove(ObjectIdentifier(gesture))
             case .possible: return
             @unknown default: activeGestures.remove(ObjectIdentifier(gesture))
             }
-            view.rendersContinuously = wasAnimating || isInspecting
+            updateRendering(in: view)
             if isInspecting && !wasInspecting { SCNTransaction.flush() }
             // The final camera position must render once after pan/pinch ends;
             // inertia is disabled, so no idle display loop is necessary.
@@ -254,15 +336,25 @@ struct PiyakSceneView: UIViewRepresentable {
         view.backgroundColor = .clear
         view.isOpaque = false
         view.antialiasingMode = .multisampling4X
-        view.preferredFramesPerSecond = 24
+        view.preferredFramesPerSecond = preferredFramesPerSecond
         view.autoenablesDefaultLighting = false
         view.allowsCameraControl = false
         view.defaultCameraController.inertiaEnabled = false
         view.rendersContinuously = false
+        #if DEBUG
+        if CommandLine.arguments.contains("--debug-room-frames") {
+            view.delegate = context.coordinator.frameProbe
+        }
+        #endif
         return view
     }
     func updateUIView(_ view: SCNView, context: Context) {
         let coordinator = context.coordinator
+        coordinator.renderingEnabled = renderingEnabled
+        coordinator.lifeAnimating = animated
+        if view.preferredFramesPerSecond != preferredFramesPerSecond {
+            view.preferredFramesPerSecond = preferredFramesPerSecond
+        }
         coordinator.onActivity = onActivity
         coordinator.onInteract = onInteract
         let pauseReasonChanged = coordinator.playbackPauseReason != playbackPauseReason
@@ -292,10 +384,14 @@ struct PiyakSceneView: UIViewRepresentable {
             } else { coordinator.behavior = nil }
             view.setNeedsDisplay()
         }
-        let inspectionStarted = allowsInspection && !coordinator.inspectionEnabled
-        view.allowsCameraControl = allowsInspection
+        let inspectionEnabled = allowsInspection && renderingEnabled
+        let inspectionStarted = inspectionEnabled && !coordinator.inspectionEnabled
+        view.allowsCameraControl = inspectionEnabled
         coordinator.enableCharacterTap(in: view, enabled: onInteract != nil && !allowsInspection)
-        coordinator.observeCameraGestures(in: view, enabled: allowsInspection)
+        coordinator.observeCameraGestures(in: view, enabled: inspectionEnabled)
+        if !animateInspection {
+            coordinator.cancelInspectionTransition(in: view, preservingVisiblePose: false)
+        }
         if inspectionStarted {
             // Some OS versions install default recognizers when the view joins
             // its window. Observe those once the current layout transaction ends.
@@ -305,13 +401,12 @@ struct PiyakSceneView: UIViewRepresentable {
             }
         }
         view.defaultCameraController.target = allowsInspection ? coordinator.inspectionTarget : SCNVector3(0, icon ? 1.3 : 1.0, 0)
-        coordinator.applyInspection(in: view, yaw: inspectionYaw, zoom: inspectionZoom, resetID: inspectionResetID)
+        coordinator.applyInspection(in: view, yaw: inspectionYaw, zoom: inspectionZoom,
+                                    resetID: inspectionResetID, animated: animateInspection)
         // Start the renderer before adding root custom actions. SceneKit cannot
         // infer a continuously changing surface from these actions alone.
-        let rendererActive = animated || allowsInspection
-        view.scene?.isPaused = !rendererActive
-        view.isPlaying = rendererActive
-        view.rendersContinuously = animated || coordinator.isInspecting
+        let rendererActive = renderingEnabled && (animated || inspectionEnabled)
+        coordinator.updateRendering(in: view)
         if allowsInspection && !animated && view.scene?.rootNode.action(forKey: "piyak.life") != nil {
             coordinator.behavior?.stop()
         }
@@ -384,6 +479,7 @@ struct PiyakSceneView: UIViewRepresentable {
         coordinator.invalidated = true
         coordinator.sceneGeneration += 1
         coordinator.removeCameraObservers()
+        coordinator.cancelInspectionTransition(in: view)
         coordinator.enableCharacterTap(in: view, enabled: false)
         coordinator.onInteract = nil
         coordinator.behavior?.stop(); coordinator.behavior = nil
