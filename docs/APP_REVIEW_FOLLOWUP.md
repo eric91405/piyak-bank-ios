@@ -1,6 +1,6 @@
-# App Review 추가 정보 대응 · 2026-09-26
+# App Review 추가 정보 대응 · 2026-09-27
 
-상태: **실물 기기 영상 대기. 답변 미전송·재제출 미진행.** 사용자 제공 기기는 **iPhone 16 / iOS 26.6.1**입니다. 설치 버전은 사용자 보고이며 최신 OS 여부·촬영 결과는 아직 확인하지 않았습니다.
+상태: **기존 영상 검토 완료, 최신 OS에서 촬영한 영상 대기. 답변 미전송·재제출 미진행.** 사용자 제공 기기는 **iPhone 16 / iOS 26.6.1**입니다. 2026-09-27 Apple 공식 안내의 최신 정식 버전은 **iOS 27**이며 iPhone 16을 지원합니다. 사용자가 촬영 당시 OS도 26.6.1이라고 확인했습니다. 최신 OS 촬영 조건을 만족하지 않으므로 업데이트 후 새 영상이 필요합니다. 기존 영상을 최신 OS에서 촬영했다고 표현하지 않습니다.
 
 제출: iOS 1.0 (2), ID `619653b0-9aa4-4b2f-9972-0157e1b90097`.
 근거: 사용자가 제공한 App Store Connect 스크린샷 3장. Apple 메시지 시각은 2026-09-26 13:56이며, 상태는 해결되지 않은 문제 / 심사를 통과하지 못함입니다. 라이브 페이지를 재조회한 기록은 아닙니다.
@@ -20,6 +20,22 @@
 
 현재 제출 소스의 iOS 코드·프로젝트 의존성·설정·에셋 생성기를 검토해 2~6번 답변 초안을 준비했습니다. 계정/회원가입·공개 UGC·유료 콘텐츠는 없으며 개인 근무 기록과 사용자가 선택하는 CSV 내보내기가 있습니다. 금융기관 연동·실제 결제·AI·광고·분석 SDK 및 개발자 서버는 없습니다. 앱의 외부 동작인 WatchConnectivity, OS 공유/파일 저장, 지원 메일과 GitHub Pages도 구분해 설명합니다. Android의 Google Play services를 iOS 답변에 포함하지 않습니다.
 
+## 수령한 영상 검토 · 2026-09-27
+
+- 원본 `ScreenRecording_09-27-2026 18-17-19_1.mp4`: 80.043515초, 1180×2556, HEVC/AAC, 78,107,634바이트. 원본을 변경하지 않았습니다. 개인 영상과 추출 프레임은 공개 저장소에 넣지 않습니다.
+- 영상 전체 구간에서 1초 간격의 80개 프레임을 추출해 시각적으로 확인했습니다. 모든 프레임을 실시간 재생한 검사나 기기를 직접 조작한 시험은 아닙니다. 확인한 이미지에 오류 팝업·크래시·멈춤을 나타내는 정지 상태는 보이지 않았습니다. 오디오는 레벨 검사에서 최대 -91 dB로 사실상 무음입니다.
+- 약 00:00~00:02: 홈 화면에서 앱 아이콘을 눌러 실행하는 장면.
+- 약 00:06~00:08: 시급 10,320원을 확인하고 근무 시작.
+- 약 00:14~00:16: 휴식 상태에서 수익 20원 유지. 약 00:17부터 재개 후 수익 증가.
+- 약 00:21~00:25: 종료 확인, 39원 확정, 2P 적립, 잔액 19P→21P.
+- 약 00:31~00:59: 상점 탐색, 정장 조끼 미리보기, 회전·확대·방 보기 및 보유 아이템 필터. 구매나 신규 장착 완료를 보여 준다고 설명하지 않습니다.
+- 약 01:00~01:05: 월 합계 376원, 당일 종료 기록 39원 표시. 기록 편집 완료까지 보여 주지는 않습니다.
+- 약 01:06~01:18: 기본 시급·시간 보상 규칙·알림 설정, 근무 기록 CSV의 시스템 저장 창. 파일 앱에서 실제 저장 파일을 다시 열지 않았으므로 내용/저장 완료까지 검증했다고 쓰지 않습니다.
+- 약 01:19: 홈으로 복귀. 온보딩·Watch·위젯·앱 개인정보 본문·앱 빌드 번호·OS 버전 확인 화면은 포함되지 않았습니다. 영상에 없는 동작을 설명에 추가하거나 관련 검증을 완료 처리하지 않습니다.
+- Apple은 분량을 지정하지 않았으므로 80초라는 이유로 더 길게 촬영하도록 요구하지 않습니다. 최신 OS 여부는 별도 충족이 필요한 명시 조건입니다.
+
+**최신 OS 근거:** [Apple security releases](https://support.apple.com/en-us/100100), 2026-09-27 조회. iOS 27은 2026-09-14 출시이며 iPhone 11 이후 모델을 지원합니다. 사용자가 촬영 당시에도 iOS 26.6.1이었다고 확인했습니다. iOS 27 업데이트 후 같은 대표 흐름을 다시 녹화해야 합니다.
+
 ## 실물 iPhone 녹화 순서
 
 Apple의 필수 조건은 **실물 기기·최신 OS·앱 실행 장면·대표 사용 흐름**입니다. 아래 3~5분 길이는 작업 편의를 위한 권장이며 Apple이 지정한 분량이 아닙니다.
@@ -36,7 +52,7 @@ Apple의 필수 조건은 **실물 기기·최신 OS·앱 실행 장면·대표 
 
 ## 영문 답변 초안
 
-**아래 `[VIDEO...]`, `[VERIFIED STEPS...]`는 아직 확인하지 않은 항목입니다. 실제 영상을 확인·첨부한 뒤 교체해야 합니다. 미촬영 상태에서 첨부/검증 완료라고 보내지 않습니다.** 같은 내용을 Notes에도 반영하되 업로드 결과에 맞게 영상 위치를 적습니다. 문안은 회신 입력란 4,000자보다 짧게 유지합니다.
+**현재 문안은 수령한 영상에 맞춘 검토용이며 아직 Apple에 전송하지 않았습니다. 최신 OS 조건을 먼저 해결하고, 제출할 실제 영상의 파일명·기기·OS·내용 및 첨부 성공을 확인한 후 사용합니다.** 새 영상으로 교체하면 아래 1번도 새 자료 기준으로 바꿉니다. 같은 내용을 Notes에도 반영하고 회신 입력란 4,000자보다 짧게 유지합니다.
 
 ```text
 Hello App Review Team,
@@ -44,12 +60,12 @@ Hello App Review Team,
 Thank you for your request regarding Guideline 2.1. Below is the information for PiyakBank, version 1.0 (2).
 
 1. Physical-device recording
-[VIDEO: verified attachment name or accessible recording link.]
-Device: iPhone 16. OS: iOS 26.6.1. Build: 1.0 (2), installed through TestFlight.
-The recording begins with app launch and demonstrates [VERIFIED STEPS: fill from the actual video].
+Recording file: ScreenRecording_09-27-2026 18-17-19_1.mp4 (80 seconds).
+Developer-reported device/OS: iPhone 16, iOS 26.6.1.
+The video begins with app launch and shows work start, pause, resume, finish and point credit; rotating/zooming a clothing preview; work history; settings; and the CSV system save dialog.
 
 2. Purpose and audience
-PiyakBank is a personal work-time tracker for Korean-speaking users, including hourly and part-time workers. Users record work and breaks, view simple estimated earnings, and use time-earned virtual points to decorate a chick's room. The room provides a small visual incentive to keep personal records. It is available to individual consumers and does not require membership of an employer or organization.
+PiyakBank is a personal work-time tracker for Korean-speaking users, including hourly and part-time workers. Users record work and breaks, view simple estimated earnings, and use time-earned virtual points to decorate a chick's room. The room encourages personal recordkeeping. The app is for individual consumers, with no employer or organization membership required.
 
 3. Setup and access
 There is no registration, login, account deletion flow, or required sample file. On first launch, enter an hourly wage (for example, 10000 KRW) and complete onboarding. Notification permission is optional.
@@ -75,7 +91,7 @@ Thank you for reviewing the additional information.
 
 ## 영상 수령 후 진행
 
-1. 모델·OS·1.0 (2) 일치, 앱 실행 장면, 주요 흐름 및 오류 유무를 실제 영상으로 확인합니다. 앱의 모든 기기/접근성 검증이 완료됐다고 쓰지 않습니다.
+1. 최신 OS 조건을 충족한 새 영상과 제출 빌드 1.0 (2)의 일치를 확인합니다. 현재 영상의 실행·주요 흐름은 위 범위까지 검토했습니다. 앱의 모든 기기/접근성 검증이 완료됐다고 쓰지 않습니다.
 2. 영상을 App Review에 첨부하거나 Apple이 접근할 수 있는 제출 방식을 사용하고, 실제 첨부/접근 성공을 확인합니다. 공개 저장소에 개인 영상이나 연락처를 커밋하지 않습니다.
 3. 위 초안의 영상 문단을 실제 관찰 내용으로 바꾸고, Apple 요청대로 회신과 Notes 양쪽에 반영합니다. 사용자에게 Apple 회신 전송 지시를 받은 뒤 보냅니다.
 4. 필요한 정보 보완을 마치고 UI의 해결 절차를 따릅니다. 메타데이터 문제는 동일 빌드로 재제출할 수 있지만, 영상에서 앱 오류가 발견되면 수정 빌드를 먼저 검증합니다. 지금은 새 빌드 필요 여부나 승인 가능성을 확정하지 않습니다.
