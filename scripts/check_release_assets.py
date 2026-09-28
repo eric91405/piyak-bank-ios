@@ -21,11 +21,20 @@ for item_id in ids:
     assert all((folder / image['filename']).is_file() for image in images)
 for target in ('PiyakBank', 'PiyakWatch Watch App'):
     folder = ROOT / target / 'Assets.xcassets/AppIcon.appiconset'
-    image = json.loads((folder / 'Contents.json').read_text())['images'][0]
-    data = (folder / image['filename']).read_bytes()
-    assert data[:8] == b'\x89PNG\r\n\x1a\n'
-    assert struct.unpack('>II', data[16:24]) == (1024, 1024)
-    assert data[25] == 2, 'App icon must be RGB without alpha.'
+    images = json.loads((folder / 'Contents.json').read_text())['images']
+    expected = {None, 'dark', 'tinted'} if target == 'PiyakBank' else {None}
+    appearances = []
+    for image in images:
+        variants = image.get('appearances', [])
+        assert len(variants) <= 1 and all(v['appearance'] == 'luminosity' for v in variants)
+        appearances.append(variants[0]['value'] if variants else None)
+        assert image['idiom'] == 'universal' and image['size'] == '1024x1024'
+        assert image['platform'] == ('ios' if target == 'PiyakBank' else 'watchos')
+        data = (folder / image['filename']).read_bytes()
+        assert data[:8] == b'\x89PNG\r\n\x1a\n'
+        assert struct.unpack('>II', data[16:24]) == (1024, 1024)
+        assert data[25] == 2, 'App icon must be RGB without alpha.'
+    assert len(appearances) == len(expected) and set(appearances) == expected, 'Missing or duplicate app icon appearance.'
 for target in ('PiyakBank', 'PiyakWatch Watch App', 'PiyakWidget'):
     manifest = plistlib.loads((ROOT / target / 'PrivacyInfo.xcprivacy').read_bytes())
     assert manifest['NSPrivacyTracking'] is False
@@ -39,4 +48,4 @@ for target in ('PiyakBank', 'PiyakWatch Watch App', 'PiyakWidget'):
 info = plistlib.loads((ROOT / 'PiyakBank/Info.plist').read_bytes())
 assert 'piyakbank' in info['CFBundleURLTypes'][0]['CFBundleURLSchemes']
 assert not (ROOT / 'PiyakBank/Services/Products.storekit').exists()
-print('81 item previews, both opaque icons, three privacy manifests and URL scheme: OK')
+print('81 item previews, four opaque icon variants, three privacy manifests and URL scheme: OK')
