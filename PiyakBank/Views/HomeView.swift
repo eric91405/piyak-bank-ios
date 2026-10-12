@@ -9,7 +9,8 @@ struct HomeView: View {
     @Query private var transactions: [PointTransaction]
     @State private var showWage = false
     @State private var confirmStop = false
-    @State private var reward: Int?
+    @State private var stopSessionID: String?
+    @State private var reward: WorkSettlement?
     @State private var interactionID = 0
     @State private var lastInteractionAt: TimeInterval = -.infinity
     @State private var activity = "반가워! 오늘도 함께해"
@@ -57,17 +58,18 @@ struct HomeView: View {
             }
             .confirmationDialog("근무를 마치고 기록할까요?", isPresented: $confirmStop, titleVisibility: .visible) {
                 Button("근무 마치기") {
-                    session.perform { reward = try session.stop() }
+                    session.perform {
+                        guard let stopSessionID else { throw SessionController.RemoteError.changed }
+                        reward = try session.stop(expectedSessionID: stopSessionID)
+                    }
                 }
-            } message: { Text("휴식을 뺀 타이머 근무 10분마다 100P, 하루 최대 4,800P를 받아요. 시급은 포인트에 영향을 주지 않아요.") }
+            } message: { Text("휴식을 뺀 근무 6초당 1P (10분에 100P)를 같은 날끼리 합산해요. 한국 시간의 근무 날짜별로 최대 4,800P를 받아요. 시급은 포인트에 영향을 주지 않아요.") }
             .alert("오늘도 수고했어요!", isPresented: Binding(get: { reward != nil }, set: { if !$0 { reward = nil } })) {
                 Button("삐약이와 계속하기") { reward = nil }
             } message: {
-                Text((reward ?? 0) > 0
-                     ? "근무를 저장하고 \((reward ?? 0).points)를 적립했어요. 삐약이의 방에서 사용해 보세요."
-                     : "근무를 저장했어요. 이번에 추가된 포인트는 없어요. 하루 최대 4,800P까지, 같은 날의 타이머 근무 시간을 합쳐 적립해요.")
+                Text(reward?.message(at: Date()) ?? "")
             }
-            .sensoryFeedback(.success, trigger: reward)
+            .sensoryFeedback(.success, trigger: reward?.sessionID)
             .sensoryFeedback(.selection, trigger: interactionID)
         }
     }
@@ -192,16 +194,18 @@ Button { router.tab = .decorate } label: {
             Divider()
             ViewThatFits(in: .horizontal) {
                 HStack {
-                    Text("오늘 받은 꾸미기 포인트")
+                    Text("오늘 근무로 적립된 포인트")
                     Spacer()
                     Text("\(todayPoints.points) / \(RewardPolicy.pointsPerDay.points)").bold().monospacedDigit()
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("오늘 받은 꾸미기 포인트")
+                    Text("오늘 근무로 적립된 포인트")
                     Text("\(todayPoints.points) / \(RewardPolicy.pointsPerDay.points)").bold().monospacedDigit()
                 }
             }.font(.caption).foregroundStyle(PB.C.textBrown)
             Text("시급과 무관하게 타이머 10분에 100P · 근무를 마치면 적립돼요")
+                .font(.caption2).foregroundStyle(PB.C.secondary)
+            Text("한국 시간 기준 · 자정을 넘긴 근무는 날짜별로 나눠 적립해요")
                 .font(.caption2).foregroundStyle(PB.C.secondary)
             if let notice = Self.rewardDayNotice(at: date) {
                 Label(notice, systemImage: "globe.asia.australia")
@@ -246,7 +250,7 @@ Button { router.tab = .decorate } label: {
                 Button { session.perform { if paused { try session.resume() } else { try session.pause() } } } label: {
                     Label(paused ? "계속 일하기" : "잠깐 쉬기", systemImage: paused ? "play.fill" : "pause.fill")
                 }.buttonStyle(GameButtonStyle(color: PB.C.lilac))
-                Button { confirmStop = true } label: { Label("근무 마치기", systemImage: "checkmark") }
+                Button { stopSessionID = session.snapshot.sessionId; confirmStop = true } label: { Label("근무 마치기", systemImage: "checkmark") }
                     .buttonStyle(GameButtonStyle())
             } else {
                 Button { showWage = true } label: { Label("삐약이와 근무 시작", systemImage: "play.fill") }

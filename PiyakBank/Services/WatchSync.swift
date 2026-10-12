@@ -162,13 +162,19 @@ final class WatchSync: NSObject, ObservableObject, WCSessionDelegate {
     }
 
     func sendCommand(_ action: String) {
+        guard let current = lastReceived?.snapshot else {
+            errorMessage = "iPhone과 연결한 뒤 다시 눌러 주세요."
+            return
+        }
+        sendCommand(WatchCommand(action: action, sessionId: current.sessionId))
+    }
+
+    func sendCommand(_ command: WatchCommand) {
         guard !isSending else { return }
-        guard let session, session.activationState == .activated, session.isReachable,
-              let current = lastReceived?.snapshot else {
+        guard let session, session.activationState == .activated, session.isReachable else {
             errorMessage = "iPhone과 연결한 뒤 다시 눌러 주세요. 오프라인 요청은 나중에 실행되지 않아요."
             return
         }
-        let command = WatchCommand(action: action, sessionId: current.sessionId)
         guard let data = try? JSONEncoder().encode(command) else { return }
         isSending = true
         session.sendMessage(["command": data], replyHandler: { [weak self] reply in
