@@ -8,20 +8,20 @@
 
 첫 출시 방향은 **무료·광고 없음·회원가입 없음**입니다. 포인트는 앱 꾸미기 전용이며 현금 가치나 송금·인출 기능은 없습니다. 표시 수익은 세금과 수당을 제외한 단순 추정치입니다.
 
-## 현재 진행 상황 · 2026-09-28
+## 현재 진행 상황 · 2026-10-12
 
 ### iOS · Apple Watch
 
-iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-ios/pull/3)까지 `main`에 반영했습니다. **핵심 로직과 주요 iPhone 사용 흐름을 검증했고, 1.0 (2)를 TestFlight에 업로드했습니다. 사용자가 TestFlight에서 정상 동작을 보고했습니다. 기기·OS별 전체 출시 검증은 별도로 남아 있습니다.**
+**iOS 1.0은 App Store에 출시됐습니다.** 근무 종료의 날짜별 포인트·잔액 안내와 오래된 종료 확인 보호를 [PR #9](https://github.com/eric91405/piyak-bank-ios/pull/9)으로 `main`에 반영했습니다. **1.0.1 (6)**의 배포 서명·권한 검증, Apple 업로드와 심사 제출을 완료했으며 **심사 대기 중**입니다. [변경·검증·배포 기록](docs/quality/work-settlement-20261012.md)을 따릅니다. 기기·OS별 전체 검증은 별도로 남아 있습니다.
 
 | 범위 | 상태 |
 |---|---|
-| 자동 검증 | 테스트 115개, 초기 SwiftData 스키마 이전, 리소스·개인정보 매니페스트 검사 통과 |
-| 통합 빌드 | iPhone·Watch·위젯 Release 빌드 통과 — [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/35569409466) |
+| 자동 검증 | 테스트 124개, 초기 SwiftData 스키마 이전, 리소스·개인정보 매니페스트 검사 통과 |
+| 통합 빌드 | iPhone·Watch·위젯 Release 빌드 통과 — [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/38209749671) |
 | iPhone 시뮬레이터 | 온보딩, 근무·휴식·정산, 기록 수정, 포인트 분리, 설정·재실행 보존 확인 |
 | 남은 화면·호환성 검증 | iPad 다중 창 실제 조작, VoiceOver·최대 글씨·가로 화면 전체 흐름, 최소 지원 OS 실행 |
 | 남은 실기기 검증 | Watch 통신, 알림·위젯 갱신, 배터리·발열, 배포 빌드의 데이터 업그레이드 |
-| 배포 | 새 기본·다크·틴티드·Watch 아이콘의 1.0 (5)를 2026-09-28 12:38 KST 재제출·심사 대기 중. 빌드 4 실물 영상과 아이콘만 변경한 점을 Notes에 명시. 무료·한국 단독·승인 후 자동 출시 |
+| 배포 | 1.0 공개 출시. 1.0.1 (6)는 2026-10-12 14:59 KST 심사 제출·심사 대기 중. 기존 무료·한국 단독·승인 후 자동 출시 설정 유지 |
 
 홈·꾸미기 렌더링 개선은 [PR #6](https://github.com/eric91405/piyak-bank-ios/pull/6)에 정리했습니다. 같은 시뮬레이터에서 렌더 콜백이 약 30fps→60fps로 개선됐으며, 실제 기기 성능 측정을 대신하지 않습니다. [관찰 범위와 배포 기록](docs/quality/rendering-20260927.md)을 따릅니다.
 
@@ -42,7 +42,7 @@ iOS 출시 안정화 수정은 [PR #3](https://github.com/eric91405/piyak-bank-i
 | 수정 | 최소 OS 계산 크래시, 회전 중 CSV 유지, 알림 상태, 큰 글꼴/대화상자, TalkBack 방 설명, 오래된 Wear 조작, 곡선 모델 이음새 |
 | 원격 CI | 코드 `8fe25b7`의 [Android](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766276)·[iOS](https://github.com/eric91405/piyak-bank-ios/actions/runs/36113766453) 통과 |
 | 남은 검증 | 물리 GPU·휴대폰–시계 연결·알림·위젯·전력·태블릿·보조 입력. 스위치 접근은 에뮬레이터 입력 제약으로 미완료 |
-| 배포 | 새 기본·다크·틴티드·Watch 아이콘의 1.0 (5)를 2026-09-28 12:38 KST 재제출·심사 대기 중. 빌드 4 실물 영상과 아이콘만 변경한 점을 Notes에 명시. 무료·한국 단독·승인 후 자동 출시 |
+| 배포 | Google Play 미출시. Console 조건·업로드 키·최종 Play 설치와 물리 기기 검증은 별도 후속 작업 |
 
 실행 환경과 한계는 [Android 검증 기록](android/docs/VALIDATION.md), 구조와 명령은 [Android README](android/README.md), 후속 절차는 [UI 테스트 계획](android/docs/UI_TEST_PLAN.md)과 [Play Store 체크리스트](android/docs/PLAY_STORE.md)에 정리했습니다. Android 134개는 iOS 115개와 별개이며 물리 기기·스토어 검증을 대신하지 않습니다.
 

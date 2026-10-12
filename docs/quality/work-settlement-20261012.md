@@ -15,7 +15,7 @@ App Store iPhone 앱에서 종료 안내와 실제 적립량이 달라 보였다
 - iPhone 종료 확인창이 열린 뒤 워치나 다른 창에서 해당 근무를 종료하고 새 근무를 시작해도, 오래된 확인으로 새 근무를 종료하지 못하게 한다. 이미 끝난 근무에 다시 확인하면 0P 성공 안내를 표시하지 않고 상태 변경을 알린다.
 - Watch 종료 확인도 창을 열 때의 대상 근무 ID를 보존한다. 명령의 유효 시간은 실제 확인 시점부터 계산한다.
 
-저장 모델과 보상 정책은 기존 형식을 유지한다. 수동 기록·수정·삭제, 구매, 이전 정책 잔액의 처리 규칙도 유지한다. App Store 업로드·배포는 수행하지 않았다.
+저장 모델과 보상 정책은 기존 형식을 유지한다. 수동 기록·수정·삭제, 구매, 이전 정책 잔액의 처리 규칙도 유지한다. 아래 검증 이후 사용자가 GitHub 반영과 App Store 배포를 요청해 업데이트 배포를 진행했다.
 
 ## 자동 검증
 
@@ -47,3 +47,17 @@ Xcode 26.6 / Swift 6.3.3, 한 번에 한 컴파일 작업으로 실행했다.
 Watch의 확인 대상 보존은 소스 검토와 통합 빌드로 확인했으며, 이번 작업에서 실제 iPhone–Watch 연결 조작은 하지 않았다. 자정·한도·저장 실패 등은 자동 회귀 결과이고 실제 장시간 근무 시험을 대신하지 않는다. 사용자 제보 당시의 동일 증상과 물리 기기 검증은 미확인이다.
 
 이번 테스트와 빌드 로그는 `/tmp/piyak-settlement-tests.log`, `/tmp/piyak-settlement-build.log`, `/tmp/piyak-settlement-simulator-build.log`, `/tmp/piyak-settlement-migration.log`에 있다. 임시 파일이므로 장기 보존을 보장하지 않는다.
+
+## GitHub 반영과 1.0.1 (6) 배포
+
+사용자가 GitHub 업데이트와 App Store 배포를 명시적으로 요청했다. Apple 공개 조회 API와 App Store Connect에서 현재 공개 버전 1.0을 확인하고, 앱·Watch·위젯을 **1.0.1 (6)**으로 준비했다. 공개 조회의 기존 버전 출시 시각은 2026-09-29 01:26 KST다.
+
+- [PR #9](https://github.com/eric91405/piyak-bank-ios/pull/9)의 최종 소스 `6fb2380`에서 [PR CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/38209442397)가 통과한 뒤 **14:50 KST** `46d0591`로 main에 병합했다. [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/38209749671)와 GitHub Pages 배포도 통과했다.
+- `agvtool`의 빌드 번호 갱신과 별개로 Xcode의 `MARKETING_VERSION`이 1.0에 남아 있는 것을 Archive 검사에서 발견했다. 설치된 Xcode 프로젝트 API로 세 타깃의 Debug·Release 설정을 1.0.1로 맞춘 뒤 새 Archive에서 실제 Info.plist 값을 확인했다. 초기 1.0 (6) 점검 IPA는 업로드하지 않았다.
+- 등록된 개발용 기기가 없어 개발 프로파일로 직접 Archive를 서명하지 못했다. 기존 출시 절차대로 unsigned Archive 사본의 원본 entitlement를 복원한 뒤 App Store 배포 프로파일로 내보냈다. `verify_distribution_ipa.py`가 세 타깃 모두 **1.0.1 (6)**, 엄격한 배포 서명 검증, 올바른 팀·프로파일·App Group, 디버그 권한 비활성화, 최소 OS·개인정보 매니페스트를 확인했다.
+- **2026-10-12 14:52:45 KST**에 Xcode의 `Upload succeeded`·`EXPORT SUCCEEDED`를 확인했다. TestFlight의 **버전 1.0.1, 빌드 (6), 처리 중** 표기도 확인했다.
+- App Store Connect에 1.0.1 초안을 만들고 한국어 업데이트 설명·프로모션·현재 버전의 영문 심사 Notes를 저장한 뒤 다시 불러와 확인했다. 기존 영상이 첨부돼 있다면 1.0 (4)의 역사적 자료라는 점을 명시했으며, 1.0.1의 실기기 영상으로 표시하지 않았다. 자동 출시·모든 사용자에게 즉시 업데이트 선택을 확인했다.
+
+Apple 처리 완료 후 TestFlight의 **빌드 6·제출 준비 완료**를 확인하고 새 버전에 연결했다. **2026-10-12 14:59 KST**에 심사를 제출했으며 **15:00 KST** 제출 상세에서 **1.0.1 (6)·심사 대기 중·제출된 항목 1개**를 확인했다. 제출 ID는 `541d46b6-a229-4396-b536-71f5059742ce`다. [제출 상세](https://appstoreconnect.apple.com/apps/6816129028/distribution/reviewsubmissions/details/541d46b6-a229-4396-b536-71f5059742ce)를 따르며, 승인 후 자동 출시·모든 사용자에게 즉시 업데이트 설정을 유지한다. 새 버전의 심사 승인 또는 공개 출시는 아직 확인하지 않았다.
+
+배포 증거는 공개 저장소 밖의 `/Users/minseo/develop/output/piyak-settlement-release-20261012/`에 보관한다. 실제 배포 대상은 `PiyakBank-1.0.1-entitlements.xcarchive`와 `export-1.0.1/PiyakBank.ipa`이며, 제출 증빙은 `submitted-build6.png`다. 서명·프로파일 자료와 비공개 심사 연락처를 GitHub에 포함하지 않는다. 사용자 소유 `piyakbank-fixes.patch`는 변경하거나 커밋하지 않았다.
