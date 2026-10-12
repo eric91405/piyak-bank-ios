@@ -17,6 +17,7 @@ struct PiyakWatchApp: App {
 struct WatchRootView: View {
     @EnvironmentObject var sync: WatchSync
     @State private var confirmStop = false
+    @State private var stopCommand: WatchCommand?
     private var state: SessionSnapshot { sync.lastReceived?.snapshot ?? .empty }
 
     private var mascot: Image {
@@ -50,7 +51,10 @@ struct WatchRootView: View {
                         Button(state.isPaused ? "계속 일하기" : "잠깐 쉬기") {
                             sync.sendCommand(state.isPaused ? "resume" : "pause")
                         }.tint(PB.C.brandYellow).foregroundStyle(PB.C.ink)
-                        Button("근무 마치기", role: .destructive) { confirmStop = true }
+                        Button("근무 마치기", role: .destructive) {
+                            stopCommand = WatchCommand(action: "stop", sessionId: state.sessionId)
+                            confirmStop = true
+                        }
                     } else {
                         Button("근무 시작") { sync.sendCommand("start") }
                             .tint(PB.C.brandYellow).foregroundStyle(PB.C.ink)
@@ -72,7 +76,13 @@ struct WatchRootView: View {
         }
         .tabViewStyle(.verticalPage)
         .confirmationDialog("근무를 마치고 기록할까요?", isPresented: $confirmStop) {
-            Button("근무 마치기") { sync.sendCommand("stop") }
+            Button("근무 마치기") {
+                if var stopCommand {
+                    // The target is fixed at opening; request age starts at confirmation.
+                    stopCommand.createdAt = .now
+                    sync.sendCommand(stopCommand)
+                }
+            }
         } message: { Text("시급과 무관하게 휴식을 뺀 타이머 10분에 100P, 하루 최대 4,800P를 받아요.") }
         .alert("연결 확인", isPresented: Binding(get: { sync.errorMessage != nil }, set: { if !$0 { sync.errorMessage = nil } })) {
             Button("확인") { sync.errorMessage = nil }

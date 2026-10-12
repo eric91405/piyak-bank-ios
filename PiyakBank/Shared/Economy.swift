@@ -145,6 +145,11 @@ final class RewardReceipt {
 
 // MARK: - EconomyStore (원장 합산 · 구매 · 환불 · 착용 · 시드)
 
+struct RewardAccrual: Equatable, Sendable {
+    let day: Date
+    let points: Int
+}
+
 @MainActor
 final class EconomyStore {
     let context: ModelContext
@@ -296,24 +301,24 @@ final class EconomyStore {
     /// Called inside the same transaction as stop. Even zero-point work gets a receipt
     /// so fractions accumulate without permitting retries to earn twice.
     @discardableResult
-    func insertAccruals(for session: WorkSession, now: Date = .now) throws -> Int {
+    func insertAccruals(for session: WorkSession, now: Date = .now) throws -> [RewardAccrual] {
         let receipts = try context.fetch(FetchDescriptor<RewardReceipt>())
         guard !receipts.contains(where: { $0.sessionId == session.id }),
-              let tracking = try session.rewardTracking() else { return 0 }
+              let tracking = try session.rewardTracking() else { return [] }
         let previous = try receipts.flatMap { try $0.intervals() }
         // Tracking uses a monotonic reward calendar, which intentionally differs
         // from a manually changed wall clock. Do not clip it with editable wall time.
         let newIntervals = tracking.intervals
         let priorDays = Dictionary(uniqueKeysWithValues: RewardPolicy.daily(previous, calendar: RewardPolicy.calendar).map { ($0.day, $0.points) })
         let nextDays = RewardPolicy.daily(previous + newIntervals, calendar: RewardPolicy.calendar)
-        var awarded = 0
+        var awarded: [RewardAccrual] = []
         for day in nextDays {
             let delta = max(0, day.points - priorDays[day.day, default: 0])
             if delta > 0 {
                 context.insert(PointTransaction(amount: delta, kind: .accrual,
                                                 date: day.day, relatedId: session.id,
                                                 note: "타이머 근무 시간 보상 · 한국 시간 기준"))
-                awarded += delta
+                awarded.append(RewardAccrual(day: day.day, points: delta))
             }
         }
         context.insert(try RewardReceipt(sessionId: session.id, intervals: newIntervals, createdAt: now))

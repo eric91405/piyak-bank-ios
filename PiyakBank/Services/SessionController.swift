@@ -17,6 +17,37 @@ protocol SessionReminding: AnyObject {
 
 enum ReminderInterval: Int, CaseIterable { case m15 = 15, m30 = 30, m60 = 60 }
 
+/// The completion UI uses the same day-by-day amounts inserted into the ledger.
+/// A saved balance is kept separately from this session's newly awarded points.
+struct WorkSettlement: Equatable, Sendable {
+    let sessionID: String
+    let accruals: [RewardAccrual]
+    let balanceBefore: Int
+    let balanceAfter: Int
+
+    var points: Int { accruals.reduce(0) { $0 + $1.points } }
+
+    func message(at date: Date) -> String {
+        var lines = [points > 0
+                     ? "근무를 저장하고 총 \(points.points)를 적립했어요."
+                     : "근무를 저장했어요. 이번에 추가된 포인트는 없어요."]
+        lines.append("보유 포인트: \(balanceBefore.points) → \(balanceAfter.points)")
+        if accruals.count > 1 || accruals.first.map({
+            !RewardPolicy.calendar.isDate($0.day, inSameDayAs: date)
+        }) == true {
+            let formatter = DateFormatter()
+            formatter.calendar = RewardPolicy.calendar
+            formatter.timeZone = RewardPolicy.calendar.timeZone
+            formatter.locale = Locale(identifier: "ko_KR")
+            formatter.dateFormat = "M월 d일"
+            lines.append("근무한 날짜별 적립 (한국 시간)")
+            lines += accruals.map { "\(formatter.string(from: $0.day)): \($0.points.points)" }
+        }
+        lines.append("휴식을 뺀 근무 6초당 1P를 같은 날끼리 합산해요. 날짜별 한도는 \(RewardPolicy.pointsPerDay.points)예요.")
+        return lines.joined(separator: "\n")
+    }
+}
+
 @MainActor
 final class SessionController: ObservableObject {
     @Published private(set) var current: WorkSession?
@@ -126,16 +157,31 @@ final class SessionController: ObservableObject {
 
     @discardableResult
     func stop() throws -> Int {
-        guard let session = current else { return 0 }
+        try settleCurrentSession()?.points ?? 0
+    }
+
+    /// A confirmation belongs to the session displayed when it was opened.
+    /// Watch or another window may finish that session and start a replacement.
+    func stop(expectedSessionID: String) throws -> WorkSettlement {
+        guard current?.id == expectedSessionID, current?.isActive == true,
+              let result = try settleCurrentSession() else { throw RemoteError.changed }
+        return result
+    }
+
+    private func settleCurrentSession() throws -> WorkSettlement? {
+        guard let session = current else { return nil }
         guard session.isActive else {
             current = nil
             refreshSnapshot()
             updateReminders()
-            return 0
+            return nil
         }
         let date = now()
-        var awarded = 0
+        var accruals: [RewardAccrual] = []
+        var balanceBefore = 0
+        var balanceAfter = 0
         try economy.transaction(restoring: session.restorePoint()) {
+            balanceBefore = try economy.balance()
             try checkpoint(session, date: date, working: false)
             var segments = try session.decodedSegments()
             guard let index = segments.indices.last else { throw EconomyStore.StoreError.corruptRecord }
@@ -144,13 +190,15 @@ final class SessionController: ObservableObject {
             session.segments = segments
             session.endedAt = boundary
             session.isActive = false
-            awarded = try economy.insertAccruals(for: session, now: date)
+            accruals = try economy.insertAccruals(for: session, now: date)
+            balanceAfter = try economy.balance()
         }
         current = nil
         defaults.removeObject(forKey: AppConfig.kActiveSession)
         refreshSnapshot()
         updateReminders()
-        return awarded
+        return WorkSettlement(sessionID: session.id, accruals: accruals,
+                              balanceBefore: balanceBefore, balanceAfter: balanceAfter)
     }
 
     private func checkpoint(_ session: WorkSession, date: Date, working: Bool) throws {
@@ -283,7 +331,7 @@ final class SessionController: ObservableObject {
         var errorDescription: String? {
             switch self {
             case .expired: "요청 시간이 지났어요. 상태를 새로고침한 뒤 다시 눌러 주세요."
-            case .changed: "iPhone에서 근무 상태가 바뀌었어요. 다시 확인해 주세요."
+            case .changed: "근무 상태가 바뀌었어요. 다시 확인한 뒤 눌러 주세요."
             }
         }
     }
