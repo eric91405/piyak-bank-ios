@@ -1,6 +1,12 @@
 # 인수인계 — 출시 전 수정·개선 작업
 
-## 최신 배포 입력 상태 (2026-10-12)
+## 최신 배포 입력 상태 (2026-10-15)
+
+첫 사용 3D 가이드 4장 → 기본 시급 설정과 설정 → 이용 안내의 다시 보기를 `870c443`으로 반영했습니다. Swift 회귀 124개·구버전 스키마 이전·세 타깃 Release 빌드의 [GitHub 검사](https://github.com/eric91405/piyak-bank-ios/actions/runs/38677898154)와 iPhone·iPad 화면 검증을 통과했고 사용자가 시뮬레이터에서 직접 확인했습니다. 이후 사용자 요청으로 **1.0.2 (7)** 배포 패키지를 만들고 실제 서명·프로파일·App Group을 검증했습니다. **2026-10-15 14:14:46 KST** 업로드, **14:18 KST** 심사 제출을 완료했으며 제출 상세에서 **1.0.2 (7)·심사 대기 중**을 확인했습니다. 제출 ID는 `aa2bc1ee-6ada-484d-b77d-3e84f3155b29`입니다. 승인 후 자동 출시·모든 사용자 즉시 업데이트 설정을 유지합니다. [구현 검증](docs/quality/onboarding-20261015.md)과 [배포 기록](docs/quality/onboarding-release-20261015.md)을 따릅니다. 1.0.2의 승인·공개 출시는 아직 확인하지 않았습니다.
+
+기존 **1.0.1**의 공개 출시는 Apple 공개 조회와 Connect에서 확인했습니다(공개 조회 출시 시각 2026-10-13 03:05 KST). 이번 배포 소스는 버전 설정을 포함한 `5fe1b36`이며, 산출물과 증빙은 `/Users/minseo/develop/output/piyak-onboarding-release-20261015/`에 있습니다. 제출용 Archive는 `PiyakBank-1.0.2-entitlements.xcarchive`, 검증 IPA는 `export/PiyakBank.ipa`입니다. 갱신된 개발자 계약은 사용자가 직접 동의했습니다.
+
+## 이전 배포 입력 상태 (2026-10-12)
 
 **최신 작업:** 근무 포인트 안내와 오래된 iPhone·Watch 종료 확인 보호를 [PR #9](https://github.com/eric91405/piyak-bank-ios/pull/9)으로 병합했습니다(`46d0591`). 회귀 124개·실제 초기 스키마 이전·세 타깃 Release 빌드가 [병합 후 CI](https://github.com/eric91405/piyak-bank-ios/actions/runs/38209749671)에서 통과했습니다. 실제 배포 IPA의 세 타깃 **1.0.1 (6)**·서명·프로파일·App Group·디버그 권한 비활성화를 확인하고 **2026-10-12 14:52 KST** Apple 업로드, **14:59 KST** 심사 제출을 완료했습니다. **15:00 KST 심사 대기 중**을 확인했습니다. 제출 ID는 `541d46b6-a229-4396-b536-71f5059742ce`이며 승인 후 자동 출시·모든 사용자 즉시 업데이트 설정을 유지합니다. 사용자가 GitHub 업데이트와 App Store 배포를 명시적으로 요청했습니다. [이번 변경·배포 기록](docs/quality/work-settlement-20261012.md)을 따릅니다.
 
