@@ -30,8 +30,27 @@ struct PrivacyView: View {
 }
 
 struct HelpView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var showingGuide = false
+
     var body: some View {
         List {
+            Section {
+                Button { showingGuide = true } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "play.rectangle.fill").font(.title2).foregroundStyle(PB.C.accent)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text("처음 사용 가이드 다시 보기").font(.headline)
+                            Text("삐약뱅크와 Apple Watch 사용법을 3D로 만나요")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }.padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                }.buttonStyle(.plain)
+            }
             Section("어떤 앱인가요?") {
                 Text("근무 시간을 기록하고, 예상 수익을 확인하며 병아리의 방을 꾸미는 앱이에요. 실제 은행이나 급여 지급 서비스가 아니에요.")
             }
@@ -55,5 +74,9 @@ struct HelpView: View {
                 Text("홈에서 삐약이를 누르거나 ‘놀아주기’ 버튼을 눌러 보세요. 삐약이가 인사하거나 장착한 가구와 함께 놀아요. 꾸미기에서 장착한 가구에 따라 행동이 달라져요.")
             }
         }.navigationTitle("삐약뱅크 이용 안내").navigationBarTitleDisplayMode(.inline)
+            .fullScreenCover(isPresented: $showingGuide) {
+                UsageGuideView(mode: .replay) { showingGuide = false }
+                    .environment(\.dynamicTypeSize, dynamicTypeSize)
+            }
     }
 }
